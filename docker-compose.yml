@@ -1,0 +1,16 @@
+services:
+  rss_fetch:
+    build: php
+    networks:
+      - internal
+    container_name: rss_fetch
+    hostname: rss_fetch
+  redis:
+   image: "redis:7.2-rc2-alpine"
+   networks:
+     - internal
+   container_name: redis_server
+   hostname: redis_server
+networks:
+  internal:
+    name: internal
