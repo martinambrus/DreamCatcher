@@ -25,7 +25,5 @@ RUN composer require jdecool/jsonfeed
 
 RUN echo "extension=redis" | tee -a $PHP_INI_DIR/php.ini > /dev/null
 
-ENV FEED_URL https://news.ycombinator.com/rss
-
-#CMD [ "/bin/sh", "-c", "source /env.sh && printenv && php ./rss-fetch.php $FEED_URL" ]
-CMD [ "/bin/sh", "-c", "source /env.sh && php ./rss-fetch.php $FEED_URL" ]
+#CMD [ "/bin/sh", "-c", "source /env.sh && printenv && php ./rss-fetch.php" ]
+CMD [ "/bin/sh", "-c", "source /env.sh && php ./rss-fetch.php" ]

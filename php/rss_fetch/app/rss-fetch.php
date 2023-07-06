@@ -1,6 +1,4 @@
 <?php
-/* RUNS EVERY 5 MINUTES */
-
 require_once './vendor/autoload.php';
 use JDecool\JsonFeed\Reader\ReaderBuilder;
 
@@ -15,6 +13,7 @@ $time_start = microtime(true);
 $feed_url = getenv( 'FEED_URL' );
 define( 'REDIS_NEW_LINKS_CHANNEL', getenv( 'REDIS_NEW_LINKS_CHANNEL' ) );
 define( 'REDIS_NEW_LINK_ERRORS_CHANNEL', getenv( 'REDIS_NEW_LINK_ERRORS_CHANNEL' ) );
+define( 'REDIS_LOGS_CHANNEL', getenv( 'REDIS_LOGS_CHANNEL' ) );
 
 require_once "./utils.php";
 require_once "./SimplePie.compiled.php";
@@ -22,6 +21,20 @@ require_once "./SimplePie.compiled.php";
 $redis = new Redis();
 //Connecting to Redis
 $redis->connect( getenv( 'REDIS_HOSTNAME' ), getenv( 'REDIS_PORT' ) );
+
+if ( !$feed_url ) {
+  $msg = 'error: no feed URL passed in ENV variable for rss-fetch';
+
+  $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
+    'service' => 'rss-fetch',
+    'severity' => 'error',
+    'time' => time(),
+    'msg' => $msg,
+  ]));
+
+  echo $msg ."\n";
+  exit;
+}
 
 // if this feed doesn't have an HTTP or HTTPS prefix, try looking for a working link with one of those prefixes
 // and update it if found
@@ -104,7 +117,7 @@ try {
           // URL is optional for a JSON feed, so just use ID as a hash
           $url = ($item->getUrl() ?? '#' . $item->getId());
 
-          $feed_info = [
+          $feed_item_info = [
             'title'       => ($item->getTitle() ?? $url),
             'description' => $description,
             'link'        => $url,
@@ -114,14 +127,16 @@ try {
           ];
 
           if ( $author ) {
-            $feed_info['author'] = $author;
+            $feed_item_info['author'] = $author;
           }
 
           if ( count( $categories ) ) {
-            $feed_info['categories'] = $categories;
+            $feed_item_info['categories'] = $categories;
           }
 
-          $redis->publish( REDIS_NEW_LINKS_CHANNEL, json_encode( $feed_info ) );
+          $feed_item_info[ 'feed_url' ] = $feed_url;
+
+          $redis->publish( REDIS_NEW_LINKS_CHANNEL, json_encode( $feed_item_info ) );
         }
       }
     } else {
@@ -204,7 +219,7 @@ try {
           }
         }
 
-        $feed_info = [
+        $feed_item_info = [
           'title'        => ($item->get_title() ? untagize( $item->get_title() ) : $item->get_link()),
           'description'  => $item->get_description(),
           'link'         => $item->get_link(),
@@ -213,30 +228,44 @@ try {
           'fetched'      => time(),
         ];
 
-        $first_item_stamp = $feed_info['date'];
+        $first_item_stamp = $feed_item_info['date'];
 
         if ( count( $authors ) ) {
-          $feed_info['authors'] = $authors;
+          $feed_item_info['authors'] = $authors;
         }
 
         if ( count( $categories ) ) {
-          $feed_info['categories'] = $categories;
+          $feed_item_info['categories'] = $categories;
         }
 
-        $redis->publish( REDIS_NEW_LINKS_CHANNEL, json_encode( $feed_info ) );
+        $feed_item_info[ 'feed_url' ] = $feed_url;
+
+        $redis->publish( REDIS_NEW_LINKS_CHANNEL, json_encode( $feed_item_info ) );
       }
     }
 } catch (\Exception $exception) {
-  echo '(' . $exception->getCode() . ') Error processing "' . $feed_url . '" with message: ' . $exception->getMessage() . ' (file ' . $exception->getFile() . ', line ' . $exception->getLine() .")\n";
+  $msg = '(' . $exception->getCode() . ') Error processing "' . $feed_url . '" with message: ' . $exception->getMessage() . ' (file ' . $exception->getFile() . ', line ' . $exception->getLine() .')';
 
-  $redis->publish( REDIS_NEW_LINK_ERRORS_CHANNEL, json_encode( [
-    'feed' => $feed_url,
-    'code' => $exception->getCode(),
-    'msg' => $exception->getMessage(),
-    'file' => $exception->getFile(),
-    'line' => $exception->getLine(),
+  $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
+    'service' => 'rss-fetch',
+    'severity' => 'error',
+    'feed_url' => $feed_url,
+    'time' => time(),
+    'msg' => $msg,
   ]));
+
+  echo $msg ."\n";
+  exit;
 }
 
 $time_end = microtime(true);
-echo "\n\n[" . date('j.m.Y, H:i:s') . '] fetch complete for ' . $feed_url . ' in ' . (round($time_end - $time_start,3) * 1000) . 'ms';
+$log_msg = "fetch complete for $feed_url in " . (round($time_end - $time_start,3) * 1000) . 'ms';
+
+$redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
+  'service' => 'rss-fetch',
+  'severity' => 'log',
+  'time' => time(),
+  'msg' => $log_msg,
+]));
+
+echo "\n\n[" . date('j.m.Y, H:i:s') . "] $log_msg";

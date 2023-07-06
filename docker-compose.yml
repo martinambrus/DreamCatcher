@@ -1,10 +1,14 @@
 services:
   rss_fetch:
-    build: php
+    build: php/rss_fetch
     networks:
       - internal
     container_name: rss_fetch
     hostname: rss_fetch
+    environment:
+      - FEED_URL=https://news.ycombinator.com/rss
+    depends_on:
+      - redis
   redis:
    image: "redis:7.2-rc2-alpine"
    networks:
