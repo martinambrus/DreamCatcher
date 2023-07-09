@@ -19,7 +19,7 @@ define( 'REDIS_LOGS_CHANNEL', getenv( 'REDIS_LOGS_CHANNEL' ) );
 if ( TEST_RUN ) {
   $feed_url = 'https://news.ycombinator.com/rss';
 
-  // also, sleep for 3 seconds, since the initial REDIS setup take a moment to populate error codes
+  // also, sleep for 3 seconds, since the initial REDIS setup takes a moment to populate error codes
   sleep( 3 );
 }
 
@@ -50,6 +50,7 @@ if ( !$feed_url ) {
   exit;
 } else if ( TEST_RUN ) {
   try {
+    // this is here to test Redis connection, nothing more - the actual channel message isn't being received by anyone
     $redis->publish('TEST_RUN', defined('HOSTNAME') ?? 'rss_fetch_undefined_host');
   } catch ( \Exception $e ) {
     echo '[' . gmdate( 'j.m.Y H:i:s' ) . '] Exception while trying to publish to Redis (' . getenv('REDIS_HOSTNAME') . ':' . getenv('REDIS_PORT').")\n";
@@ -64,16 +65,36 @@ if ( mb_strtolower( mb_substr( $feed_url, 0, 7)) != 'http://' && mb_strtolower( 
     // try HTTPS first
     $file_headers = @get_headers( 'https://' . $feed_url );
     if ( $file_headers && !str_contains($file_headers[0], '404 Not Found')) {
-      echo 'changing invalid feed url' . $feed_url . ' to ' . 'https://' . $feed_url . "<br>\n";
+      echo 'changing invalid feed url' . $feed_url . ' to ' . 'https://' . $feed_url . "\n";
       $feed_url = 'https://' . $feed_url;
     } else {
       // try HTTP
       $file_headers = @get_headers( 'http://' . $feed_url );
       if ( $file_headers && !str_contains($file_headers[0], '404 Not Found')) {
-        echo 'changing invalid feed url' . $feed_url . ' to ' . 'http://' . $feed_url . "<br>\n";
+        echo 'changing invalid feed url' . $feed_url . ' to ' . 'http://' . $feed_url . "\n";
         $feed_url = 'http://' . $feed_url;
+      } else {
+        echo 'invalid feed url, unable to parse or fix: ' . $feed_url . "\n";
+        $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
+          'service' => 'rss-fetch',
+          'severity' => 'error',
+          'code' => $redis->get( 'ERR_RSS_FETCH_WRONG_URL_CANNOT_FIX' ),
+          'time' => time(),
+          'msg' => $msg,
+        ]));
+
+        exit;
       }
     }
+
+    $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
+      'service' => 'rss-fetch',
+      'severity' => 'notice',
+      'code' => $redis->get( 'ERR_RSS_FETCH_WRONG_URL' ),
+      'result' => $feed_url,
+      'time' => time(),
+      'msg' => $msg,
+    ]));
 }
 
 try {
@@ -272,7 +293,7 @@ try {
     $redis->publish(REDIS_LOGS_CHANNEL, json_encode([
       'service' => 'rss-fetch',
       'severity' => 'error',
-      'code' => $redis->get( 'ERR_RSS_FETCH_PROCESSING', 2 ),
+      'code' => $redis->get( 'ERR_RSS_FETCH_PROCESSING' ),
       'feed_url' => $feed_url,
       'time' => time(),
       'msg' => $msg,
