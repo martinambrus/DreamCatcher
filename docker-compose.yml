@@ -6,7 +6,7 @@ services:
     container_name: rss_fetch
     hostname: rss_fetch
     environment:
-      - FEED_URL=https://news.ycombinator.com/rss
+      - TEST_RUN=1
     depends_on:
       - redis
   redis:

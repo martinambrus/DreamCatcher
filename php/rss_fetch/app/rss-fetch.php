@@ -11,18 +11,29 @@ if (!ini_get('date.timezone')) {
 
 $time_start = microtime(true);
 $feed_url = getenv( 'FEED_URL' );
+define( 'TEST_RUN', getenv( 'TEST_RUN' ) );
 define( 'REDIS_NEW_LINKS_CHANNEL', getenv( 'REDIS_NEW_LINKS_CHANNEL' ) );
 define( 'REDIS_NEW_LINK_ERRORS_CHANNEL', getenv( 'REDIS_NEW_LINK_ERRORS_CHANNEL' ) );
 define( 'REDIS_LOGS_CHANNEL', getenv( 'REDIS_LOGS_CHANNEL' ) );
+
+// define a test feed URL if we are performing an initial test run
+if ( TEST_RUN ) {
+  $feed_url = 'https://news.ycombinator.com/rss';
+}
 
 require_once "./utils.php";
 require_once "./SimplePie.compiled.php";
 
 $redis = new Redis();
 //Connecting to Redis
-$redis->connect( getenv( 'REDIS_HOSTNAME' ), getenv( 'REDIS_PORT' ) );
+try {
+  $redis->connect(getenv('REDIS_HOSTNAME'), getenv('REDIS_PORT'));
+} catch ( \Exception $e ) {
+  echo '[' . gmdate( 'j.m.Y H:i:s' ) . '] Exception while trying to connect to Redis via ' . getenv('REDIS_HOSTNAME') . ':' . getenv('REDIS_PORT')."\n";
+  echo $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+}
 
-if ( !$feed_url ) {
+if ( !$feed_url && !TEST_RUN ) {
   $msg = 'error: no feed URL passed in ENV variable for rss-fetch';
 
   $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
@@ -34,6 +45,14 @@ if ( !$feed_url ) {
 
   echo $msg ."\n";
   exit;
+} else if ( TEST_RUN ) {
+  try {
+    $redis->publish('TEST_RUN', defined('HOSTNAME') ?? 'rss_fetch_undefined_host');
+  } catch ( \Exception $e ) {
+    echo '[' . gmdate( 'j.m.Y H:i:s' ) . '] Exception while trying to publish to Redis (' . getenv('REDIS_HOSTNAME') . ':' . getenv('REDIS_PORT').")\n";
+    echo $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+    exit;
+  }
 }
 
 // if this feed doesn't have an HTTP or HTTPS prefix, try looking for a working link with one of those prefixes
@@ -41,13 +60,13 @@ if ( !$feed_url ) {
 if ( mb_strtolower( mb_substr( $feed_url, 0, 7)) != 'http://' && mb_strtolower( mb_substr( $feed_url, 0, 8)) != 'https://' ) {
     // try HTTPS first
     $file_headers = @get_headers( 'https://' . $feed_url );
-    if ( $file_headers && strpos($file_headers[0], '404 Not Found') === false ) {
+    if ( $file_headers && !str_contains($file_headers[0], '404 Not Found')) {
       echo 'changing invalid feed url' . $feed_url . ' to ' . 'https://' . $feed_url . "<br>\n";
       $feed_url = 'https://' . $feed_url;
     } else {
       // try HTTP
       $file_headers = @get_headers( 'http://' . $feed_url );
-      if ( $file_headers && strpos($file_headers[0], '404 Not Found') === false ) {
+      if ( $file_headers && !str_contains($file_headers[0], '404 Not Found')) {
         echo 'changing invalid feed url' . $feed_url . ' to ' . 'http://' . $feed_url . "<br>\n";
         $feed_url = 'http://' . $feed_url;
       }
@@ -246,13 +265,17 @@ try {
 } catch (\Exception $exception) {
   $msg = '(' . $exception->getCode() . ') Error processing "' . $feed_url . '" with message: ' . $exception->getMessage() . ' (file ' . $exception->getFile() . ', line ' . $exception->getLine() .')';
 
-  $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
-    'service' => 'rss-fetch',
-    'severity' => 'error',
-    'feed_url' => $feed_url,
-    'time' => time(),
-    'msg' => $msg,
-  ]));
+  try {
+    $redis->publish(REDIS_LOGS_CHANNEL, json_encode([
+      'service' => 'rss-fetch',
+      'severity' => 'error',
+      'feed_url' => $feed_url,
+      'time' => time(),
+      'msg' => $msg,
+    ]));
+  } catch ( \Exception $e ) {
+    $msg .= "\n[" . gmdate( 'j.m.Y H:i:s' ) . '] Additional exception found while trying to publish error log to Redis (' . getenv('REDIS_HOSTNAME') . ':' . getenv('REDIS_PORT') . ")\n" . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+  }
 
   echo $msg ."\n";
   exit;
@@ -261,11 +284,18 @@ try {
 $time_end = microtime(true);
 $log_msg = "fetch complete for $feed_url in " . (round($time_end - $time_start,3) * 1000) . 'ms';
 
-$redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
-  'service' => 'rss-fetch',
-  'severity' => 'log',
-  'time' => time(),
-  'msg' => $log_msg,
-]));
+// don't publish into log if we're on a test run, so we don't mess up statistics
+if ( !TEST_RUN ) {
+  $redis->publish(REDIS_LOGS_CHANNEL, json_encode([
+    'service' => 'rss-fetch',
+    'severity' => 'log',
+    'time' => time(),
+    'msg' => $log_msg,
+  ]));
+}
 
 echo "\n\n[" . date('j.m.Y, H:i:s') . "] $log_msg";
+
+if ( TEST_RUN ) {
+  echo ', initial test run finished.';
+}

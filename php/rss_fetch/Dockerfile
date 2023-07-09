@@ -15,8 +15,8 @@ RUN apk add --no-cache --virtual .phpize-deps-configure $PHPIZE_DEPS
 # install PhpRedis
 RUN pecl install redis
 
-COPY app /usr/src/myapp
-WORKDIR /usr/src/myapp
+COPY app /usr/src/rss_fetch
+WORKDIR /usr/src/rss_fetch
 COPY env.sh /env.sh
 
 # install packages
