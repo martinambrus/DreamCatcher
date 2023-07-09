@@ -1,1 +1,5 @@
 env.sh
+db/credentials/db_name
+db/credentials/db_password
+db/credentials/db_user
+/db/pgdata/

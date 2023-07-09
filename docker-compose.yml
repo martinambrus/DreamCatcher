@@ -13,8 +13,28 @@ services:
    image: "redis:7.2-rc2-alpine"
    networks:
      - internal
+   restart: always
    container_name: redis_server
    hostname: redis_server
+  postgres:
+    image: "postgres:15.3-alpine"
+    networks:
+      - internal
+    container_name: db_server
+    hostname: db_server
+    ports:
+      - 5432:5432
+    restart: always
+    volumes:
+      - ./db/pgdata:/var/lib/postgresql/data/pgdata
+      - ./db/sql:/docker-entrypoint-initdb.d
+      - ./db/credentials:/credentials
+    environment:
+      POSTGRES_DB_FILE: /credentials/db_name
+      POSTGRES_USER_FILE: /credentials/db_user
+      POSTGRES_PASSWORD_FILE: /credentials/db_password
+      POSTGRES_EXTENSIONS: pg_trgm, plpgsql, unaccent
+      PGDATA: /var/lib/postgresql/data/pgdata
 networks:
   internal:
     name: internal
