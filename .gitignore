@@ -1,5 +1,5 @@
 env.sh
-db/credentials/db_name
-db/credentials/db_password
-db/credentials/db_user
-/db/pgdata/
+postgre/credentials/db_name
+postgre/credentials/db_password
+postgre/credentials/db_user
+/postgre/pgdata/

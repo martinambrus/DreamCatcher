@@ -13,12 +13,14 @@ $time_start = microtime(true);
 $feed_url = getenv( 'FEED_URL' );
 define( 'TEST_RUN', getenv( 'TEST_RUN' ) );
 define( 'REDIS_NEW_LINKS_CHANNEL', getenv( 'REDIS_NEW_LINKS_CHANNEL' ) );
-define( 'REDIS_NEW_LINK_ERRORS_CHANNEL', getenv( 'REDIS_NEW_LINK_ERRORS_CHANNEL' ) );
 define( 'REDIS_LOGS_CHANNEL', getenv( 'REDIS_LOGS_CHANNEL' ) );
 
 // define a test feed URL if we are performing an initial test run
 if ( TEST_RUN ) {
   $feed_url = 'https://news.ycombinator.com/rss';
+
+  // also, sleep for 3 seconds, since the initial REDIS setup take a moment to populate error codes
+  sleep( 3 );
 }
 
 require_once "./utils.php";
@@ -33,12 +35,13 @@ try {
   echo $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
 }
 
-if ( !$feed_url && !TEST_RUN ) {
+if ( !$feed_url ) {
   $msg = 'error: no feed URL passed in ENV variable for rss-fetch';
 
   $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
     'service' => 'rss-fetch',
     'severity' => 'error',
+    'code' => $redis->get( 'ERR_RSS_FETCH_NO_FEED' ),
     'time' => time(),
     'msg' => $msg,
   ]));
@@ -269,6 +272,7 @@ try {
     $redis->publish(REDIS_LOGS_CHANNEL, json_encode([
       'service' => 'rss-fetch',
       'severity' => 'error',
+      'code' => $redis->get( 'ERR_RSS_FETCH_PROCESSING', 2 ),
       'feed_url' => $feed_url,
       'time' => time(),
       'msg' => $msg,
@@ -289,6 +293,7 @@ if ( !TEST_RUN ) {
   $redis->publish(REDIS_LOGS_CHANNEL, json_encode([
     'service' => 'rss-fetch',
     'severity' => 'log',
+    'code' => 0,
     'time' => time(),
     'msg' => $log_msg,
   ]));

@@ -10,7 +10,7 @@ services:
     depends_on:
       - redis
   redis:
-   image: "redis:7.2-rc2-alpine"
+   build: redis
    networks:
      - internal
    restart: always
@@ -26,9 +26,9 @@ services:
       - 5432:5432
     restart: always
     volumes:
-      - ./db/pgdata:/var/lib/postgresql/data/pgdata
-      - ./db/sql:/docker-entrypoint-initdb.d
-      - ./db/credentials:/credentials
+      - ./postgre/pgdata:/var/lib/postgresql/data/pgdata
+      - ./postgre/sql:/docker-entrypoint-initdb.d
+      - ./postgre/credentials:/credentials
     environment:
       POSTGRES_DB_FILE: /credentials/db_name
       POSTGRES_USER_FILE: /credentials/db_user
