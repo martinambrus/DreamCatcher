@@ -7,8 +7,19 @@ services:
     hostname: rss_fetch
     environment:
       - TEST_RUN=1
+      #- FEED_URL=https://news.ycombinator.com/rss
     depends_on:
       - redis
+  analysis:
+    build: nodejs/analysis
+    networks:
+      - internal
+    container_name: analysis
+    hostname: analysis
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
   redis:
    build: redis
    networks:
@@ -16,6 +27,8 @@ services:
    restart: always
    container_name: redis_server
    hostname: redis_server
+#   ports:
+#     - 6379:6379
   postgres:
     image: "postgres:15.3-alpine"
     networks:

@@ -3,7 +3,6 @@ require_once './vendor/autoload.php';
 use JDecool\JsonFeed\Reader\ReaderBuilder;
 
 set_time_limit( 3600 );
-session_write_close();
 
 if (!ini_get('date.timezone')) {
   date_default_timezone_set('Europe/Prague');
@@ -14,6 +13,7 @@ $feed_url = getenv( 'FEED_URL' );
 define( 'TEST_RUN', getenv( 'TEST_RUN' ) );
 define( 'REDIS_NEW_LINKS_CHANNEL', getenv( 'REDIS_NEW_LINKS_CHANNEL' ) );
 define( 'REDIS_LOGS_CHANNEL', getenv( 'REDIS_LOGS_CHANNEL' ) );
+define( 'CLIENT_ID', getenv( 'HOSTNAME' ) ?? 'rss_fetch_undefined_host' );
 
 // define a test feed URL if we are performing an initial test run
 if ( TEST_RUN ) {
@@ -33,6 +33,7 @@ try {
 } catch ( \Exception $e ) {
   echo '[' . gmdate( 'j.m.Y H:i:s' ) . '] Exception while trying to connect to Redis via ' . getenv('REDIS_HOSTNAME') . ':' . getenv('REDIS_PORT')."\n";
   echo $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+  exit;
 }
 
 if ( !$feed_url ) {
@@ -50,8 +51,8 @@ if ( !$feed_url ) {
   exit;
 } else if ( TEST_RUN ) {
   try {
-    // this is here to test Redis connection, nothing more - the actual channel message isn't being received by anyone
-    $redis->publish('TEST_RUN', defined('HOSTNAME') ?? 'rss_fetch_undefined_host');
+    // this is here to test Redis publishing, nothing more - the actual channel message isn't being received by anyone
+    $redis->publish('TEST_RUN', CLIENT_ID );
   } catch ( \Exception $e ) {
     echo '[' . gmdate( 'j.m.Y H:i:s' ) . '] Exception while trying to publish to Redis (' . getenv('REDIS_HOSTNAME') . ':' . getenv('REDIS_PORT').")\n";
     echo $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
@@ -65,16 +66,20 @@ if ( mb_strtolower( mb_substr( $feed_url, 0, 7)) != 'http://' && mb_strtolower( 
     // try HTTPS first
     $file_headers = @get_headers( 'https://' . $feed_url );
     if ( $file_headers && !str_contains($file_headers[0], '404 Not Found')) {
-      echo 'changing invalid feed url' . $feed_url . ' to ' . 'https://' . $feed_url . "\n";
+      $msg = 'changing invalid feed url' . $feed_url . ' to ' . 'https://' . $feed_url;
+      echo $msg . "\n";
       $feed_url = 'https://' . $feed_url;
     } else {
       // try HTTP
       $file_headers = @get_headers( 'http://' . $feed_url );
       if ( $file_headers && !str_contains($file_headers[0], '404 Not Found')) {
-        echo 'changing invalid feed url' . $feed_url . ' to ' . 'http://' . $feed_url . "\n";
+        $msg = 'changing invalid feed url' . $feed_url . ' to ' . 'http://' . $feed_url;
+        echo $msg . "\n";
         $feed_url = 'http://' . $feed_url;
       } else {
-        echo 'invalid feed url, unable to parse or fix: ' . $feed_url . "\n";
+        $msg = 'invalid feed url, unable to parse or fix: ' . $feed_url;
+        echo $msg . "\n";
+
         $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
           'service' => 'rss-fetch',
           'severity' => 'error',
@@ -307,7 +312,7 @@ try {
 }
 
 $time_end = microtime(true);
-$log_msg = "fetch complete for $feed_url in " . (round($time_end - $time_start,3) * 1000) . 'ms';
+$log_msg = "fetch complete for $feed_url via " . CLIENT_ID . ' in ' . (round($time_end - $time_start,3) * 1000) . 'ms';
 
 // don't publish into log if we're on a test run, so we don't mess up statistics
 if ( !TEST_RUN ) {
