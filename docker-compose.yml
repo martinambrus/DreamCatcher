@@ -27,8 +27,8 @@ services:
    restart: always
    container_name: redis_server
    hostname: redis_server
-#   ports:
-#     - 6379:6379
+   ports:
+     - 6379:6379
   postgres:
     image: "postgres:15.3-alpine"
     networks:

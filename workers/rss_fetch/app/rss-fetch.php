@@ -2,30 +2,54 @@
 require_once './vendor/autoload.php';
 use JDecool\JsonFeed\Reader\ReaderBuilder;
 
-set_time_limit( 3600 );
+// if we can't get the RSS feed in the set timeout, then we'll fire up a REDIS message saying so and exit
+define( 'MAX_TIMEOUT', getenv( 'MAX_FETCH_TIMEOUT' ) );
+set_time_limit( ( MAX_TIMEOUT ?? 60 ) );
 
 if (!ini_get('date.timezone')) {
   date_default_timezone_set('Europe/Prague');
 }
 
 $time_start = microtime(true);
+
+global $feed_url, $fetch_complete;
+
+$fetch_complete = false;
 $feed_url = getenv( 'FEED_URL' );
+
 define( 'TEST_RUN', getenv( 'TEST_RUN' ) );
 define( 'REDIS_NEW_LINKS_CHANNEL', getenv( 'REDIS_NEW_LINKS_CHANNEL' ) );
 define( 'REDIS_LOGS_CHANNEL', getenv( 'REDIS_LOGS_CHANNEL' ) );
 define( 'CLIENT_ID', getenv( 'HOSTNAME' ) ?? 'rss_fetch_undefined_host' );
+define( 'SERVICE_ID', 'rss-fetch' );
+
+register_shutdown_function( function() {
+  global $redis, $feed_url, $fetch_complete;
+
+  if ( !$fetch_complete ) {
+    echo 'could not fetch RSS data in ' . MAX_TIMEOUT . ' seconds for ' . $feed_url;
+    $redis->publish(REDIS_LOGS_CHANNEL, json_encode([
+      'service' => SERVICE_ID,
+      'severity' => 'error',
+      'code' => $redis->get('ERR_RSS_FETCH_TIMEOUT'),
+      'time' => time(),
+      'msg' => 'could not fetch RSS data in ' . MAX_TIMEOUT . ' seconds for ' . $feed_url,
+    ]));
+  }
+});
 
 // define a test feed URL if we are performing an initial test run
 if ( TEST_RUN ) {
   $feed_url = 'https://news.ycombinator.com/rss';
 
-  // also, sleep for 3 seconds, since the initial REDIS setup takes a moment to populate error codes
-  sleep( 3 );
+  // also, sleep for 5 seconds, since the initial REDIS setup takes a moment to populate error codes
+  sleep( 5 );
 }
 
 require_once "./utils.php";
 require_once "./SimplePie.compiled.php";
 
+global $redis;
 $redis = new Redis();
 //Connecting to Redis
 try {
@@ -40,7 +64,7 @@ if ( !$feed_url ) {
   $msg = 'error: no feed URL passed in ENV variable for rss-fetch';
 
   $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
-    'service' => 'rss-fetch',
+    'service' => SERVICE_ID,
     'severity' => 'error',
     'code' => $redis->get( 'ERR_RSS_FETCH_NO_FEED' ),
     'time' => time(),
@@ -48,6 +72,9 @@ if ( !$feed_url ) {
   ]));
 
   echo $msg ."\n";
+
+  // set this to true, so we know we've not reached a script timeout
+  $fetch_complete = true;
   exit;
 } else if ( TEST_RUN ) {
   try {
@@ -56,6 +83,9 @@ if ( !$feed_url ) {
   } catch ( \Exception $e ) {
     echo '[' . gmdate( 'j.m.Y H:i:s' ) . '] Exception while trying to publish to Redis (' . getenv('REDIS_HOSTNAME') . ':' . getenv('REDIS_PORT').")\n";
     echo $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+
+    // set this to true, so we know we've not reached a script timeout
+    $fetch_complete = true;
     exit;
   }
 }
@@ -81,19 +111,21 @@ if ( mb_strtolower( mb_substr( $feed_url, 0, 7)) != 'http://' && mb_strtolower( 
         echo $msg . "\n";
 
         $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
-          'service' => 'rss-fetch',
+          'service' => SERVICE_ID,
           'severity' => 'error',
           'code' => $redis->get( 'ERR_RSS_FETCH_WRONG_URL_CANNOT_FIX' ),
           'time' => time(),
           'msg' => $msg,
         ]));
 
+        // set this to true, so we know we've not reached a script timeout
+        $fetch_complete = true;
         exit;
       }
     }
 
     $redis->publish( REDIS_LOGS_CHANNEL, json_encode( [
-      'service' => 'rss-fetch',
+      'service' => SERVICE_ID,
       'severity' => 'notice',
       'code' => $redis->get( 'ERR_RSS_FETCH_WRONG_URL' ),
       'result' => $feed_url,
@@ -185,6 +217,7 @@ try {
           $feed_item_info[ 'feed_url' ] = $feed_url;
 
           $redis->publish( REDIS_NEW_LINKS_CHANNEL, json_encode( $feed_item_info ) );
+          $fetch_complete = true;
         }
       }
     } else {
@@ -289,6 +322,7 @@ try {
         $feed_item_info[ 'feed_url' ] = $feed_url;
 
         $redis->publish( REDIS_NEW_LINKS_CHANNEL, json_encode( $feed_item_info ) );
+        $fetch_complete = true;
       }
     }
 } catch (\Exception $exception) {
@@ -296,7 +330,7 @@ try {
 
   try {
     $redis->publish(REDIS_LOGS_CHANNEL, json_encode([
-      'service' => 'rss-fetch',
+      'service' => SERVICE_ID,
       'severity' => 'error',
       'code' => $redis->get( 'ERR_RSS_FETCH_PROCESSING' ),
       'feed_url' => $feed_url,
@@ -305,6 +339,9 @@ try {
     ]));
   } catch ( \Exception $e ) {
     $msg .= "\n[" . gmdate( 'j.m.Y H:i:s' ) . '] Additional exception found while trying to publish error log to Redis (' . getenv('REDIS_HOSTNAME') . ':' . getenv('REDIS_PORT') . ")\n" . $e->getMessage() . ' in ' . $e->getFile() . ' on line ' . $e->getLine();
+  } finally {
+    // set this to true, so we know we've not reached a script timeout
+    $fetch_complete = true;
   }
 
   echo $msg ."\n";
@@ -317,7 +354,7 @@ $log_msg = "fetch complete for $feed_url via " . CLIENT_ID . ' in ' . (round($ti
 // don't publish into log if we're on a test run, so we don't mess up statistics
 if ( !TEST_RUN ) {
   $redis->publish(REDIS_LOGS_CHANNEL, json_encode([
-    'service' => 'rss-fetch',
+    'service' => SERVICE_ID,
     'severity' => 'log',
     'code' => 0,
     'time' => time(),

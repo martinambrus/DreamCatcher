@@ -1,5 +1,7 @@
 env.sh
-postgre/credentials/db_name
-postgre/credentials/db_password
-postgre/credentials/db_user
-/postgre/pgdata/
+infrastructure/postgre/credentials/db_name
+infrastructure/postgre/credentials/db_password
+infrastructure/postgre/credentials/db_user
+infrastructure/postgre/pgdata/
+node_modules
+package-lock.json

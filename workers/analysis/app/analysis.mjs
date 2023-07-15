@@ -12,6 +12,10 @@ const POSTGRES_USER = env.POSTGRES_USER;
 const POSTGRES_PASSWORD = env.POSTGRES_PASSWORD;
 const POSTGRES_DB = env.POSTGRES_DB;
 const CLIENT_ID = ( env.HOSTNAME ? env.HOSTNAME : 'analysis_undefined_host' );
+const SERVICE_ID = 'analysis';
+
+// wait 5 seconds for other containers to start and init
+await new Promise(resolve => setTimeout(resolve, 5000));
 
 let redis_ready = false;
 const
@@ -46,7 +50,7 @@ if ( !POSTGRES_DB || !POSTGRES_PASSWORD || !POSTGRES_USER ) {
   console.log( log_msg );
 
   redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
-    'service' : 'analysis',
+    'service' : SERVICE_ID,
     'severity' : 'error',
     'code' : redis_client.get( 'ERR_POSTGRES_MISSING_CONNECTION_DATA' ),
     'time' : Date.now(),
@@ -63,7 +67,7 @@ if ( !POSTGRES_DB || !POSTGRES_PASSWORD || !POSTGRES_USER ) {
     console.log( log_msg );
 
     redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
-      'service' : 'analysis',
+      'service' : SERVICE_ID,
       'severity' : 'error',
       'code' : redis_client.get( 'ERR_POSTGRES_CANNOT_CONNECT' ),
       'time' : Date.now(),
@@ -93,7 +97,7 @@ let inc_stories_per_hour_query = {
 const time_end = performance.now();
 let log_msg = get_log( 'subscribing to Redis channels after ' + ( Math.round( time_end - time_start, 3 ) * 1000 ) + 'ms of init' );
 redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
-  'service' : 'analysis',
+  'service' : SERVICE_ID,
   'severity' : 'log',
   'code' : 0,
   'time' : Date.now(),
@@ -150,7 +154,7 @@ redis_client.subscribe( REDIS_NEW_LINKS_CHANNEL, ( msg, channel ) => {
         console.log( log_msg );
 
         redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
-          'service' : 'analysis',
+          'service' : SERVICE_ID,
           'severity' : 'error',
           'code' : redis_client.get( 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' ),
           'time' : Date.now(),
@@ -163,7 +167,7 @@ redis_client.subscribe( REDIS_NEW_LINKS_CHANNEL, ( msg, channel ) => {
     console.log( log_msg );
 
     redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
-      'service' : 'analysis',
+      'service' : SERVICE_ID,
       'severity' : 'error',
       'code' : redis_client.get( 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' ),
       'time' : Date.now(),
