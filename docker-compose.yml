@@ -1,6 +1,6 @@
 services:
   rss_fetch:
-    build: php/rss_fetch
+    build: workers/rss_fetch
     networks:
       - internal
     container_name: rss_fetch
@@ -11,7 +11,7 @@ services:
     depends_on:
       - redis
   analysis:
-    build: nodejs/analysis
+    build: workers/analysis
     networks:
       - internal
     container_name: analysis
@@ -21,7 +21,7 @@ services:
       - rss_fetch
       - postgres
   redis:
-   build: redis
+   build: infrastructure/redis
    networks:
      - internal
    restart: always
@@ -39,9 +39,9 @@ services:
       - 5432:5432
     restart: always
     volumes:
-      - ./postgre/pgdata:/var/lib/postgresql/data/pgdata
-      - ./postgre/sql:/docker-entrypoint-initdb.d
-      - ./postgre/credentials:/credentials
+      - ./infrastructure/postgre/pgdata:/var/lib/postgresql/data/pgdata
+      - ./infrastructure/postgre/sql:/docker-entrypoint-initdb.d
+      - ./infrastructure/postgre/credentials:/credentials
     environment:
       POSTGRES_DB_FILE: /credentials/db_name
       POSTGRES_USER_FILE: /credentials/db_user
