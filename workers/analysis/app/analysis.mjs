@@ -17,10 +17,14 @@ const SERVICE_ID = 'analysis';
 // wait 5 seconds for other containers to start and init
 await new Promise(resolve => setTimeout(resolve, 5000));
 
-let redis_ready = false;
+let
+  redis_pub_ready = false,
+  redis_sub_ready = false;
+
 const
     // Redis
-    redis_client = createClient({ url: 'redis://' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT }),
+    redis_pub_client = createClient({ url: 'redis://' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT }),
+    redis_sub_client = createClient({ url: 'redis://' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT }),
     // POSTGRES
     dbconn = new Client({
       host: POSTGRES_HOST,
@@ -29,30 +33,42 @@ const
       database: POSTGRES_DB,
     });
 
-redis_client.on( 'ready', () => {
-  redis_ready = true;
-  console.log( get_log( 'successfully connected to REDIS at ' + 'redis://' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT ) );
+redis_pub_client.on( 'ready', () => {
+  redis_pub_ready = true;
+  console.log( get_log( 'successfully connected to REDIS (pub) at ' + 'redis://' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT ) );
 });
-redis_client.on( 'error', ( err ) => {
-  if ( !redis_ready ) {
-    console.log( get_log( 'Exception while trying to connect to Redis via ' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT + "\n" + err.toString() ) );
+redis_pub_client.on( 'error', ( err ) => {
+  if ( !redis_pub_ready ) {
+    console.log( get_log( 'Exception while trying to connect to Redis (pub) via ' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT + "\n" + err.toString() ) );
     exit( 1 );
   }
 });
 
-await redis_client.connect();
+redis_sub_client.on( 'ready', () => {
+  redis_sub_ready = true;
+  console.log( get_log( 'successfully connected to REDIS (sub) at ' + 'redis://' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT ) );
+});
+redis_sub_client.on( 'error', ( err ) => {
+  if ( !redis_sub_ready ) {
+    console.log( get_log( 'Exception while trying to connect to Redis (sub) via ' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT + "\n" + err.toString() ) );
+    exit( 1 );
+  }
+});
+
+await redis_pub_client.connect();
+await redis_sub_client.connect();
 
 // this is here to test Redis publishing, nothing more - the actual channel message isn't being received by anyone
-await redis_client.publish( 'TEST_RUN', CLIENT_ID );
+await redis_pub_client.publish( 'TEST_RUN', CLIENT_ID );
 
 if ( !POSTGRES_DB || !POSTGRES_PASSWORD || !POSTGRES_USER ) {
   let log_msg = get_log( 'missing one of POSTGRES environment variables' );
   console.log( log_msg );
 
-  redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
+  redis_pub_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
     'service' : SERVICE_ID,
     'severity' : 'error',
-    'code' : redis_client.get( 'ERR_POSTGRES_MISSING_CONNECTION_DATA' ),
+    'code' : redis_pub_client.get( 'ERR_POSTGRES_MISSING_CONNECTION_DATA' ),
     'time' : Date.now(),
     'msg' : log_msg,
   }));
@@ -66,10 +82,10 @@ if ( !POSTGRES_DB || !POSTGRES_PASSWORD || !POSTGRES_USER ) {
     let log_msg = get_log( 'could not connect to POSTGRES\n' +err.toString() );
     console.log( log_msg );
 
-    redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
+    redis_pub_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
       'service' : SERVICE_ID,
       'severity' : 'error',
-      'code' : redis_client.get( 'ERR_POSTGRES_CANNOT_CONNECT' ),
+      'code' : redis_pub_client.get( 'ERR_POSTGRES_CANNOT_CONNECT' ),
       'time' : Date.now(),
       'msg' : log_msg,
     }));
@@ -96,7 +112,7 @@ let inc_stories_per_hour_query = {
 
 const time_end = performance.now();
 let log_msg = get_log( 'subscribing to Redis channels after ' + ( Math.round( time_end - time_start, 3 ) * 1000 ) + 'ms of init' );
-redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
+redis_pub_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
   'service' : SERVICE_ID,
   'severity' : 'log',
   'code' : 0,
@@ -107,69 +123,47 @@ redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
 console.log( log_msg );
 
 // subscribe to RSS new links channel, so we can update statistics for links amount per day, month and year
-let
-    feed_last_link_timeout_id = [], // a setTimeout() ID for the last of the feed links published that gets
-                                          // executed in 30 seconds after that last feed link to update stats data for that feed
-    feed_messages_received_counter = []; // number of messages received from a single feed while we're in a wait loop,
-                                               // waiting for at least 30 seconds after the last message from that feed
-                                               // before we write statistical data for this feed into the DB
-
-redis_client.subscribe( REDIS_NEW_LINKS_CHANNEL, ( msg, channel ) => {
+// once the link writer publishes its new links counter
+redis_sub_client.subscribe( REDIS_NEW_LINKS_CHANNEL, ( msg, channel ) => {
   let original_msg = msg;
   msg = JSON.parse( msg );
 
   if ( msg ) {
-    // increment count of the messages received for this feed in this batch
-    if ( !feed_messages_received_counter[ msg.feed_url ] ) {
-      feed_messages_received_counter[ msg.feed_url ] = 1;
-    } else {
-      feed_messages_received_counter[ msg.feed_url ]++;
-    }
-
-    // cancel old timeout for this feed, if present
-    if ( feed_last_link_timeout_id[ msg.feed_url ] ) {
-      clearTimeout( feed_last_link_timeout_id[ msg.feed_url ] );
-    }
-
-    // create a new function to execute in 30 seconds for the DB stats update
-    feed_last_link_timeout_id[ msg.feed_url ] = setTimeout( () => {
+    // check that we have the right message
+    if ( msg.service.indexOf( 'link_writer' ) > -1 ) {
       let dt = new Date();
 
       try {
-        console.log( get_log( 'writing stats data for ' + msg.feed_url ) );
-        inc_stories_per_hour_query.values = [msg.feed_url, dt.getHours(), daysIntoYear(dt), dt.getFullYear(), feed_messages_received_counter[msg.feed_url]];
+        console.log( get_log( 'writing stats data for ' + msg.msg.feed_url ) );
+        inc_stories_per_hour_query.values = [msg.msg.feed_url, dt.getHours(), daysIntoYear(dt), dt.getFullYear(), msg.msg.links_count ];
         dbconn.query(inc_stories_per_hour_query);
 
-        inc_stories_per_day_query.values = [msg.feed_url, dt.getDay(), dt.getWeek(), dt.getFullYear(), feed_messages_received_counter[msg.feed_url]];
+        inc_stories_per_day_query.values = [msg.msg.feed_url, dt.getDay(), dt.getWeek(), dt.getFullYear(), msg.msg.links_count ];
         dbconn.query(inc_stories_per_day_query);
 
-        inc_stories_per_month_query.values = [msg.feed_url, dt.getMonth(), dt.getFullYear(), feed_messages_received_counter[msg.feed_url]];
+        inc_stories_per_month_query.values = [msg.msg.feed_url, dt.getMonth(), dt.getFullYear(), msg.msg.links_count ];
         dbconn.query(inc_stories_per_month_query);
-
-        feed_messages_received_counter[msg.feed_url] = 0;
-        feed_last_link_timeout_id[msg.feed_url] = 0;
-        console.log( get_log( 'stats data successfully updated for ' + msg.feed_url ) );
       } catch ( err ) {
-        let log_msg = get_log( 'Exception while trying to save statistical feed data of ' + msg.feed_url + '\n' + err.toString() );
+        let log_msg = get_log( 'Exception while trying to save statistical feed data of ' + msg.msg.feed_url + '\n' + err.toString() );
         console.log( log_msg );
 
-        redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
+        redis_pub_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
           'service' : SERVICE_ID,
           'severity' : 'error',
-          'code' : redis_client.get( 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' ),
+          'code' : redis_pub_client.get( 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' ),
           'time' : Date.now(),
           'msg' : log_msg,
         }));
       }
-    }, 30000 );
+    }
   } else {
-    let log_msg = get_log( 'Exception while trying to decode RSS link data: ' + original_msg );
+    let log_msg = get_log( 'Exception while trying to decode Link Writer log data: ' + original_msg );
     console.log( log_msg );
 
-    redis_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
+    redis_pub_client.publish( REDIS_LOGS_CHANNEL, JSON.stringify({
       'service' : SERVICE_ID,
       'severity' : 'error',
-      'code' : redis_client.get( 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' ),
+      'code' : redis_pub_client.get( 'ERR_LINK_WRITER_INVALID_LOG_MSG' ),
       'time' : Date.now(),
       'msg' : log_msg,
     }));

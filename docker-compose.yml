@@ -20,6 +20,16 @@ services:
       - redis
       - rss_fetch
       - postgres
+  link_writer:
+    build: workers/link_writer
+    networks:
+      - internal
+    container_name: link_writer
+    hostname: link_writer
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
   redis:
    build: infrastructure/redis
    networks:

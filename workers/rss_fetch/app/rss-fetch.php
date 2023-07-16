@@ -203,7 +203,6 @@ try {
             'link'        => $url,
             'img'         => $link_img,
             'date'        => (is_int($date) ? $date : strtotime( $date )),
-            'fetched'     => time(),
           ];
 
           if ( $author ) {
@@ -306,7 +305,6 @@ try {
           'link'         => $item->get_link(),
           'img'          => $link_img,
           'date'         => ( $item->get_date() ? strtotime( $item->get_date() ) : time() ),
-          'fetched'      => time(),
         ];
 
         $first_item_stamp = $feed_item_info['date'];
@@ -320,6 +318,7 @@ try {
         }
 
         $feed_item_info[ 'feed_url' ] = $feed_url;
+        $feed_item_info[ 'service' ] = SERVICE_ID;
 
         $redis->publish( REDIS_NEW_LINKS_CHANNEL, json_encode( $feed_item_info ) );
         $fetch_complete = true;
