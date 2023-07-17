@@ -18,13 +18,16 @@ RUN pecl install redis
 # add redis extension to php.ini
 RUN echo "extension=redis" | tee -a $PHP_INI_DIR/php.ini > /dev/null
 
-COPY app /usr/src/rss_fetch
+# install git
+RUN apk add git
+
+COPY src /usr/src/rss_fetch
 WORKDIR /usr/src/rss_fetch
 COPY env.sh /env.sh
 
 # install packages
 ENV COMPOSER_ALLOW_SUPERUSER 1
-RUN composer require jdecool/jsonfeed
+RUN composer install
 
-#CMD [ "/bin/sh", "-c", "source /env.sh && printenv && php ./rss-fetch.php" ]
-CMD [ "/bin/sh", "-c", "source /env.sh && php ./rss-fetch.php" ]
+#CMD [ "/bin/sh", "-c", "source /env.sh && printenv && php ./app.php" ]
+CMD [ "/bin/sh", "-c", "source /env.sh && php ./app.php" ]
