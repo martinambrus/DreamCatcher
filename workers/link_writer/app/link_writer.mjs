@@ -125,11 +125,6 @@ redis_sub_client.subscribe( REDIS_NEW_LINKS_CHANNEL, async ( msg, channel ) => {
   if ( msg ) {
     // check that the service publishing this message is not in fact a Link Writer
     if ( msg.service.indexOf( CLIENT_ID ) == -1 ) {
-      // cancel old timeout for this feed, if present
-      if ( feed_last_link_timeout_id[ msg.feed_url ] ) {
-        clearTimeout( feed_last_link_timeout_id[ msg.feed_url ] );
-      }
-
       // see if we have cached feed ID for this URL
       if ( !feed_url_to_id[ msg.feed_url ] ) {
         const res_feeds = await dbconn.query( 'SELECT id FROM feeds WHERE url = $1', [ msg.feed_url ] );
@@ -210,16 +205,23 @@ redis_sub_client.subscribe( REDIS_NEW_LINKS_CHANNEL, async ( msg, channel ) => {
         }
       }
 
+      // cancel old timeout for this feed, if present
+      if ( feed_last_link_timeout_id[ msg.feed_url ] ) {
+        clearTimeout( feed_last_link_timeout_id[ msg.feed_url ] );
+      }
+
       // create a new function to execute in 20 seconds for the DB stats update
       feed_last_link_timeout_id[ msg.feed_url ] = setTimeout( () => {
-        redis_pub_client.publish( REDIS_NEW_LINKS_CHANNEL, JSON.stringify({
-          'service' : SERVICE_ID,
-          'time' : Date.now(),
-          'msg' : {
-            'feed_url' : msg.feed_url,
-            'links_count' : feed_messages_inserted_counter[ msg.feed_url ],
-          },
-        }));
+        if ( feed_messages_inserted_counter[ msg.feed_url ] ) {
+          redis_pub_client.publish(REDIS_NEW_LINKS_CHANNEL, JSON.stringify({
+            'service': SERVICE_ID,
+            'time': Date.now(),
+            'msg': {
+              'feed_url': msg.feed_url,
+              'links_count': feed_messages_inserted_counter[msg.feed_url],
+            },
+          }));
+        }
 
         feed_messages_inserted_counter[ msg.feed_url ] = 0;
         feed_last_link_timeout_id[ msg.feed_url ] = 0;

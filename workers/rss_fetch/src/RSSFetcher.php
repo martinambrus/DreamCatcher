@@ -9,7 +9,6 @@ enum LOG_SEVERITIES: string {
 
   case LOG_SEVERITY_ERROR = 'error';
   case LOG_SEVERITY_NOTICE = 'notice';
-
   case LOG_SEVERITY_LOG = 'log';
 
 }
@@ -602,7 +601,7 @@ class RSSFetcher {
    * @return void
    */
   private function log_msg( string $msg, string $code = '', string $severity = LOG_SEVERITIES::LOG_SEVERITY_ERROR->value ):void {
-    $msg = '[' . gmdate( 'j.m.Y H:i:s' ) . '] ' . $msg;
+    $msg = '[' . gmdate( 'j.m.Y H:i:s' ) . '] ' . $this->client_id . ': ' . $msg;
     echo $msg . "\n";
 
     $log = [

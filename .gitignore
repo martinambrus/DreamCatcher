@@ -5,3 +5,5 @@ infrastructure/postgre/credentials/db_user
 infrastructure/postgre/pgdata/
 node_modules
 package-lock.json
+workers/analysis/app/*.js
+workers/link_writer/app/*.js
