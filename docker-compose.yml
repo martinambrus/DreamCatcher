@@ -40,6 +40,15 @@ services:
       - redis
       - rss_fetch
       - postgres
+  log_writer:
+    build: workers/log_writer
+    networks:
+      - internal
+    container_name: log_writer
+    hostname: log_writer
+    depends_on:
+      - redis
+      - postgres
   redis:
    build: infrastructure/redis
    networks:

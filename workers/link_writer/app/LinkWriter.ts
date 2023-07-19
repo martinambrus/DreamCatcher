@@ -58,17 +58,35 @@ export class LinkWriter {
    */
   private readonly dbconn: pkg.Client;
 
-  private feed_last_link_timeout_id: Array<any> = [];  // a setTimeout() ID for the last of the feed links published
-                                                          // that get executed in 20 seconds after that last feed link
-                                                          // to allow for stats data update
+  /**
+   * A setTimeout() ID for the last of the feed links published
+   * that get executed in 20 seconds after that last feed link
+   * to allow for stats data update.
+   *
+   * @private
+   * @type { Array<any> }
+   */
+  private feed_last_link_timeout_id: Array<any> = [];
 
-  private feed_messages_inserted_counter: Array<number> = []; // number of messages successfully inserted into the DB
-                                                              // from a single feed while we're in a wait loop,
-                                                              // waiting for at least 20 seconds after the last message
-                                                              // from that feed before we publish a log for this feed
-                                                              // that will update stats in the DB
+  /**
+   * Number of messages successfully inserted into the DB
+   * from a single feed while we're in a wait loop,
+   * waiting for at least 20 seconds after the last message
+   * from that feed before we publish a log for this feed
+   * that will update stats in the DB.
+   *
+   * @private
+   * @type { Array<number> }
+   */
+  private feed_messages_inserted_counter: Array<number> = [];
 
-  private feed_url_to_id: Object = {}; // temporary cached feed urls to IDs
+  /**
+   * Temporary cached feed urls to IDs.
+   *
+   * @private
+   * @type { Object }
+   */
+  private feed_url_to_id: Object = {};
 
   /**
    * Stores references to Redis, PGSQL and Logger classes
@@ -158,7 +176,7 @@ export class LinkWriter {
           }
         }
       } else {
-        logger.log_msg('Exception while trying to decode RSS link data: ' + original_msg, parseInt( await redis_pub_client.get( 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' ) ) );
+        this.logger.log_msg('Exception while trying to decode RSS link data: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' ) ) );
       }
     });
   }
