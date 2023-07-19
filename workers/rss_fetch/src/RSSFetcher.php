@@ -420,6 +420,8 @@ class RSSFetcher {
     // if our feed doesn't have an HTTP or HTTPS prefix, try looking for a working link with one of those prefixes
     // and update it if found
     if ( mb_strtolower( mb_substr( $this->feed_url, 0, 7)) != 'http://' && mb_strtolower( mb_substr( $this->feed_url, 0, 8)) != 'https://' ) {
+      $old_feed_url = $this->feed_url;
+
       // try HTTPS first
       $file_headers = @get_headers( 'https://' . $this->feed_url );
       if ( $file_headers && !str_contains($file_headers[0], '404 Not Found')) {
@@ -446,7 +448,7 @@ class RSSFetcher {
         }
       }
 
-      $this->log_msg( $msg, 'ERR_RSS_FETCH_WRONG_URL', LOG_SEVERITIES::LOG_SEVERITY_NOTICE->value );
+      $this->log_msg( $msg, 'ERR_RSS_FETCH_WRONG_URL', LOG_SEVERITIES::LOG_SEVERITY_NOTICE->value, [ 'old_feed_url' => $old_feed_url ] );
     }
   }
 
@@ -596,11 +598,14 @@ class RSSFetcher {
   /**
    * Logs error/status messages into console and Redis, if available.
    *
-   * @param string $msg The actual message to log.
+   * @param string $msg        The actual message to log.
+   * @param string $code       Message code.
+   * @param string $severity   The severity of this messsage.
+   * @param array  $extra_data An array with any extra data to be pushed to Redis.
    *
    * @return void
    */
-  private function log_msg( string $msg, string $code = '', string $severity = LOG_SEVERITIES::LOG_SEVERITY_ERROR->value ):void {
+  private function log_msg( string $msg, string $code = '', string $severity = LOG_SEVERITIES::LOG_SEVERITY_ERROR->value, array $extra_data = [] ):void {
     $msg = '[' . gmdate( 'j.m.Y H:i:s' ) . '] ' . $this->client_id . ': ' . $msg;
     echo $msg . "\n";
 
@@ -618,6 +623,10 @@ class RSSFetcher {
     // load the error code from Redis
     if ( $code ) {
       $log[ 'code' ] = $this->redis_pub->get( $code );
+    }
+
+    if ( count( $extra_data ) ) {
+      $log = array_merge( $log, $extra_data );
     }
 
     $this->redis_pub->log_msg( $log );

@@ -1,4 +1,4 @@
-import {env, exit} from "node:process";
+import { env } from "node:process";
 import { Logger } from "./Logger.js";
 import { RedisClient } from "./RedisClient.js";
 import pkg from "pg";

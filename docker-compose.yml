@@ -30,6 +30,16 @@ services:
       - redis
       - rss_fetch
       - postgres
+  link_fix_detector:
+    build: workers/link_fix_detector
+    networks:
+      - internal
+    container_name: link_fix_detector
+    hostname: link_fix_detector
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
   redis:
    build: infrastructure/redis
    networks:
