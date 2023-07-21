@@ -106,7 +106,7 @@ export class Analysis {
           let dt: Date = new Date();
 
           try {
-            console.log( logger.get_log( 'writing stats data for ' + msg.msg.feed_url ) );
+            this.logger.log_msg( 'writing stats data for ' + msg.msg.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
             this.inc_stories_per_hour_query[ 'values' ] = [ msg.msg.feed_url, dt.getHours(), this.daysIntoYear(dt), dt.getFullYear(), msg.msg.links_count ];
             this.dbconn.query( this.inc_stories_per_hour_query );
 
@@ -116,11 +116,11 @@ export class Analysis {
             this.inc_stories_per_month_query[ 'values' ] = [ msg.msg.feed_url, dt.getMonth(), dt.getFullYear(), msg.msg.links_count ];
             this.dbconn.query( this.inc_stories_per_month_query );
           } catch ( err ) {
-            logger.log_msg('Exception while trying to save statistical feed data of ' + msg.msg.feed_url + '\n' + err.toString(), parseInt( await redis_pub_client.get( 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' ) ) );
+            this.logger.log_msg('Exception while trying to save statistical feed data of ' + msg.msg.feed_url + '\n' + err.toString(), parseInt( await this.redis_pub_client.get( 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' ) ) );
           }
         }
       } else {
-        logger.log_msg('Exception while trying to decode Link Writer log data: ' + original_msg, parseInt( await redis_pub_client.get( 'ERR_LINK_WRITER_INVALID_LOG_MSG' ) ) );
+        this.logger.log_msg('Exception while trying to decode Link Writer log data: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_INVALID_LOG_MSG' ) ) );
       }
     });
   }

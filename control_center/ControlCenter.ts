@@ -54,7 +54,7 @@ export class ControlCenter {
     this.dbconn = dbconn;
 
     // publish info about our instance going live
-    this.logger.log_msg( 'control center up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+    this.logger.log_msg( 'control center up and running, checking feeds every ' + env.RSS_CHECK_INTERVAL_SECONDS + ' seconds', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
 
     let self = this;
 
@@ -103,7 +103,7 @@ export class ControlCenter {
   }
 
   private run_rss_fetch_container( container_id: string, feed_url: string ) {
-    exec('docker compose -f docker-compose.yml -f <(echo -e "services:\\n  ' + env.RSS_SERVICE_NAME + ':\\n    container_name: ' + env.RSS_SERVICE_NAME + '_' + container_id + '\n    hostname: ' + env.RSS_SERVICE_NAME + '_' + container_id + '\n    environment:\\n      - TEST_RUN=0\\n      - FEED_URL=' + feed_url + '") run -d --rm rss_fetch', {shell: "/bin/bash"}, async (error: ExecException, stdout: string, stderr: string): Promise<void> => {
+    exec( ( !!process.env.SUDO_UID ? 'sudo '  :'' ) + 'docker compose -f docker-compose.yml -f <(echo -e "services:\\n  ' + env.RSS_SERVICE_NAME + ':\\n    container_name: ' + env.RSS_SERVICE_NAME + '_' + container_id + '\n    hostname: ' + env.RSS_SERVICE_NAME + '_' + container_id + '\n    environment:\\n      - TEST_RUN=0\\n      - FEED_URL=' + feed_url + '") run -d --rm rss_fetch', {shell: "/bin/bash"}, async (error: ExecException, stdout: string, stderr: string): Promise<void> => {
       if (error) {
         this.logger.log_msg( 'Error (1) starting rss_fetch container for feed ' + feed_url + '\n' + error.toString(), parseInt( await this.redis_pub_client.get( 'ERR_CONTROL_CENTER_CANNOT_START_CONTAINER' ) ) );
         return;
@@ -116,7 +116,7 @@ export class ControlCenter {
         return;
       }
 
-      console.log(`started rss_fetch container for ${feed_url}, stdout: ${stdout}`);
+      this.logger.get_log(`started rss_fetch container for ${feed_url}, stdout: ${stdout}`);
     });
   }
 }

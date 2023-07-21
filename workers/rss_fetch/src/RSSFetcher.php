@@ -611,7 +611,7 @@ class RSSFetcher {
 
     $log = [
       'service' => $this->service_id,
-      'time' => time(),
+      'time' => microtime( true ),
       'feed_url' => $this->feed_url,
       'msg' => $msg,
     ];

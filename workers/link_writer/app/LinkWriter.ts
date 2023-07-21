@@ -138,7 +138,7 @@ export class LinkWriter {
                   this.feed_messages_inserted_counter[ msg.feed_url ]++;
                 }
 
-                console.log( this.logger.get_log( 'Successfully inserted into db: ' + msg.link + '\n' ) );
+                this.logger.log_msg( 'Successfully inserted into db: ' + msg.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
 
                 // cancel old timeout for this feed, if present
                 if ( this.feed_last_link_timeout_id[ msg.feed_url ] ) {
