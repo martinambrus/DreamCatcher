@@ -1,8 +1,8 @@
 FROM node:20-alpine
 
-COPY app /usr/src/log_writer
+COPY workers/log_writer/app /usr/src/log_writer
 WORKDIR /usr/src/log_writer
-COPY env.sh /env.sh
+COPY workers/log_writer/env.sh /env.sh
 
 RUN npm install redis pg typescript @types/node
 RUN npx tsc

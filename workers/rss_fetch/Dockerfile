@@ -21,9 +21,9 @@ RUN echo "extension=redis" | tee -a $PHP_INI_DIR/php.ini > /dev/null
 # install git
 RUN apk add git
 
-COPY src /usr/src/rss_fetch
+COPY workers/rss_fetch/src /usr/src/rss_fetch
 WORKDIR /usr/src/rss_fetch
-COPY env.sh /env.sh
+COPY workers/rss_fetch/env.sh /env.sh
 
 # install packages
 ENV COMPOSER_ALLOW_SUPERUSER 1

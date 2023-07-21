@@ -1,6 +1,8 @@
 services:
   rss_fetch:
-    build: workers/rss_fetch
+    build:
+      context: ../
+      dockerfile: workers/rss_fetch/Dockerfile
     networks:
       - internal
     container_name: rss_fetch
@@ -11,7 +13,9 @@ services:
     depends_on:
       - redis
   analysis:
-    build: workers/analysis
+    build:
+      context: ../
+      dockerfile: workers/analysis/Dockerfile
     networks:
       - internal
     container_name: analysis
@@ -20,8 +24,11 @@ services:
       - redis
       - rss_fetch
       - postgres
+    restart: always
   link_writer:
-    build: workers/link_writer
+    build:
+      context: ../
+      dockerfile: workers/link_writer/Dockerfile
     networks:
       - internal
     container_name: link_writer
@@ -30,8 +37,11 @@ services:
       - redis
       - rss_fetch
       - postgres
+    restart: always
   link_fix_detector:
-    build: workers/link_fix_detector
+    build:
+      context: ../
+      dockerfile: workers/link_fix_detector/Dockerfile
     networks:
       - internal
     container_name: link_fix_detector
@@ -40,8 +50,11 @@ services:
       - redis
       - rss_fetch
       - postgres
+    restart: always
   log_writer:
-    build: workers/log_writer
+    build:
+      context: ../
+      dockerfile: workers/log_writer/Dockerfile
     networks:
       - internal
     container_name: log_writer
@@ -49,8 +62,11 @@ services:
     depends_on:
       - redis
       - postgres
+    restart: always
   redis:
-   build: infrastructure/redis
+   build:
+     context: ../
+     dockerfile: infrastructure/redis/Dockerfile
    networks:
      - internal
    restart: always
@@ -68,9 +84,9 @@ services:
       - 5432:5432
     restart: always
     volumes:
-      - ./infrastructure/postgre/pgdata:/var/lib/postgresql/data/pgdata
-      - ./infrastructure/postgre/sql:/docker-entrypoint-initdb.d
-      - ./infrastructure/postgre/credentials:/credentials
+      - .././infrastructure/postgre/pgdata:/var/lib/postgresql/data/pgdata
+      - .././infrastructure/postgre/sql:/docker-entrypoint-initdb.d
+      - .././infrastructure/postgre/credentials:/credentials
     environment:
       POSTGRES_DB_FILE: /credentials/db_name
       POSTGRES_USER_FILE: /credentials/db_user
