@@ -609,9 +609,12 @@ class RSSFetcher {
     $msg = '[' . gmdate( 'j.m.Y H:i:s' ) . '] ' . $this->client_id . ': ' . $msg;
     echo $msg . "\n";
 
+    list( $m1, $m2 ) = explode( ' ', microtime() );
+    $m1 = substr( round( $m1, 3 ), 2 );
+
     $log = [
       'service' => $this->service_id,
-      'time' => microtime( true ),
+      'time' => $m2 . $m1,
       'feed_url' => $this->feed_url,
       'msg' => $msg,
     ];

@@ -168,7 +168,7 @@ export class LinkWriter {
             } catch ( err ) {
               // ignore duplicate errors, since we have unique url field in the DB
               // which ensures a certain level of de-duplication
-              if ( err.detail.indexOf( 'already exists' ) == -1 ) {
+              if ( ( err.detail && err.detail.indexOf( 'already exists' ) == -1) || !err.detail ) {
                 // this is a non-duplication error, log it
                 this.logger.log_msg( 'DB error while trying to insert new link data:\n' + err.toString(), parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_DB_WRITE_ERROR' ) ) );
               }
