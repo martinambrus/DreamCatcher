@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 docker compose up -d --build redis
 docker compose up -d --build postgres
 docker compose up -d --build rss_fetch

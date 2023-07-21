@@ -116,7 +116,7 @@ export class ControlCenter {
         return;
       }
 
-      this.logger.get_log(`started rss_fetch container for ${feed_url}, stdout: ${stdout}`);
+      console.log( this.logger.get_log(`started rss_fetch container for ${feed_url}, stdout: ${stdout}`) );
     });
   }
 }

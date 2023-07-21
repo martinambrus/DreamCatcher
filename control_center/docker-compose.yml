@@ -84,7 +84,7 @@ services:
       - 5432:5432
     restart: always
     volumes:
-      - ../infrastructure/postgre/pgdata:/var/lib/postgresql/data/pgdata
+      - ../infrastructure/postgre/pgdata:/var/lib/postgresql/pgdata
       - ../infrastructure/postgre/sql:/docker-entrypoint-initdb.d
       - ../infrastructure/postgre/credentials:/credentials
     environment:
@@ -92,7 +92,7 @@ services:
       POSTGRES_USER_FILE: /credentials/db_user
       POSTGRES_PASSWORD_FILE: /credentials/db_password
       POSTGRES_EXTENSIONS: pg_trgm, plpgsql, unaccent
-      PGDATA: /var/lib/postgresql/data/pgdata
+      PGDATA: /var/lib/postgresql/pgdata
 networks:
   internal:
     name: internal

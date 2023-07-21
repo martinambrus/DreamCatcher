@@ -13,7 +13,7 @@ const POSTGRES_PASSWORD: string = env.POSTGRES_PASSWORD;
 const POSTGRES_DB: string = env.POSTGRES_DB;
 
 // APP settings
-const CLIENT_ID: string = ( env.HOSTNAME ? env.HOSTNAME : 'control_center_undefined_host' );
+const CLIENT_ID: string = 'localhost';
 const SERVICE_ID: string = 'control_center';
 
 ( async (): Promise<void> => {
