@@ -53,7 +53,7 @@ class RSSFetcher {
   /**
    * @var string ID of this service type. Used for Redis messages.
    */
-  private string $service_id = 'rss-fetch';
+  private string $service_id = 'rss_fetch';
 
   /**
    * @var string The RSS feed url to retrieve and parse.
@@ -95,7 +95,7 @@ class RSSFetcher {
 
     // check if we have a feed URL
     if ( !$this->feed_url && !$this->test_run ) {
-      $this->log_msg( 'error: no feed URL passed in ENV variable for rss-fetch', 'ERR_RSS_FETCH_NO_FEED' );
+      $this->log_msg( 'error: no feed URL passed in ENV variable for rss_fetch', 'ERR_RSS_FETCH_NO_FEED' );
 
       $this->fetch_complete = true;
       exit();
@@ -609,12 +609,9 @@ class RSSFetcher {
     $msg = '[' . gmdate( 'j.m.Y H:i:s' ) . '] ' . $this->client_id . ': ' . $msg;
     echo $msg . "\n";
 
-    list( $m1, $m2 ) = explode( ' ', microtime() );
-    $m1 = substr( round( $m1, 3 ), 2 );
-
     $log = [
       'service' => $this->service_id,
-      'time' => $m2 . $m1,
+      'time' => time(),
       'feed_url' => $this->feed_url,
       'msg' => $msg,
     ];

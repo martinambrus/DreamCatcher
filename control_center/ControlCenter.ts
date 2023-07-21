@@ -71,7 +71,7 @@ export class ControlCenter {
     WHERE
       subsequent_errors_counter > 10
       AND
-      last_error_ts > ` + ( Date.now() - (60 * 60 * 24 * 2) ) // now minus 2 days
+      last_error_ts > ` + ( Math.round( Date.now() / 1000 ) - (60 * 60 * 24 * 2) ) // now minus 2 days
       );
 
       // assemble all feeds with the following parameters:
@@ -84,7 +84,7 @@ export class ControlCenter {
         ( normal_subscribers > 0 OR premium_subscribers > 0 )
         AND
         (
-          ( next_fetch_ts = 0 OR next_fetch_ts <= ${Date.now()} )
+          ( next_fetch_ts = 0 OR next_fetch_ts <= ${Math.round( Date.now() / 1000 )} )
           AND
           subsequent_errors_counter < 10
         )

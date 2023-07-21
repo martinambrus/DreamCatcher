@@ -73,7 +73,7 @@ export class LinkFixDetector {
 
       if ( msg ) {
         // check that we have the right message
-        if ( msg.service.indexOf( 'rss-fetch' ) > -1 && msg.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE && msg.code == parseInt( await this.redis_pub_client.get( 'ERR_RSS_FETCH_WRONG_URL' ) ) ) {
+        if ( msg.service.indexOf( 'rss_fetch' ) > -1 && msg.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE && msg.code == parseInt( await this.redis_pub_client.get( 'ERR_RSS_FETCH_WRONG_URL' ) ) ) {
           try {
             console.log( logger.get_log( 'updating feed URL for feed ' + msg.old_feed_url + ' to ' + msg.feed_url ) );
             this.dbconn.query( 'UPDATE feeds SET url = $1 WHERE url = $2', [ msg.feed_url, msg.old_feed_url ] );

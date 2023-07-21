@@ -80,7 +80,7 @@ export class Logger {
     if ( this.redis_pub_client ) {
       let log_msg = {
         'service': this.service_id,
-        'time': Date.now(),
+        'time': Math.round( Date.now() / 1000 ),
         'msg': msg,
       };
 

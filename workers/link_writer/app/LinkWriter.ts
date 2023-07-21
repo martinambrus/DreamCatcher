@@ -76,9 +76,20 @@ export class LinkWriter {
    * that will update stats in the DB.
    *
    * @private
-   * @type { Array<number> }
+   * @type { Object }
    */
-  private feed_messages_inserted_counter: Array<number> = [];
+  private feed_messages_inserted_counter: Object = {};
+
+  /**
+   * Timestamp of the first item received in a single batch
+   * for a single RSS feed. Used to compare the last update
+   * of the RSS feed as such and potentially shorten our waiting
+   * time between fetches once the feed resumes its publishing state.
+   *
+   * @private
+   * @type { Object }
+   */
+  private feed_first_batch_item_ts: Object = [];
 
   /**
    * Temporary cached feed urls to IDs.
@@ -116,7 +127,6 @@ export class LinkWriter {
     this.redis_sub_client.subscribe( env.REDIS_NEW_LINKS_CHANNEL, async ( msg, channel ): Promise<void> => {
       let original_msg: string = msg;
       msg = JSON.parse( msg );
-
       if ( msg ) {
         // check that the service publishing this message is not in fact a Link Writer
         if ( msg.service.indexOf( this.client_id ) == -1 ) {
@@ -131,6 +141,11 @@ export class LinkWriter {
             try {
               const res = await this.dbconn.query(text, values);
               if ( res.rows.length ) {
+                // check and store first item's timestamp for this batch and this feed
+                if ( !this.feed_first_batch_item_ts[ msg.feed_url ] || msg.date < this.feed_first_batch_item_ts[ msg.feed_url ] ) {
+                  this.feed_first_batch_item_ts[ msg.feed_url ] = msg.date;
+                }
+
                 // increment count of the messages inserted for this feed in this batch
                 if ( !this.feed_messages_inserted_counter[ msg.feed_url ] ) {
                   this.feed_messages_inserted_counter[ msg.feed_url ] = 1;
@@ -139,31 +154,10 @@ export class LinkWriter {
                 }
 
                 this.logger.log_msg( 'Successfully inserted into db: ' + msg.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-
-                // cancel old timeout for this feed, if present
-                if ( this.feed_last_link_timeout_id[ msg.feed_url ] ) {
-                  clearTimeout( this.feed_last_link_timeout_id[ msg.feed_url ] );
-                }
-
-                // create a new function to execute in 20 seconds for the DB stats update
-                this.feed_last_link_timeout_id[ msg.feed_url ] = setTimeout( () => {
-                  if ( this.feed_messages_inserted_counter[ msg.feed_url ] ) {
-                    this.redis_pub_client.pub_link( {
-                      'service': this.service_id,
-                      'time': Date.now(),
-                      'msg': {
-                        'feed_url': msg.feed_url,
-                        'links_count': this.feed_messages_inserted_counter[ msg.feed_url ],
-                      },
-                    });
-                  }
-
-                  this.feed_messages_inserted_counter[ msg.feed_url ] = 0;
-                  this.feed_last_link_timeout_id[ msg.feed_url ] = 0;
-                }, 20000 );
               } else {
                 // we couldn't insert this record into the DB for some reason, publish an error into the log
                 this.logger.log_msg( 'Could not insert link into db: ' + msg.link + '\n' + res.toString() + '\ndata: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' ) ) );
+                this.update_internals_when_link_fails_to_insert( msg );
               }
             } catch ( err ) {
               // ignore duplicate errors, since we have unique url field in the DB
@@ -171,14 +165,65 @@ export class LinkWriter {
               if ( ( err.detail && err.detail.indexOf( 'already exists' ) == -1) || !err.detail ) {
                 // this is a non-duplication error, log it
                 this.logger.log_msg( 'DB error while trying to insert new link data:\n' + err.toString() + '\ndata: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_DB_WRITE_ERROR' ) ) );
+              } else {
+                // since this is a valid duplicate link, update data
+                // to be sent to fetch interval updating service
+                this.update_internals_when_link_fails_to_insert( msg );
               }
             }
+
+            // cancel old timeout for this feed, if present
+            if ( this.feed_last_link_timeout_id[ msg.feed_url ] ) {
+              clearTimeout( this.feed_last_link_timeout_id[ msg.feed_url ] );
+            }
+
+            // create a new function to execute in 20 seconds for the DB stats update
+            // ... we do this independently on whether we were able to insert link data into DB
+            //     or not, since we need to update fetch intervals even if we don't insert a single link
+            //     and in such case, statistical info will remain unchanged
+            this.feed_last_link_timeout_id[ msg.feed_url ] = setTimeout( () => {
+              if ( this.feed_messages_inserted_counter[ msg.feed_url ] != 'undefined' ) {
+                this.redis_pub_client.pub_link( {
+                  'service': this.service_id,
+                  'time': Math.round( Date.now() / 1000 ),
+                  'msg': {
+                    'feed_url': msg.feed_url,
+                    'links_count': this.feed_messages_inserted_counter[ msg.feed_url ],
+                    'first_item_ts': this.feed_first_batch_item_ts[ msg.feed_url ],
+                  },
+                });
+              }
+
+              delete this.feed_messages_inserted_counter[ msg.feed_url ];
+              delete this.feed_first_batch_item_ts[ msg.feed_url ];
+              this.feed_last_link_timeout_id[ msg.feed_url ] = 0;
+            }, 20000 );
           }
         }
       } else {
         this.logger.log_msg('Exception while trying to decode RSS link data: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' ) ) );
       }
     });
+  }
+
+  /**
+   * Updates our internal inserted links counter
+   * as well as first batch item TS values when a link
+   * fails to get inserted into the DB (either by our own
+   * mistake in code or because it is a duplicate link).
+   *
+   * @param msg
+   * @private
+   * @return void
+   */
+  private update_internals_when_link_fails_to_insert( msg: Object ): void {
+    if ( !this.feed_messages_inserted_counter ) {
+      this.feed_messages_inserted_counter[ msg['feed_url'] ] = 0;
+    }
+
+    if ( !this.feed_first_batch_item_ts[ msg['feed_url'] ] ) {
+      this.feed_first_batch_item_ts[ msg['feed_url'] ] = ( msg && msg['date'] ? msg['date'] : Math.round( Date.now() / 1000 ) );
+    }
   }
 
   /**
