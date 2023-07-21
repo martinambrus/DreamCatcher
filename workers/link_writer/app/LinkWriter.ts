@@ -163,14 +163,14 @@ export class LinkWriter {
                 }, 20000 );
               } else {
                 // we couldn't insert this record into the DB for some reason, publish an error into the log
-                this.logger.log_msg( 'Could not insert link into db: ' + msg.link + '\n' + res.toString(), parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' ) ) );
+                this.logger.log_msg( 'Could not insert link into db: ' + msg.link + '\n' + res.toString() + '\ndata: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' ) ) );
               }
             } catch ( err ) {
               // ignore duplicate errors, since we have unique url field in the DB
               // which ensures a certain level of de-duplication
               if ( ( err.detail && err.detail.indexOf( 'already exists' ) == -1) || !err.detail ) {
                 // this is a non-duplication error, log it
-                this.logger.log_msg( 'DB error while trying to insert new link data:\n' + err.toString(), parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_DB_WRITE_ERROR' ) ) );
+                this.logger.log_msg( 'DB error while trying to insert new link data:\n' + err.toString() + '\ndata: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_DB_WRITE_ERROR' ) ) );
               }
             }
           }

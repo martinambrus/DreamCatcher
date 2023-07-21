@@ -116,7 +116,7 @@ export class Analysis {
             this.inc_stories_per_month_query[ 'values' ] = [ msg.msg.feed_url, dt.getMonth(), dt.getFullYear(), msg.msg.links_count ];
             this.dbconn.query( this.inc_stories_per_month_query );
           } catch ( err ) {
-            this.logger.log_msg('Exception while trying to save statistical feed data of ' + msg.msg.feed_url + '\n' + err.toString(), parseInt( await this.redis_pub_client.get( 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' ) ) );
+            this.logger.log_msg('Exception while trying to save statistical feed data of ' + msg.msg.feed_url + '\n' + err.toString() + '\ndata: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' ) ) );
           }
         }
       } else {
