@@ -13,4 +13,4 @@
 - `cd control_center && npm install && npx tsc`
 - `sudo chmod +x *.sh && sudo ./first_init_docker_slow.sh` or `sudo chmod +x *.sh && sudo ./start_docker.sh`
 - `sudo npm install forever -g`
-- `sudo rm -f *.js && sudo npx tsc && source env.sh && sudo forever start app.js`
+- `sudo rm -f *.js && sudo npx tsc && source env.sh && forever start app.js`
