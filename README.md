@@ -10,7 +10,6 @@
 - `git clone https://github.com/martinambrus/dreamcatcher.git && cd dreamcatcher`
 - `for filename in ./infrastructure/postgre/credentials/*; do mv "./$filename" "./$(echo "$filename" | sed -e 's/_example//g')"; done`
 - `shopt -s nullglob && shopt -s globstar && shopt -s dotglob && for fname in **/*.example ; do mv -- "${fname}" "${fname%.example}"; done`
-- `cd control_center && npm install && npx tsc`
-- `sudo chmod +x *.sh && sudo ./first_init_docker_slow.sh` or `sudo chmod +x *.sh && sudo ./start_docker.sh`
-- `sudo npm install forever -g`
-- `sudo rm -f *.js && sudo npx tsc && source env.sh && forever start app.js`
+- `sudo chmod +x *.sh && sudo ./start_docker.sh`
+
+... then, once Kafka containers start restarting (because of wrong permissions), execute the following: `cd infrastructure/datadir && chmod 777 kafka_0_data kafka_1_data kafka_2_data`

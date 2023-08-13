@@ -191,6 +191,7 @@ BEGIN
 		fetch_interval_minutes = feed_data.fetch_interval_minutes,
 		subsequent_errors_counter = feed_data.subsequent_errors_counter,
 		last_fetch_ts = feed_data.last_fetch_ts,
+        last_error_ts = feed_data.last_error_ts,
 		last_error = feed_data.last_error,
 		total_errors = feed_data.total_errors,
 		subsequent_stable_fetch_intervals = feed_data.subsequent_stable_fetch_intervals,
