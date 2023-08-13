@@ -2,7 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /usr/src/rss_fetch
 
-RUN npm install redis kafkajs typescript cacheable-lookup luxon striptags html-entities rss-parser @types/node
+RUN apk add git
+RUN npm install redis kafkajs typescript cacheable-lookup luxon striptags html-entities https://github.com/martinambrus/rss-parser @types/node
 
 COPY env.sh /env.sh
 COPY app /usr/src/rss_fetch

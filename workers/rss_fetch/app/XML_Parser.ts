@@ -18,7 +18,7 @@ export class XML_Parser {
   constructor() {
     this.rss_parser = new Parser({
       customFields: {
-        item: [ 'media:group' ], // YouTube
+        item: [ 'media:group', 'links' ], // YouTube
       },
       requestOptions: {
         rejectUnauthorized: false // ignore invalid SSL certificates
@@ -53,6 +53,20 @@ export class XML_Parser {
           categories: Array<string> = [],
           authors: Array<string> = [],
           date_published: number = Math.round( Date.now() / 1000 );
+
+        // try looking inside of links array, if it exists
+        if ( !url || typeof( url ) == 'undefined' && item.links && item.links.length ) {
+          if ( typeof( item.links[0] ) === 'string' ) {
+            url = item.links[0];
+          } else {
+            url = item.links[0]['$'].href;
+          }
+        }
+
+        // still no url, make it a hash
+        if ( !url || typeof( url ) == 'undefined' ) {
+          url = '#';
+        }
 
         // try to extract link image
         link_img = this.xml_item_get_main_image( item );
@@ -129,6 +143,12 @@ export class XML_Parser {
       img = item.enclosure.url;
     } else if ( item[ 'media:group' ] && item[ 'media:group' ][ 'media:thumbnail' ] && item[ 'media:group' ][ 'media:thumbnail' ][ 0 ] && item[ 'media:group' ][ 'media:thumbnail' ][ 0 ][ '$' ] && item[ 'media:group' ][ 'media:thumbnail' ][ 0 ] && item[ 'media:group' ][ 'media:thumbnail' ][ 0 ][ '$' ][ 'url' ] ) {
       img = item[ 'media:group' ][ 'media:thumbnail' ][ 0 ][ '$' ][ 'url' ]; // YouTube thumbnail
+    } else if ( item.image && ( ( item.image instanceof Array && item.image[0].url && typeof( item.image[0].url ) != 'undefined' ) || typeof( item.image ) === 'string' ) ) {
+      if ( item.image instanceof Array ) {
+        img = item.image[0].url;
+      } else {
+        img = item.image;
+      }
     } else if ( item.content ) {
       // check if we can find image in the description
       img = Utils.get_first_img_from_html( item.content );
