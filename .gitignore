@@ -2,9 +2,7 @@ env.sh
 infrastructure/postgre/credentials/db_name
 infrastructure/postgre/credentials/db_password
 infrastructure/postgre/credentials/db_user
-infrastructure/postgre/pgdata/
-workers/rss_fetch/src/vendor
+infrastructure/datadir
 node_modules
 package-lock.json
 composer.lock
-control_center/app/*.js

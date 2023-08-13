@@ -1,10 +1,10 @@
 FROM node:20-alpine
 
-WORKDIR /usr/src/link_writer
+WORKDIR /usr/src/control_center
 
 RUN npm install redis pg kafkajs typescript @types/node
 
-COPY app /usr/src/link_writer
+COPY app /usr/src/control_center
 COPY env.sh /env.sh
 
 RUN npx tsc

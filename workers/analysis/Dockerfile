@@ -1,10 +1,12 @@
 FROM node:20-alpine
 
-COPY workers/analysis/app /usr/src/analysis
 WORKDIR /usr/src/analysis
-COPY workers/analysis/env.sh /env.sh
 
-RUN npm install redis pg typescript @types/node
+RUN npm install redis pg kafkajs typescript @types/node
+
+COPY app /usr/src/analysis
+COPY env.sh /env.sh
+
 RUN npx tsc
 
 #CMD [ "/bin/sh", "-c", "source /env.sh && printenv && node ./app.js" ]

@@ -1,10 +1,12 @@
 FROM node:20-alpine
 
-COPY workers/log_writer/app /usr/src/log_writer
-WORKDIR /usr/src/log_writer
-COPY workers/log_writer/env.sh /env.sh
+WORKDIR /usr/src/err_log_writer
 
-RUN npm install redis pg typescript @types/node
+RUN npm install redis pg kafkajs typescript @types/node
+
+COPY app /usr/src/err_log_writer
+COPY env.sh /env.sh
+
 RUN npx tsc
 
 #CMD [ "/bin/sh", "-c", "source /env.sh && printenv && node ./app.js" ]

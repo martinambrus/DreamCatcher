@@ -1,10 +1,12 @@
 FROM node:20-alpine
 
-COPY workers/link_fix_detector/app /usr/src/link_fix_detector
 WORKDIR /usr/src/link_fix_detector
-COPY workers/link_fix_detector/env.sh /env.sh
 
-RUN npm install redis pg typescript @types/node
+RUN npm install redis pg kafkajs typescript @types/node
+
+COPY app /usr/src/link_fix_detector
+COPY env.sh /env.sh
+
 RUN npx tsc
 
 #CMD [ "/bin/sh", "-c", "source /env.sh && printenv && node ./app.js" ]

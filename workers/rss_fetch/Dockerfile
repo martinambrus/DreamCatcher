@@ -1,33 +1,13 @@
-FROM php:8.2-fpm-alpine
+FROM node:20-alpine
 
-# Use the default dev configuration
-RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
-
-# install composer
-RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-RUN php composer-setup.php --install-dir=/usr/local/bin --filename=composer
-RUN php -r "unlink('composer-setup.php');"
-
-# install pecl dependencies
-RUN apk update
-RUN apk add --no-cache --virtual .phpize-deps-configure $PHPIZE_DEPS
-
-# install PhpRedis
-RUN pecl install redis
-
-# add redis extension to php.ini
-RUN echo "extension=redis" | tee -a $PHP_INI_DIR/php.ini > /dev/null
-
-# install git
-RUN apk add git
-
-COPY workers/rss_fetch/src /usr/src/rss_fetch
 WORKDIR /usr/src/rss_fetch
-COPY workers/rss_fetch/env.sh /env.sh
 
-# install packages
-ENV COMPOSER_ALLOW_SUPERUSER 1
-RUN composer install
+RUN npm install redis kafkajs typescript cacheable-lookup luxon striptags html-entities rss-parser @types/node
 
-#CMD [ "/bin/sh", "-c", "source /env.sh && printenv && php ./app.php" ]
-CMD [ "/bin/sh", "-c", "source /env.sh && php ./app.php" ]
+COPY env.sh /env.sh
+COPY app /usr/src/rss_fetch
+
+RUN npx tsc
+
+#CMD [ "/bin/sh", "-c", "source /env.sh && printenv && node ./app.js" ]
+CMD [ "/bin/sh", "-c", "source /env.sh && node ./app.js" ]

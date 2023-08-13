@@ -1,6 +1,6 @@
 import {env, exit} from 'node:process';
 import { Logger } from "./Logger.js";
-import { LinkFixDetector } from "./LinkFixDetector.js";
+import { ErrLogWriter } from "./ErrLogWriter.js";
 import { KafkaProducer } from "./KafkaProducer.js";
 import { KafkaConsumer } from "./KafkaConsumer.js";
 import pkg from 'pg';
@@ -15,8 +15,8 @@ const POSTGRES_PASSWORD: string = env.POSTGRES_PASSWORD;
 const POSTGRES_DB: string = env.POSTGRES_DB;
 
 // APP settings
-const CLIENT_ID: string = ( env.HOSTNAME ? 'link_fix_detector_' + env.HOSTNAME : 'link_fix_detector_undefined_host' );
-const SERVICE_ID: string = 'link_fix_detector';
+const CLIENT_ID: string = ( env.HOSTNAME ? 'err_log_writer_' + env.HOSTNAME : 'err_log_writer_undefined_host' );
+const SERVICE_ID: string = 'err_log_writer';
 
 ( async (): Promise<void> => {
 
@@ -67,6 +67,6 @@ const SERVICE_ID: string = 'link_fix_detector';
     }
   }
 
-  // create the Analysis class instance and run program
-  new LinkFixDetector( SERVICE_ID, kafka_producer, kafka_consumer, logger, redis_client, dbconn );
+  // create the LinkWriter class instance and run program
+  new ErrLogWriter( SERVICE_ID, kafka_producer, kafka_consumer, logger, redis_client, dbconn );
 })();

@@ -1,0 +1,193 @@
+services:
+  control_center:
+    build: control_center
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - postgres
+      - redis
+      - kafka-0
+      - kafka-1
+      - kafka-2
+      - rss_fetch
+      - analysis
+      - link_writer
+      - link_fix_detector
+    restart: always
+  rss_fetch:
+    build: workers/rss_fetch
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    restart: always
+  analysis:
+    build: workers/analysis
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    restart: always
+  link_writer:
+    build: workers/link_writer
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    restart: always
+  err_log_writer:
+    build: workers/err_log_writer
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    restart: always
+  link_fix_detector:
+    build: workers/link_fix_detector
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    restart: always
+  redis:
+   build: infrastructure/redis
+   networks:
+     - internal
+   restart: always
+   container_name: redis_server
+   hostname: redis_server
+   ports:
+     - 127.0.0.1:6379:6379
+  postgres:
+    image: "postgres:15.3-alpine"
+    networks:
+      - internal
+    container_name: db_server
+    hostname: db_server
+    ports:
+      - 127.0.0.1:5432:5432
+    restart: always
+    volumes:
+      - ./infrastructure/datadir/pgdata:/var/lib/postgresql/pgdata
+      - ./infrastructure/postgre/sql:/docker-entrypoint-initdb.d
+      - ./infrastructure/postgre/credentials:/credentials
+    environment:
+      POSTGRES_DB_FILE: /credentials/db_name
+      POSTGRES_USER_FILE: /credentials/db_user
+      POSTGRES_PASSWORD_FILE: /credentials/db_password
+      POSTGRES_EXTENSIONS: pg_trgm, plpgsql, unaccent
+      PGDATA: /var/lib/postgresql/pgdata
+  kafka-0:
+    image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:9092:9092
+      - 127.0.0.1:9093:9093
+    restart: always
+    environment:
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - ./infrastructure/datadir/kafka_0_data:/bitnami/kafka
+  kafka-1:
+    image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
+    networks:
+      - internal
+    ports:
+      - 9092
+      - 9093
+    restart: always
+    environment:
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - ./infrastructure/datadir/kafka_1_data:/bitnami/kafka
+  kafka-2:
+    image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
+    networks:
+      - internal
+    ports:
+      - 9092
+      - 9093
+    restart: always
+    environment:
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      - KAFKA_CFG_NODE_ID=2
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - ./infrastructure/datadir/kafka_2_data:/bitnami/kafka
+  kafka_magic:
+    image: "digitsy/kafka-magic"
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:8081:80
+    volumes:
+      - ./infrastructure/datadir/kafka_magic:/config
+    environment:
+      KMAGIC_ALLOW_TOPIC_DELETE: "true"
+      KMAGIC_ALLOW_SCHEMA_DELETE: "true"
+      KMAGIC_CONFIG_STORE_TYPE: "file"
+      KMAGIC_CONFIG_STORE_CONNECTION: "Data Source=/config/KafkaMagicConfig.db;"
+      KMAGIC_CONFIG_ENCRYPTION_KEY: "ABCD8589!8x^pqX1"
+    depends_on:
+      - kafka-0
+      - kafka-1
+      - kafka-2
+    restart: always
+networks:
+  internal:
+    name: internal

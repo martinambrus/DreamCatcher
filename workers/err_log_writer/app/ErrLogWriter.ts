@@ -4,7 +4,14 @@ import pkg from "pg";
 import { KafkaProducer } from './KafkaProducer.js';
 import { KafkaConsumer } from './KafkaConsumer.js';
 
-export class LinkFixDetector {
+export class ErrLogWriter {
+
+  /**
+   * Main app service ID, so we can use it in Redis logs.
+   * @private
+   * @type { string }
+   */
+  private readonly service_name: string;
 
   /**
    * Instance of the Logger class.
@@ -12,13 +19,6 @@ export class LinkFixDetector {
    * @type { Logger }
    */
   private readonly logger: Logger;
-
-  /**
-   * Main app service ID, so we can use it in Kafka logs.
-   * @private
-   * @type { string }
-   */
-  private readonly service_name: string;
 
   /**
    * Kafka logs topic name.
@@ -56,15 +56,6 @@ export class LinkFixDetector {
    * @type { pkg.Client }
    */
   private readonly dbconn: pkg.Client;
-
-  /**
-   * Error code to check for when receiving Kafka log messages,
-   * so we know which error message to react to and when to rewrite
-   * an invalid feed URL.
-   * @private
-   * @type { number }
-   */
-  private redis_wrong_link_err_code: number;
 
   /**
    * Stores references to Redis, PGSQL and Logger classes
@@ -109,13 +100,10 @@ export class LinkFixDetector {
       this.redis_client.set( this.service_name + '_active', 1 );
     }
 
-    // subscribe to RSS new links channel, so we can update wrong feed links when they are found
+    // subscribe to logs channel, so we can store error logs into the DB
     this.kafka_consumer.subscribe( [ this.logs_channel_name ] ).then( async () => {
-      // store redis error code
-      self.redis_wrong_link_err_code = parseInt( await self.redis_client.get( 'ERR_RSS_FETCH_WRONG_URL' ) );
-
-      // start processing newfound links
-      if ( !await self.kafka_consumer.consume( self.db_update_wrong_feed_url.bind( this ) ) ) {
+      // start processing logs
+      if ( !await self.kafka_consumer.consume( self.log_error.bind( this ) ) ) {
         let exit_code: number = parseInt( await self.redis_client.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
         await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
         exit( exit_code );
@@ -127,29 +115,43 @@ export class LinkFixDetector {
   }
 
   /**
-   * Rewrites invalid feed URL to a valid one in the database.
+   * Logs errors into the database, so they can be browsed easily.
    *
    * @param { Object } data This is the data received from Kafka consumer.
    *                        Object structure: topic, partition, message, heartbeat, pause
    * @private
    */
-  private async db_update_wrong_feed_url( { topic, partition, message, heartbeat, pause } ): Promise<void> {
+  private async log_error( { topic, partition, message, heartbeat, pause } ): Promise<void> {
     if ( topic == this.logs_channel_name ) {
       let original_msg: string = message.value.toString();
       message = JSON.parse( message.value.toString() );
 
-      if ( message ) {
-        // check that we have the right message
-        if ( message.service.indexOf( 'rss_fetch' ) > -1 && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE && message.code == this.redis_wrong_link_err_code ) {
-          try {
-            console.log( this.logger.get_log( 'updating feed URL for feed ' + message.extra_data.old_feed_url + ' to ' + message.extra_data.feed_url ) );
-            this.dbconn.query( 'UPDATE feeds SET url = $1 WHERE url = $2', [ message.extra_data.feed_url, message.extra_data.old_feed_url ] );
-          } catch ( err ) {
-            await this.logger.log_msg( 'Exception while trying to update feed URL for ' + message.extra_data.old_feed_url + '\n' + JSON.stringify( err ), 'ERR_INVALID_FEED_URL_UPDATE_FAILURE' );
+      if ( message && message.severity == LOG_SEVERITIES.LOG_SEVERITY_ERROR ) {
+        // try inserting the log data into the DB
+        const text: string = 'INSERT INTO err_log( service_id, code, log_time, msg, extra ) VALUES( $1, $2, $3, $4, $5 ) RETURNING id';
+        let values: Array<any> = [ message.service, ( message.code ? message.code : 0 ), message.time, message.msg.replace( /\[[^\]]+\] /gm, '' ) ]; // remove timedate prefix from message
+
+        // check for any extra data in the message and add it to the extra column
+        let extra: Object = {};
+        for ( let i in message ) {
+          if ( ![ 'service', 'code', 'severity', 'time', 'msg' ].includes( i ) ) {
+            extra[ i ] = message[ i ];
           }
         }
+
+        values.push( JSON.stringify( extra ) );
+
+        try {
+          console.log( this.logger.get_log( 'logging: ' + original_msg ) );
+          const res = await this.dbconn.query(text, values);
+          if ( !res.rows.length ) {
+            console.log( this.logger.get_log( 'Could not insert log into db' ) );
+          }
+        } catch ( err ) {
+          console.log( this.logger.get_log( 'DB error while trying to insert log data:\n' + JSON.stringify( err ) ) );
+        }
       } else {
-        await this.logger.log_msg('Exception while trying to decode log data: ' + original_msg, parseInt( await this.redis_client.get( 'ERR_LOG_MESSAGE_INVALID' ) ) );
+        console.log( this.logger.get_log('Exception while trying to decode and store log data: ' + original_msg ) );
       }
     }
   }

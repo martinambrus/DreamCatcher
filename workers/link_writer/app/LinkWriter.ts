@@ -1,17 +1,8 @@
-import { env } from "node:process";
-import { Logger } from "./Logger.js";
-import { RedisClient } from "./RedisClient.js";
+import { env, exit } from 'node:process';
+import { LOG_SEVERITIES, Logger } from './Logger.js';
 import pkg from "pg";
-
-/**
- * Enumeration of LOG severities.
- */
-export enum LOG_SEVERITIES {
-
-  LOG_SEVERITY_ERROR = 'error',
-  LOG_SEVERITY_LOG = 'log',
-
-}
+import { KafkaProducer } from './KafkaProducer.js';
+import { KafkaConsumer } from './KafkaConsumer.js';
 
 export class LinkWriter {
 
@@ -22,7 +13,7 @@ export class LinkWriter {
   private readonly client_id: string;
 
   /**
-   * Main app service ID, so we can use it in Redis logs.
+   * Main app service ID, so we can use it in Kafka logs.
    * @private
    * @type { string }
    */
@@ -36,20 +27,27 @@ export class LinkWriter {
   private readonly logger: Logger;
 
   /**
-   * Instance of the RedisClient used for message publishing
+   * Instance of the KafkaProducer used for message publishing
    * sections of the code.
    * @private
-   * @type { RedisClient }
+   * @type { KafkaProducer }
    */
-  private readonly redis_pub_client: RedisClient;
+  private readonly kafka_producer: KafkaProducer;
 
   /**
-   * Instance of the RedisClient used for message subscribing
-   * sections of the code.
+   * Instance of the KafkaConsumer used to listen
+   * for RSS feeds to parse.
    * @private
-   * @type { RedisClient }
+   * @type { KafkaConsumer }
    */
-  private readonly redis_sub_client: RedisClient;
+  private readonly kafka_consumer: KafkaConsumer;
+
+  /**
+   * Redis client instance, used to fetch error codes.
+   * @type { any }
+   * @private
+   */
+  private readonly redis_client: any;
 
   /**
    * PostgreSQL client class instance.
@@ -100,110 +98,162 @@ export class LinkWriter {
   private feed_url_to_id: Object = {};
 
   /**
+   * New ilnks channel name.
+   * @private
+   * @type { string }
+   */
+  private links_channel_name: string;
+
+  /**
    * Stores references to Redis, PGSQL and Logger classes
    * that were created outside of this main class.
    *
-   * @param { string }      client_id        ID of the main application client, so we can determine who posted
+   * @param { string }        client_id      ID of the main application client, so we can determine who posted
    *                                         a new link message and don't react to our own messages
-   * @param { string }      service_id       ID of the service from main application for Redis publishing purposes
-   * @param { RedisClient } redis_sub_client Redis client used for subscribing to channels.
-   * @param { RedisClient } redis_pub_client Redis client used to publish to Redis channels.
-   * @param { Logger }      logger           A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }  dbconn           A PGSQL client instance.
+   * @param { string }        service_id     ID of the service from main application for Kafka publishing purposes
+   * @param { KafkaProducer } kafka_producer Kafka Producer used to publish messages.
+   * @param { KafkaConsumer } kafka_consumer Kafka Consumer used to listen for RSS feeds to parse.
+   * @param { Logger }        logger         A Logger class instanced used for logging purposes.
+   * @param { any }           redisClient    A Redis client to fetch error codes.
+   * @param { pkg.Client }    dbconn         A PGSQL client instance.
    */
-  constructor( client_id: string, service_id: string, redis_sub_client: RedisClient, redis_pub_client: RedisClient, logger: Logger, dbconn: pkg.Client ) {
+  constructor( client_id: string, service_id: string, kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: Logger, redisClient: any, dbconn: pkg.Client ) {
+    // Kafka
+    this.kafka_producer = kafka_producer;
+    this.kafka_consumer = kafka_consumer;
 
-    this.client_id = client_id;
-    this.service_id = service_id;
-    this.redis_sub_client = redis_sub_client;
-    this.redis_pub_client = redis_pub_client;
+    // Logger
     this.logger = logger;
+
+    // Database
     this.dbconn = dbconn;
 
-    // publish info about our instance going live
-    this.logger.log_msg( 'subscribing to Redis channels now', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+    // Redis
+    this.redis_client = redisClient;
+
+    // strings
+    this.client_id = client_id;
+    this.service_id = service_id;
+    this.links_channel_name = env.KAFKA_NEW_LINKS_CHANNEL;
+
+    let self = this;
+
+    // create a task that will update this service active status every minute
+    setInterval( (): void => {
+      if ( self.kafka_consumer.get_active() && self.kafka_producer.get_active() ) {
+        self.redis_client.set( self.service_id + '_active', 1 );
+      }
+    }, 60000 );
+
+    // mark ourselves as active from the start, if both - producer and consumer - are active
+    if ( this.kafka_consumer.get_active() && this.kafka_producer.get_active() ) {
+      this.redis_client.set( this.service_id + '_active', 1 );
+    }
 
     // subscribe to RSS new links channel, so we can write their data out to the database
-    this.redis_sub_client.subscribe( env.REDIS_NEW_LINKS_CHANNEL, async ( msg, channel ): Promise<void> => {
-      let original_msg: string = msg;
-      msg = JSON.parse( msg );
-      if ( msg ) {
+    this.kafka_consumer.subscribe( [ this.links_channel_name ] ).then( async () => {
+      // start processing newfound links
+      if ( !await self.kafka_consumer.consume( self.parse_link.bind( this ) ) ) {
+        let exit_code: number = parseInt( await self.redis_client.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
+        await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
+        exit( exit_code );
+      }
+
+      // publish info about our instance going live
+      await this.logger.log_msg( self.service_id + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+    });
+  }
+
+  /**
+   * Parses the link received and tries to write its data into DB.
+   *
+   * @param { Object } data This is the data received from Kafka consumer.
+   *                        Object structure: topic, partition, message, heartbeat, pause
+   * @private
+   */
+  private async parse_link( { topic, partition, message, heartbeat, pause } ): Promise<void> {
+    if ( topic == this.links_channel_name ) {
+      let original_msg: string = message.value.toString();
+      message                      = JSON.parse( message.value.toString() );
+
+      if ( message ) {
         // check that the service publishing this message is not in fact a Link Writer
-        if ( msg.service.indexOf( this.client_id ) == -1 ) {
+        if ( message.service != this.service_id ) {
 
           // see if we have cached feed ID for this URL
-          if ( await this.checkAndCacheFeedURL( msg.feed_url ) ) {
+          if ( await this.checkAndCacheFeedURL( message.feed_url ) ) {
 
             // try inserting the link into the DB
-            const text: string = 'INSERT INTO unprocessed_links(feed_id, title, description, link, img, date_posted) VALUES($1, $2, $3, $4, $5, $6) RETURNING id';
-            const values: Array<any> = [ this.feed_url_to_id[ msg.feed_url ], msg.title, msg.description, msg.link, msg.img, msg.date ];
+            const text: string       = 'INSERT INTO unprocessed_links( feed_id, title, description, link, img, date_posted ) VALUES( $1, $2, $3, $4, $5, $6 ) RETURNING id';
+            const values: Array<any> = [ this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published ];
 
             try {
-              const res = await this.dbconn.query(text, values);
+              const res = await this.dbconn.query( text, values );
               if ( res.rows.length ) {
                 // check and store first item's timestamp for this batch and this feed
-                if ( !this.feed_first_batch_item_ts[ msg.feed_url ] || msg.date < this.feed_first_batch_item_ts[ msg.feed_url ] ) {
-                  this.feed_first_batch_item_ts[ msg.feed_url ] = msg.date;
+                if (!this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ]) {
+                  this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
                 }
 
                 // increment count of the messages inserted for this feed in this batch
-                if ( !this.feed_messages_inserted_counter[ msg.feed_url ] ) {
-                  this.feed_messages_inserted_counter[ msg.feed_url ] = 1;
+                if (!this.feed_messages_inserted_counter[ message.feed_url ]) {
+                  this.feed_messages_inserted_counter[ message.feed_url ] = 1;
                 } else {
-                  this.feed_messages_inserted_counter[ msg.feed_url ]++;
+                  this.feed_messages_inserted_counter[ message.feed_url ]++;
                 }
 
-                this.logger.log_msg( 'Successfully inserted into db: ' + msg.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+                // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
+                this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
               } else {
                 // we couldn't insert this record into the DB for some reason, publish an error into the log
-                this.logger.log_msg( 'Could not insert link into db: ' + msg.link + '\n' + res.toString() + '\ndata: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' ) ) );
-                this.update_internals_when_link_fails_to_insert( msg );
+                await this.logger.log_msg( 'Could not insert link into db: ' + message.link + '\n' + res.toString() + '\ndata: ' + original_msg, 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' );
+                this.update_internals_when_link_fails_to_insert( message );
               }
             } catch ( err ) {
               // ignore duplicate errors, since we have unique url field in the DB
               // which ensures a certain level of de-duplication
               if ( ( err.detail && err.detail.indexOf( 'already exists' ) == -1) || !err.detail ) {
                 // this is a non-duplication error, log it
-                this.logger.log_msg( 'DB error while trying to insert new link data:\n' + err.toString() + '\ndata: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_DB_WRITE_ERROR' ) ) );
+                await this.logger.log_msg( 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 'ERR_LINK_WRITER_DB_WRITE_ERROR' );
               } else {
                 // since this is a valid duplicate link, update data
                 // to be sent to fetch interval updating service
-                this.update_internals_when_link_fails_to_insert( msg );
+                this.update_internals_when_link_fails_to_insert( message );
               }
             }
 
             // cancel old timeout for this feed, if present
-            if ( this.feed_last_link_timeout_id[ msg.feed_url ] ) {
-              clearTimeout( this.feed_last_link_timeout_id[ msg.feed_url ] );
+            if (this.feed_last_link_timeout_id[ message.feed_url ]) {
+              clearTimeout(this.feed_last_link_timeout_id[ message.feed_url ]);
             }
 
             // create a new function to execute in 20 seconds for the DB stats update
             // ... we do this independently on whether we were able to insert link data into DB
             //     or not, since we need to update fetch intervals even if we don't insert a single link
             //     and in such case, statistical info will remain unchanged
-            this.feed_last_link_timeout_id[ msg.feed_url ] = setTimeout( () => {
-              if ( this.feed_messages_inserted_counter[ msg.feed_url ] != 'undefined' ) {
-                this.redis_pub_client.pub_link( {
+            this.feed_last_link_timeout_id[ message.feed_url ] = setTimeout(() => {
+              if (this.feed_messages_inserted_counter[ message.feed_url ] != 'undefined') {
+                this.kafka_producer.pub_item( {
                   'service': this.service_id,
-                  'time': Math.round( Date.now() / 1000 ),
-                  'msg': {
-                    'feed_url': msg.feed_url,
-                    'links_count': this.feed_messages_inserted_counter[ msg.feed_url ],
-                    'first_item_ts': this.feed_first_batch_item_ts[ msg.feed_url ],
+                  'severity': LOG_SEVERITIES.LOG_SEVERITY_NOTICE,
+                  'extra_data': {
+                    'feed_url':      message.feed_url,
+                    'links_count':   this.feed_messages_inserted_counter[ message.feed_url ],
+                    'first_item_ts': this.feed_first_batch_item_ts[ message.feed_url ],
                   },
                 });
               }
 
-              delete this.feed_messages_inserted_counter[ msg.feed_url ];
-              delete this.feed_first_batch_item_ts[ msg.feed_url ];
-              this.feed_last_link_timeout_id[ msg.feed_url ] = 0;
-            }, 20000 );
+              delete this.feed_messages_inserted_counter[ message.feed_url ];
+              delete this.feed_first_batch_item_ts[ message.feed_url ];
+              this.feed_last_link_timeout_id[ message.feed_url ] = 0;
+            }, 20000);
           }
         }
       } else {
-        this.logger.log_msg('Exception while trying to decode RSS link data: ' + original_msg, parseInt( await this.redis_pub_client.get( 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' ) ) );
+        await this.logger.log_msg( 'Exception while trying to decode RSS link data: ' + original_msg, 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' );
       }
-    });
+    }
   }
 
   /**
@@ -232,7 +282,7 @@ export class LinkWriter {
    * a cleanup task to remove the cached value after 45 minutes
    * of feed inactivity.
    *
-   * @param feed_url
+   * @param { string } feed_url The feed URL to check for ID mapping existance.
    * @private
    *
    * @return { Promise<boolean> } Returns true if the feed was successfully cached,
@@ -249,7 +299,7 @@ export class LinkWriter {
         this.feed_url_to_id[ feed_url ] = -1;
 
         // we couldn't get link ID for this feed, log error
-        this.logger.log_msg( 'Could not find feed in database: ' + feed_url, parseInt( await this.redis_pub_client.get( 'ERR_LINK_WRITER_NO_RSS_FEED_RECORD' ) ) );
+        await this.logger.log_msg( 'Could not find feed in database: ' + feed_url, 'ERR_LINK_WRITER_NO_RSS_FEED_RECORD' );
         ret = false;
       }
 

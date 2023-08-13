@@ -7,7 +7,6 @@ export enum LOG_SEVERITIES {
 
   LOG_SEVERITY_ERROR = 'error',
   LOG_SEVERITY_LOG = 'log',
-  LOG_SEVERIRY_NOTICE = 'notice',
 
 }
 
@@ -96,13 +95,13 @@ export class Logger {
   /**
    * Logs message into the console and Kafka.
    *
-   * @param { string }        msg        Message to log.
-   * @param { number|string } code       A numeric error code. If string is passed, code will be looked up from the Redis client.
-   * @param { string }        severity   Log severity - on of the LOG_SEVERITIES enum, @see { Analysis.LOG_SEVERITIES }
-   * @param { Object }        extra_data Any extra data to be passed to the message.
+   * @param { string }        msg      Message to log.
+   * @param { number|string } code     A numeric error code. If string is passed, code will be looked up from the Redis client.
+   * @param { string }        severity Log severity - on of the LOG_SEVERITIES enum, @see { Analysis.LOG_SEVERITIES }
    */
-  public async log_msg( msg: string, code: number|string = 0, severity: string = LOG_SEVERITIES.LOG_SEVERITY_ERROR, extra_data: Object = {} ): Promise<void> {
+  public async log_msg( msg: string, code: number|string = 0, severity: string = LOG_SEVERITIES.LOG_SEVERITY_ERROR ): Promise<void> {
     msg = this.get_log( msg );
+    console.log( msg );
 
     if ( this.kafka_producer ) {
       let log_msg = {
@@ -112,19 +111,15 @@ export class Logger {
       };
 
       if (severity) {
-        log_msg[ 'severity' ] = severity;
+        log_msg['severity'] = severity;
       }
 
       if (code) {
         if ( typeof code === 'string' ) {
-          log_msg[ 'code' ] = parseInt( await this.redis_client.get( code ) );
+          log_msg['code'] = parseInt( await this.redis_client.get( code ) );
         } else {
-          log_msg[ 'code' ] = code;
+          log_msg['code'] = code;
         }
-      }
-
-      if ( Object.keys( extra_data ) ) {
-        log_msg[ 'extra_data' ] = extra_data;
       }
 
       await this.kafka_producer.log_msg( log_msg );
