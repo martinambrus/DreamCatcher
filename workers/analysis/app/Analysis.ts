@@ -196,7 +196,6 @@ export class Analysis {
       message = JSON.parse( message.value.toString() );
 
       if ( message ) {
-        console.log(message);
         // check that we have the right message
         if ( message.service == 'link_writer' && message.severity == LOG_SEVERITIES.LOG_SEVERIRY_NOTICE ) {
           let dt: Date = new Date();
@@ -237,7 +236,6 @@ export class Analysis {
       message = JSON.parse( message.value.toString() );
 
       if ( message ) {
-        console.log(message);
         // check that we have the right message
         if ( message.service == 'rss_fetch' && this.important_rss_fetch_error_codes.includes( parseInt( message.code ) ) ) {
           try {
