@@ -18,7 +18,7 @@ export class XML_Parser {
   constructor() {
     this.rss_parser = new Parser({
       customFields: {
-        item: [ 'media:group', 'links' ], // YouTube
+        item: [ 'media:group', 'links', 'editor', 'AuthorName' ],
       },
       requestOptions: {
         rejectUnauthorized: false // ignore invalid SSL certificates
@@ -58,7 +58,7 @@ export class XML_Parser {
         // try looking inside of links array, if it exists
         if ( ( !url || typeof( url ) == 'undefined' ) && item.links && item.links instanceof Array && item.links.length ) {
           if ( typeof( item.links[0] ) === 'string' ) {
-            url = item.links[0];
+            url = item.links[0].toString();
           } else {
             url = item.links[0]['$'].href;
           }
@@ -73,8 +73,14 @@ export class XML_Parser {
         }
 
         // try to get the author
-        if ( item.creator ) {
-          authors.push( item.creator );
+        if ( item.creator || item.editor || item.AuthorName ) {
+          if ( item.creator ) {
+            authors.push( item.creator );
+          } else if ( item.editor ) {
+            authors.push( item.editor );
+          } else if ( item.AuthorName ) {
+            authors.push( item.AuthorName );
+          }
         }
 
         // update the published date, if one is found
