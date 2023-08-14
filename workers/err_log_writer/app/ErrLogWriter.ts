@@ -126,29 +126,31 @@ export class ErrLogWriter {
       let original_msg: string = message.value.toString();
       message = JSON.parse( message.value.toString() );
 
-      if ( message && message.severity == LOG_SEVERITIES.LOG_SEVERITY_ERROR ) {
-        // try inserting the log data into the DB
-        const text: string = 'INSERT INTO err_log( service_id, code, log_time, msg, extra ) VALUES( $1, $2, $3, $4, $5 ) RETURNING id';
-        let values: Array<any> = [ message.service, ( message.code ? message.code : 0 ), message.time, message.msg.replace( /\[[^\]]+\] /gm, '' ) ]; // remove timedate prefix from message
+      if ( message ) {
+        if ( message.severity == LOG_SEVERITIES.LOG_SEVERITY_ERROR ) {
+          // try inserting the log data into the DB
+          const text: string     = 'INSERT INTO err_log( service_id, code, log_time, msg, extra ) VALUES( $1, $2, $3, $4, $5 ) RETURNING id';
+          let values: Array<any> = [ message.service, ( message.code ? message.code : 0 ), message.time, message.msg.replace( /\[[^\]]+\] /gm, '' ) ]; // remove timedate prefix from message
 
-        // check for any extra data in the message and add it to the extra column
-        let extra: Object = {};
-        for ( let i in message ) {
-          if ( ![ 'service', 'code', 'severity', 'time', 'msg' ].includes( i ) ) {
-            extra[ i ] = message[ i ];
+          // check for any extra data in the message and add it to the extra column
+          let extra: Object = {};
+          for ( let i in message ) {
+            if ( ![ 'service', 'code', 'severity', 'time', 'msg' ].includes( i ) ) {
+              extra[ i ] = message[ i ];
+            }
           }
-        }
 
-        values.push( JSON.stringify( extra ) );
+          values.push( JSON.stringify( extra ) );
 
-        try {
-          console.log( this.logger.get_log( 'logging: ' + original_msg ) );
-          const res = await this.dbconn.query(text, values);
-          if ( !res.rows.length ) {
-            console.log( this.logger.get_log( 'Could not insert log into db' ) );
+          try {
+            console.log( this.logger.get_log( 'logging: ' + original_msg ) );
+            const res = await this.dbconn.query( text, values );
+            if ( !res.rows.length ) {
+              console.log( this.logger.get_log( 'Could not insert log into db' ) );
+            }
+          } catch ( err ) {
+            console.log( this.logger.get_log( 'DB error while trying to insert log data:\n' + JSON.stringify( err ) ) );
           }
-        } catch ( err ) {
-          console.log( this.logger.get_log( 'DB error while trying to insert log data:\n' + JSON.stringify( err ) ) );
         }
       } else {
         console.log( this.logger.get_log('Exception while trying to decode and store log data: ' + original_msg ) );
