@@ -10,6 +10,5 @@
 - `git clone https://github.com/martinambrus/dreamcatcher.git && cd dreamcatcher`
 - `for filename in ./infrastructure/postgre/credentials/*; do mv "./$filename" "./$(echo "$filename" | sed -e 's/_example//g')"; done`
 - `shopt -s nullglob && shopt -s globstar && shopt -s dotglob && for fname in **/*.example ; do mv -- "${fname}" "${fname%.example}"; done`
+- `mkdir -m 777 -p infrastructure/datadir/kafka_0_data && mkdir -m 777 -p infrastructure/datadir/kafka_1_data && mkdir -m 777 -p infrastructure/datadir/kafka_2_data`
 - `sudo chmod +x *.sh && sudo ./start_docker.sh`
-
-... then, once Kafka containers start restarting (because of wrong permissions), execute the following: `cd infrastructure/datadir && chmod 777 kafka_0_data kafka_1_data kafka_2_data`
