@@ -1,18 +1,15 @@
-import {LOG_SEVERITIES, Logger} from "./Logger.js";
+import { LOG_SEVERITIES, Logger } from "./Logger.js";
 import { KafkaProducer } from "./KafkaProducer.js";
 import { KafkaConsumer } from "./KafkaConsumer.js";
 import { env, exit } from "node:process";
 import * as http from 'node:http';
 import * as https from 'node:https';
 import CacheableLookup from 'cacheable-lookup';
-import {Utils} from './Utils.js';
-import {XML_Parser} from './XML_Parser.js';
-import {JSON_Parser} from './JSON_Parser.js';
+import { Utils } from './Utils.js';
+import { XML_Parser } from './XML_Parser.js';
+import { JSON_Parser } from './JSON_Parser.js';
+import fetch from 'node-fetch';
 const cacheable: CacheableLookup = new CacheableLookup();
-
-// install DNS cache for all HTTP and HTTPS requests globally
-cacheable.install( http.globalAgent );
-cacheable.install( https.globalAgent );
 
 export class RSSFetch {
 
@@ -75,6 +72,20 @@ export class RSSFetch {
   private feed_fetch_channel_name: string;
 
   /**
+   * Local HTTP agent to be used in node-fetch module.
+   * @private
+   * @type { http.Agent }
+   */
+  private readonly http_agent: http.Agent;
+
+  /**
+   * Local HTTPS agent to be used in node-fetch module.
+   * @private
+   * @type { https.Agent }
+   */
+  private readonly https_agent: https.Agent;
+
+  /**
    * Stores references to Kafka, PGSQL and Logger classes
    * that were created outside of this main class.
    * Also creates instances of XML and JSON parser internal classes.
@@ -88,6 +99,20 @@ export class RSSFetch {
     // initialize Utils static class with default values
     Utils.kafka_producer = kafka_producer;
     Utils.service_name = service_name;
+
+    // initialize http+s agents
+    this.http_agent = new http.Agent({
+      keepAlive: true,
+    });
+
+    this.https_agent = new https.Agent({
+      keepAlive: true,
+      rejectUnauthorized: false,
+    });
+
+    // install DNS cache for all HTTP and HTTPS requests globally
+    cacheable.install( this.http_agent );
+    cacheable.install( this.https_agent );
 
     // Kafka
     this.kafka_producer = kafka_producer;
@@ -272,34 +297,28 @@ export class RSSFetch {
    * @return { Object } Returns an object with "status" and "data" keys.
    */
   private async get_url_data( url: string ): Promise<{ status: number, data: string }> {
-    let body: string = '';
+    try {
+      let
+        self = this,
+        res  = await fetch( url, {
+          agent:   function ( _parsedURL ) {
+            if ( _parsedURL.protocol == 'http:' ) {
+              return self.http_agent;
+            } else {
+              return self.https_agent;
+            }
+          },
+          headers: {
+            // spoof desktop browser, otherwise some services would return an error status code
+            'User-Agent': 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0)',
+          },
+          follow: 10,
+        } );
 
-    return new Promise(( resolve, reject ): void => {
-      const adapter = ( url.startsWith( 'https://' ) ? https : http );
-
-      adapter.get( url, {
-        rejectUnauthorized: false, // don't worry about invalid SSL certificates
-        headers: {
-          // spoof desktop browser, otherwise some services would return an error status code
-          'User-Agent': 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0)',
-        }
-      }, res => {
-        if ( res.statusCode < 200 || res.statusCode > 399 ) {
-          // we need to consume data with an empty function here
-          // or we'd never get to a resolved / rejected state
-          res.on( "data", function(): void {} );
-          reject( { status: res.statusCode, data: '' } );
-        } else {
-          res.on( "data", function( chunk ): void { body += chunk } );
-        }
-
-        res.on( "end", (): void => {
-          resolve( { status: res.statusCode, data: body } );
-        })
-      }).on( "error", function( err: Error ): void {
-        reject( { status: -1, data: JSON.stringify( err ) } );
-      });
-    });
+      return { status: res.status, data: await res.text() };
+    } catch ( err ) {
+      return { status: -1, data: JSON.stringify( err ) };
+    }
   }
 
 }
