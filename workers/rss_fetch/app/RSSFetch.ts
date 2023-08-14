@@ -310,7 +310,7 @@ export class RSSFetch {
           },
           headers: {
             // spoof desktop browser, otherwise some services would return an error status code
-            'User-Agent': 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0)',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0',
           },
           follow: 10,
         } );
