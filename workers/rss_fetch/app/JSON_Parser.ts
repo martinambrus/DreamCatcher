@@ -17,7 +17,9 @@ export class JSON_Parser {
     // https://www.jsonfeed.org/version/1.1/
     if ( json_data[ 'items' ] && json_data[ 'items' ] instanceof Array ) {
       // we will sort final Kafka item messages by date, so they are ordered from oldest to newest
-      let items_to_sort: Array<Object> = [];
+      let
+        items_to_sort: Array<Object> = [],
+        url_counter = 1;
 
       for ( let item of json_data[ 'items' ] ) {
         let
@@ -60,6 +62,11 @@ export class JSON_Parser {
             } else if ( item[ 'content_html' ] || item[ '_content_html' ] ) {
               summary = Utils.generate_summary( item[ 'content_html' ] ?? item[ '_content_html' ] );
             }
+          }
+
+          // no url - make it a hash with published date
+          if ( !url || typeof( url ) == 'undefined' ) {
+            url = '#' + feed_url.replace( 'http://', '' ).replace( 'https://', '' ) + date_published + url_counter++;
           }
 
           let feed_item_info: Object = {

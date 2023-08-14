@@ -102,7 +102,7 @@ export class Utils {
    * @return { string } Returns the cleared up string without tags and special characters.
    */
   public static untagize( txt: string ): string {
-    if ( typeof( txt ) == 'undefined' ) {
+    if ( typeof( txt ) === 'undefined' ) {
       return '';
     }
 

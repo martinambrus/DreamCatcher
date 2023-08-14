@@ -39,7 +39,8 @@ export class XML_Parser {
       let
         feed: { [p: string]: any } & Parser.Output<{ [p: string]: any }> = await this.rss_parser.parseString( xml_data ),
         // we will sort final Kafka item messages by date, so they are ordered from oldest to newest
-        items_to_sort: Array<Object> = [];
+        items_to_sort: Array<Object> = [],
+        url_counter = 1;
 
       if ( !feed.items.length ) {
         throw 'invalid XML feed data, no items found';
@@ -55,7 +56,7 @@ export class XML_Parser {
           date_published: number = Math.round( Date.now() / 1000 );
 
         // try looking inside of links array, if it exists
-        if ( !url || typeof( url ) == 'undefined' && item.links && item.links.length ) {
+        if ( ( !url || typeof( url ) == 'undefined' ) && item.links && item.links instanceof Array && item.links.length ) {
           if ( typeof( item.links[0] ) === 'string' ) {
             url = item.links[0];
           } else {
@@ -63,16 +64,11 @@ export class XML_Parser {
           }
         }
 
-        // still no url, make it a hash
-        if ( !url || typeof( url ) == 'undefined' ) {
-          url = '#';
-        }
-
         // try to extract link image
         link_img = this.xml_item_get_main_image( item );
 
         // check for categories
-        if ( item.categories && item.categories.length ) {
+        if ( item.categories && item.categories instanceof Array && item.categories.length ) {
           categories = item.categories;
         }
 
@@ -84,6 +80,11 @@ export class XML_Parser {
         // update the published date, if one is found
         if ( item.isoDate ) {
           date_published = DateTime.fromISO( item.isoDate ).toUnixInteger();
+        }
+
+        // still no url, make it a hash with published date
+        if ( !url || typeof( url ) == 'undefined' ) {
+          url = '#' + feed_url.replace( 'http://', '' ).replace( 'https://', '' ) + date_published + url_counter++;
         }
 
         if ( !summary && item.contentSnippet ) {
