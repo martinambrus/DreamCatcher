@@ -203,7 +203,7 @@ export class LinkWriter {
                 }
 
                 // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
-                this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+                //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
               } else {
                 // we couldn't insert this record into the DB for some reason, publish an error into the log
                 await this.logger.log_msg( 'Could not insert link into db: ' + message.link + '\n' + res.toString() + '\ndata: ' + original_msg, 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' );
