@@ -62,6 +62,9 @@ BEGIN
     -- reset fetch time interval if we've had previous subsequent errors in this feed
     IF feed_data.subsequent_errors_counter > 0 THEN
         feed_data.fetch_interval_minutes := feed_data.fetch_interval_minutes - ( feed_data.subsequent_errors_counter * 5 );
+        IF feed_data.fetch_interval_minutes <= 0 THEN
+            feed_data.fetch_interval_minutes := 5;
+        END IF;
         feed_data.subsequent_errors_counter := 0;
     END IF;
 
