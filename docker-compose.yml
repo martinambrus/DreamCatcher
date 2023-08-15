@@ -169,6 +169,31 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
       - ./infrastructure/datadir/kafka_2_data:/bitnami/kafka
+  jaeger:
+    image: "jaegertracing/all-in-one"
+    networks:
+      - internal
+    container_name: trace_logger
+    hostname: trace_logger
+    environment:
+      SPAN_STORAGE_TYPE: badger
+      BADGER_EPHEMERAL: false
+      BADGER_DIRECTORY_VALUE: /badger/data
+      BADGER_DIRECTORY_KEY: /badger/key
+      COLLECTOR_OTLP_ENABLED: true
+    #      COLLECTOR_ZIPKIN_HOST_PORT: 9411
+    #      COLLECTOR_ZIPKIN_HTTP_ENABLED: true
+    ports:
+      - 16686:16686
+      - 14268:14268
+      #- 9411:9411
+      - 5778:5778
+      - 5775:5775/udp
+      - 6831:6831/udp
+      - 6832:6832/udp
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/datadir/jaeger:/badger
   kafka_magic:
     image: "digitsy/kafka-magic"
     networks:
