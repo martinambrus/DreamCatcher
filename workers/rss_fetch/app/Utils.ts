@@ -81,7 +81,8 @@ export class Utils {
     link_data[ 'service' ] = Utils.service_name;
 
     // publish new link message
-    await Utils.kafka_producer.pub_item( link_data );
+    // no await - we're not returning anything here
+    Utils.kafka_producer.pub_item( link_data );
   }
 
   /**

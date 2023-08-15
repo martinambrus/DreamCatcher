@@ -126,7 +126,8 @@ export class Logger {
         log_msg[ 'extra_data' ] = extra_data;
       }
 
-      await this.kafka_producer.log_msg( log_msg );
+      // no await - we're not returning anything here
+      this.kafka_producer.log_msg( log_msg );
     }
   }
 

@@ -122,7 +122,7 @@ export class LinkFixDetector {
       }
 
       // publish info about our instance going live
-      await this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+      this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
     });
   }
 
@@ -145,11 +145,13 @@ export class LinkFixDetector {
             console.log( this.logger.get_log( 'updating feed URL for feed ' + message.extra_data.old_feed_url + ' to ' + message.extra_data.feed_url ) );
             this.dbconn.query( 'UPDATE feeds SET url = $1 WHERE url = $2', [ message.extra_data.feed_url, message.extra_data.old_feed_url ] );
           } catch ( err ) {
-            await this.logger.log_msg( 'Exception while trying to update feed URL for ' + message.extra_data.old_feed_url + '\n' + JSON.stringify( err ), 'ERR_INVALID_FEED_URL_UPDATE_FAILURE' );
+            // no await - if this message is not stored, we'll see this in telemetry
+            this.logger.log_msg( 'Exception while trying to update feed URL for ' + message.extra_data.old_feed_url + '\n' + JSON.stringify( err ), 'ERR_INVALID_FEED_URL_UPDATE_FAILURE' );
           }
         }
       } else {
-        await this.logger.log_msg('Exception while trying to decode log data: ' + original_msg, parseInt( await this.redis_client.get( 'ERR_LOG_MESSAGE_INVALID' ) ) );
+        // no await - if this message is not stored, we'll see this in telemetry
+        this.logger.log_msg('Exception while trying to decode log data: ' + original_msg, 'ERR_LOG_MESSAGE_INVALID' );
       }
     }
   }

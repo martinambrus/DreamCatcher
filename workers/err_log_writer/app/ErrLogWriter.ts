@@ -110,7 +110,7 @@ export class ErrLogWriter {
       }
 
       // publish info about our instance going live
-      await this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+      this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
     });
   }
 

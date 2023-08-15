@@ -113,7 +113,8 @@ export class KafkaProducer {
   public async pub_item( msg: object ): Promise<void> {
     if ( this.ready ) {
       try {
-        await this.producer.send({
+        // no await - we're not returning anything here
+        this.producer.send({
           topic: this.new_links_channel_name,
           // TODO: replace key with open trace ID
           messages: [{ key: Date.now() + '_' + Math.random(), value: JSON.stringify( msg ) }],
@@ -121,7 +122,8 @@ export class KafkaProducer {
           compression: CompressionTypes.GZIP,
         });
       } catch ( err ) {
-        await this.logger.log_msg( 'Error publishing new link data to Kafka cluster:\n' + msg.toString() + '\nerr: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_CANNOT_PUBLISH_LINK' );
+        // no await - we're not returning anything here
+        this.logger.log_msg( 'Error publishing new link data to Kafka cluster:\n' + msg.toString() + '\nerr: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_CANNOT_PUBLISH_LINK' );
       }
     }
   }
@@ -136,7 +138,8 @@ export class KafkaProducer {
   public async log_msg( msg: object ): Promise<void> {
     if ( this.ready ) {
       try {
-        await this.producer.send({
+        // no await - we're not returning anything here
+        this.producer.send({
           topic: this.logs_channel_name,
           // TODO: replace key with open trace ID
           messages: [{ key: Date.now() + '_' + Math.random(), value: JSON.stringify( msg ) }],

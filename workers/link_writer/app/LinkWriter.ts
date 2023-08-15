@@ -160,7 +160,7 @@ export class LinkWriter {
       }
 
       // publish info about our instance going live
-      await this.logger.log_msg( self.service_id + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+      this.logger.log_msg( self.service_id + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
     });
   }
 
@@ -181,77 +181,79 @@ export class LinkWriter {
         if ( message.service != this.service_id ) {
 
           // see if we have cached feed ID for this URL
-          if ( await this.checkAndCacheFeedURL( message.feed_url ) ) {
+          this.checkAndCacheFeedURL( message.feed_url ).then( async ( result: boolean ) => {
+            if ( result ) {
+              // try inserting the link into the DB
+              const text: string       = 'INSERT INTO unprocessed_links( feed_id, title, description, link, img, date_posted ) VALUES( $1, $2, $3, $4, $5, $6 ) RETURNING id';
+              const values: Array<any> = [ this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published ];
 
-            // try inserting the link into the DB
-            const text: string       = 'INSERT INTO unprocessed_links( feed_id, title, description, link, img, date_posted ) VALUES( $1, $2, $3, $4, $5, $6 ) RETURNING id';
-            const values: Array<any> = [ this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published ];
+              try {
+                const res = await this.dbconn.query( text, values );
+                if ( res.rows.length ) {
+                  // check and store first item's timestamp for this batch and this feed
+                  if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
+                    this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
+                  }
 
-            try {
-              const res = await this.dbconn.query( text, values );
-              if ( res.rows.length ) {
-                // check and store first item's timestamp for this batch and this feed
-                if (!this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ]) {
-                  this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
-                }
+                  // increment count of the messages inserted for this feed in this batch
+                  if ( !this.feed_messages_inserted_counter[ message.feed_url ] ) {
+                    this.feed_messages_inserted_counter[ message.feed_url ] = 1;
+                  } else {
+                    this.feed_messages_inserted_counter[ message.feed_url ]++;
+                  }
 
-                // increment count of the messages inserted for this feed in this batch
-                if (!this.feed_messages_inserted_counter[ message.feed_url ]) {
-                  this.feed_messages_inserted_counter[ message.feed_url ] = 1;
+                  // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
+                  //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
                 } else {
-                  this.feed_messages_inserted_counter[ message.feed_url ]++;
+                  // we couldn't insert this record into the DB for some reason, publish an error into the log
+                  this.logger.log_msg( 'Could not insert link into db: ' + message.link + '\n' + res.toString() + '\ndata: ' + original_msg, 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' );
+                  this.update_internals_when_link_fails_to_insert( message );
+                }
+              } catch ( err ) {
+                // ignore duplicate errors, since we have unique url field in the DB
+                // which ensures a certain level of de-duplication
+                if ( ( err.detail && err.detail.indexOf( 'already exists' ) == -1 ) || !err.detail ) {
+                  // this is a non-duplication error, log it
+                  this.logger.log_msg( 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 'ERR_LINK_WRITER_DB_WRITE_ERROR' );
+                } else {
+                  // since this is a valid duplicate link, update data
+                  // to be sent to fetch interval updating service
+                  this.update_internals_when_link_fails_to_insert( message );
+                }
+              }
+
+              // cancel old timeout for this feed, if present
+              if ( this.feed_last_link_timeout_id[ message.feed_url ] ) {
+                clearTimeout( this.feed_last_link_timeout_id[ message.feed_url ] );
+              }
+
+              // create a new function to execute in 20 seconds for the DB stats update
+              // ... we do this independently on whether we were able to insert link data into DB
+              //     or not, since we need to update fetch intervals even if we don't insert a single link
+              //     and in such case, statistical info will remain unchanged
+              this.feed_last_link_timeout_id[ message.feed_url ] = setTimeout( () => {
+                if ( this.feed_messages_inserted_counter[ message.feed_url ] != 'undefined' ) {
+                  this.kafka_producer.pub_item( {
+                    'service':    this.service_id,
+                    'severity':   LOG_SEVERITIES.LOG_SEVERITY_NOTICE,
+                    'extra_data': {
+                      'feed_url':      message.feed_url,
+                      'links_count':   this.feed_messages_inserted_counter[ message.feed_url ],
+                      'first_item_ts': this.feed_first_batch_item_ts[ message.feed_url ],
+                    },
+                  } );
                 }
 
-                // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
-                //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-              } else {
-                // we couldn't insert this record into the DB for some reason, publish an error into the log
-                await this.logger.log_msg( 'Could not insert link into db: ' + message.link + '\n' + res.toString() + '\ndata: ' + original_msg, 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' );
-                this.update_internals_when_link_fails_to_insert( message );
-              }
-            } catch ( err ) {
-              // ignore duplicate errors, since we have unique url field in the DB
-              // which ensures a certain level of de-duplication
-              if ( ( err.detail && err.detail.indexOf( 'already exists' ) == -1) || !err.detail ) {
-                // this is a non-duplication error, log it
-                await this.logger.log_msg( 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 'ERR_LINK_WRITER_DB_WRITE_ERROR' );
-              } else {
-                // since this is a valid duplicate link, update data
-                // to be sent to fetch interval updating service
-                this.update_internals_when_link_fails_to_insert( message );
-              }
+                delete this.feed_messages_inserted_counter[ message.feed_url ];
+                delete this.feed_first_batch_item_ts[ message.feed_url ];
+                this.feed_last_link_timeout_id[ message.feed_url ] = 0;
+              }, 20000 );
             }
-
-            // cancel old timeout for this feed, if present
-            if (this.feed_last_link_timeout_id[ message.feed_url ]) {
-              clearTimeout(this.feed_last_link_timeout_id[ message.feed_url ]);
-            }
-
-            // create a new function to execute in 20 seconds for the DB stats update
-            // ... we do this independently on whether we were able to insert link data into DB
-            //     or not, since we need to update fetch intervals even if we don't insert a single link
-            //     and in such case, statistical info will remain unchanged
-            this.feed_last_link_timeout_id[ message.feed_url ] = setTimeout(() => {
-              if (this.feed_messages_inserted_counter[ message.feed_url ] != 'undefined') {
-                this.kafka_producer.pub_item( {
-                  'service': this.service_id,
-                  'severity': LOG_SEVERITIES.LOG_SEVERITY_NOTICE,
-                  'extra_data': {
-                    'feed_url':      message.feed_url,
-                    'links_count':   this.feed_messages_inserted_counter[ message.feed_url ],
-                    'first_item_ts': this.feed_first_batch_item_ts[ message.feed_url ],
-                  },
-                });
-              }
-
-              delete this.feed_messages_inserted_counter[ message.feed_url ];
-              delete this.feed_first_batch_item_ts[ message.feed_url ];
-              this.feed_last_link_timeout_id[ message.feed_url ] = 0;
-            }, 20000);
-          }
+          });
         }
       } else {
-        await this.logger.log_msg( 'Exception while trying to decode RSS link data: ' + original_msg, 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' );
+        // no await - if this message is not stored, we'll see this in telemetry
+        this.logger.log_msg( 'Exception while trying to decode RSS link data: ' + original_msg, 'ERR_RSS_FETCH_PUSHED_INVALID_LINK_DATA' );
       }
     }
   }
@@ -292,22 +294,29 @@ export class LinkWriter {
     let ret: boolean = true;
 
     if ( !this.feed_url_to_id[ feed_url ] ) {
-      const res_feeds = await this.dbconn.query( 'SELECT id FROM feeds WHERE url = $1', [ feed_url ] );
-      if ( res_feeds.rows.length ) {
-        this.feed_url_to_id[ feed_url ] = res_feeds.rows[ 0 ].id;
-      } else {
-        this.feed_url_to_id[ feed_url ] = -1;
+      try {
+        const res_feeds = await this.dbconn.query( 'SELECT id FROM feeds WHERE url = $1', [ feed_url ] );
+        if ( res_feeds.rows.length ) {
+          this.feed_url_to_id[ feed_url ] = res_feeds.rows[ 0 ].id;
+        } else {
+          this.feed_url_to_id[ feed_url ] = -1;
 
-        // we couldn't get link ID for this feed, log error
-        await this.logger.log_msg( 'Could not find feed in database: ' + feed_url, 'ERR_LINK_WRITER_NO_RSS_FEED_RECORD' );
+          // we couldn't get link ID for this feed, log error
+          // no await - we're returning boolean that's manually set below
+          this.logger.log_msg( 'Could not find feed in database: ' + feed_url, 'ERR_LINK_WRITER_NO_RSS_FEED_RECORD' );
+          ret = false;
+        }
+
+        // clean up this feed's ID cache after 45 minutes, so we clear up some memory
+        // if the feed is not being updated that frequently
+        setTimeout( () => {
+          delete this.feed_url_to_id[ feed_url ];
+        }, 1000 * 60 * 45 );
+      } catch ( err ) {
+        // no await - we're returning boolean that's manually set below
+        this.logger.log_msg( 'Database error trying to get feed info from DB: ' + JSON.stringify( err ), 'ERR_LINK_WRITER_DB_READ_ERROR' );
         ret = false;
       }
-
-      // clean up this feed's ID cache after 45 minutes, so we clear up some memory
-      // if the feed is not being updated that frequently
-      setTimeout( () => {
-        delete this.feed_url_to_id[ feed_url ];
-      }, 1000 * 60 * 45 );
     }
 
     return ret;

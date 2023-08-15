@@ -113,7 +113,8 @@ export class KafkaConsumer {
         await this.consumer.run({ eachMessage: callback });
         this.logger.get_log( 'now consuming RSS feed messages' );
       } catch ( err ) {
-        await this.logger.log_msg( 'Error setting consumer callback: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING' );
+        // no await - we're returning boolean that's manually set below
+        this.logger.log_msg( 'Error setting consumer callback: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING' );
         ret = false;
       }
     } else {

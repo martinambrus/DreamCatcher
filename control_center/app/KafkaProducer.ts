@@ -119,7 +119,8 @@ export class KafkaProducer {
   public async pub_feed(msg: object ): Promise<void> {
     if ( this.ready ) {
       try {
-        await this.producer.send({
+        // no await - we're not returning anything here
+        this.producer.send({
           topic: this.feed_fetch_channel_name,
           // TODO: replace key with open trace ID
           messages: [{ key: Date.now() + '_' + Math.random(), value: JSON.stringify( msg ) }],
@@ -142,7 +143,8 @@ export class KafkaProducer {
   public async log_msg( msg: object ): Promise<void> {
     if ( this.ready ) {
       try {
-        await this.producer.send({
+        // no await - we're not returning anything here
+        this.producer.send({
           topic: this.logs_channel_name,
           // TODO: replace key with open trace ID
           messages: [{ key: Date.now() + '_' + Math.random(), value: JSON.stringify( msg ) }],

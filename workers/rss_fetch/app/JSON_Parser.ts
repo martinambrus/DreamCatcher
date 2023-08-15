@@ -97,7 +97,8 @@ export class JSON_Parser {
 
       // fire up links data
       for ( let link_data of items_to_sort ) {
-        await Utils.publish_new_link_data( link_data );
+        // no await - we're not checking whether this link was successfully added
+        Utils.publish_new_link_data( link_data );
       }
     } else {
       // invalid JSON feed data

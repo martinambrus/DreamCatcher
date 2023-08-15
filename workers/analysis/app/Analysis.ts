@@ -179,7 +179,7 @@ export class Analysis {
       }
 
       // publish info about our instance going live
-      await this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+      this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
     });
   }
 
@@ -214,11 +214,13 @@ export class Analysis {
             this.inc_stats_and_fetch_times[ 'values' ] = [ message.extra_data.feed_url, dt.getHours(), dt.getDay(), this.daysIntoYear(dt), this.weekIntoYear( dt ), ( dt.getMonth() + 1 ), dt.getFullYear(), message.extra_data.links_count, message.extra_data.first_item_ts ];
             this.dbconn.query( this.inc_stats_and_fetch_times );
           } catch ( err ) {
-            await this.logger.log_msg('Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
+            // no await - if this message is not stored, we'll see this in telemetry
+            this.logger.log_msg('Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
           }
         }
       } else {
-        await this.logger.log_msg('Exception while trying to decode Link Writer log data: ' + original_msg, 'ERR_LINK_WRITER_INVALID_LOG_MSG' );
+        // no await - if this message is not stored, we'll see this in telemetry
+        this.logger.log_msg('Exception while trying to decode Link Writer log data: ' + original_msg, 'ERR_LINK_WRITER_INVALID_LOG_MSG' );
       }
     }
   }
@@ -244,11 +246,13 @@ export class Analysis {
             this.inc_fetch_times_only[ 'values' ] = [ message.extra_data.feed_url, message.msg ];
             this.dbconn.query( this.inc_fetch_times_only );
           } catch ( err ) {
-            await this.logger.log_msg('Exception while trying to update feed fetch data of ' + message.msg.feed_url + '\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
+            // no await - if this message is not stored, we'll see this in telemetry
+            this.logger.log_msg('Exception while trying to update feed fetch data of ' + message.msg.feed_url + '\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
           }
         }
       } else {
-        await this.logger.log_msg('Exception while trying to decode RSS Fetch log data: ' + original_msg, 'ERR_RSS_FETCH_INVALID_LOG_MSG' );
+        // no await - if this message is not stored, we'll see this in telemetry
+        this.logger.log_msg('Exception while trying to decode RSS Fetch log data: ' + original_msg, 'ERR_RSS_FETCH_INVALID_LOG_MSG' );
       }
     }
   }
