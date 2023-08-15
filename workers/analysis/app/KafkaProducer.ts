@@ -122,7 +122,7 @@ export class KafkaProducer {
         });
       } catch ( err ) {
         let dt: Date = new Date();
-        console.log( '[' + dt.getDate() + '.' + dt.getMonth() + '.' + dt.getFullYear() + ' ' + dt.getHours() + ':' + dt.getMinutes() + ':' + dt.getSeconds() + '] Error publishing log data to Kafka cluster:\n' + msg.toString() + "\n", err );
+        console.log( '[' + dt.getDate() + '.' + ( dt.getMonth() + 1 ) + '.' + dt.getFullYear() + ' ' + dt.getHours() + ':' + dt.getMinutes() + ':' + dt.getSeconds() + '] Error publishing log data to Kafka cluster:\n' + msg.toString() + "\n", err );
       }
     }
   }

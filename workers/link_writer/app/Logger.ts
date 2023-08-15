@@ -89,7 +89,7 @@ export class Logger {
    */
   public get_log(msg: string): string {
     let dt: Date = new Date();
-    return '[' + dt.getDate() + '.' + dt.getMonth() + '.' + dt.getFullYear() + ' ' + dt.getHours() + ':' + dt.getMinutes() + ':' + dt.getSeconds() + '] ' + this.client_id + ': ' + msg;
+    return '[' + dt.getDate() + '.' + ( dt.getMonth() + 1 ) + '.' + dt.getFullYear() + ' ' + dt.getHours() + ':' + dt.getMinutes() + ':' + dt.getSeconds() + '] ' + this.client_id + ': ' + msg;
 
   }
 

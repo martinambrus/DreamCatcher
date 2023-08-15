@@ -211,7 +211,7 @@ export class Analysis {
           try {
             // no need to await for this log message, since we only debug-log it
             //this.logger.log_msg( 'writing stats data and updating fetch times for ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-            this.inc_stats_and_fetch_times[ 'values' ] = [ message.extra_data.feed_url, dt.getHours(), dt.getDay(), this.daysIntoYear(dt), this.weekIntoYear( dt ), dt.getMonth(), dt.getFullYear(), message.extra_data.links_count, message.extra_data.first_item_ts ];
+            this.inc_stats_and_fetch_times[ 'values' ] = [ message.extra_data.feed_url, dt.getHours(), dt.getDay(), this.daysIntoYear(dt), this.weekIntoYear( dt ), ( dt.getMonth() + 1 ), dt.getFullYear(), message.extra_data.links_count, message.extra_data.first_item_ts ];
             this.dbconn.query( this.inc_stats_and_fetch_times );
           } catch ( err ) {
             await this.logger.log_msg('Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
