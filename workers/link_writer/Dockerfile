@@ -4,8 +4,8 @@ WORKDIR /usr/src/link_writer
 
 COPY --from=npm_cache /usr/npm_cache/node_modules ./node_modules
 
-COPY app /usr/src/link_writer
 COPY env.sh /env.sh
+COPY app /usr/src/link_writer
 
 RUN npx tsc
 

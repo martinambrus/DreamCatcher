@@ -4,8 +4,8 @@ WORKDIR /usr/src/control_center
 
 COPY --from=npm_cache /usr/npm_cache/node_modules ./node_modules
 
-COPY app /usr/src/control_center
 COPY env.sh /env.sh
+COPY app /usr/src/control_center
 
 RUN npx tsc
 

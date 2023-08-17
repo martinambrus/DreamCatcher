@@ -4,8 +4,8 @@ WORKDIR /usr/src/err_log_writer
 
 COPY --from=npm_cache /usr/npm_cache/node_modules ./node_modules
 
-COPY app /usr/src/err_log_writer
 COPY env.sh /env.sh
+COPY app /usr/src/err_log_writer
 
 RUN npx tsc
 

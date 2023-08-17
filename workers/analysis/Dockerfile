@@ -4,8 +4,8 @@ WORKDIR /usr/src/analysis
 
 COPY --from=npm_cache /usr/npm_cache/node_modules ./node_modules
 
-COPY app /usr/src/analysis
 COPY env.sh /env.sh
+COPY app /usr/src/analysis
 
 RUN npx tsc
 
