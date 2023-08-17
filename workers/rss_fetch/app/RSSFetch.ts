@@ -220,8 +220,14 @@ export class RSSFetch {
           const url_status_span_name: string = 'rss_fetch_url_status_plus_data';
 
           await analysis_telemetry.add_span( url_status_span_name, { 'feed_url' : kafka_message_data.url } );
-          let feed_data: { status: number, data: string }|null = await this.get_url_status_with_data( kafka_message_data.url, analysis_telemetry.get_telemetry_carrier() );
+          let feed_data: { status: number, data: string, feed_url: string }|null = await this.get_url_status_with_data( kafka_message_data.url, analysis_telemetry.get_telemetry_carrier() );
           analysis_telemetry.close_active_span( url_status_span_name );
+
+          // if our feed URL changed in the process, change it here as well,
+          // so we'll fire up a correct message for other services to pull links from it
+          if ( feed_data.feed_url != kafka_message_data.url ) {
+            kafka_message_data.url = feed_data.feed_url;
+          }
 
           if ( feed_data !== null ) {
             // check that this is not a JSON feed
@@ -288,13 +294,14 @@ export class RSSFetch {
    * @param { string } url      The URL to retrieve data for.
    * @param { string } trace_id Serialized trace carrier under which to log change in URL if it was fixed.
    * @private
-   * @return { Promise<{ status: number, data: string }|null> } Returns either an object with status and page data received
-   *                                                            or null if the passed URL was invalid and we were unable to fix it.
+   * @return { Promise<{ status: number, data: string, feed_url: string }|null> }
+   * Returns either an object with status, page data received and feed URL
+   * or null if the passed URL was invalid and we were unable to fix it.
    */
-  private async get_url_status_with_data( url: string, trace_id: string ): Promise<{ status: number, data: string }|null> {
+  private async get_url_status_with_data( url: string, trace_id: string ): Promise<{ status: number, data: string, feed_url: string }|null> {
     let
       lower_url: string = url.toLowerCase(),
-      ret: { status: number, data: string } = { status: -1, data: '' };
+      ret: { status: number, data: string, feed_url: string } = { status: -1, data: '', feed_url: '' };
 
     // check that the URL received is valid
     if ( !lower_url.startsWith('http://') && !lower_url.startsWith('https://') ) {
@@ -352,7 +359,7 @@ export class RSSFetch {
    * @private
    * @return { Object } Returns an object with "status" and "data" keys.
    */
-  private async get_url_data( url: string ): Promise<{ status: number, data: string }> {
+  private async get_url_data( url: string ): Promise<{ status: number, data: string, feed_url: string }> {
     try {
       let
         self = this,
@@ -371,9 +378,9 @@ export class RSSFetch {
           follow: 10,
         } );
 
-      return { status: res.status, data: await res.text() };
+      return { status: res.status, data: await res.text(), feed_url: url };
     } catch ( err ) {
-      return { status: -1, data: JSON.stringify( err ) };
+      return { status: -1, data: JSON.stringify( err ), feed_url: '' };
     }
   }
 
