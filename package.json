@@ -1,4 +1,5 @@
 {
+  "version": "0.1a",
   "dependencies": {
     "@opentelemetry/api": "^1.4.1",
     "@opentelemetry/exporter-jaeger": "^1.15.0",

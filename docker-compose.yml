@@ -1,4 +1,9 @@
 services:
+  npm_cache:
+    build:
+      context: ./
+      dockerfile: npm_cache/Dockerfile
+    image: npm_cache
   control_center:
     build: control_center
     networks:
@@ -15,6 +20,8 @@ services:
       - analysis
       - link_writer
       - link_fix_detector
+      - err_log_writer
+      - npm_cache
     restart: unless-stopped
   rss_fetch:
     build: workers/rss_fetch
@@ -27,6 +34,7 @@ services:
       - kafka-0
       - kafka-1
       - kafka-2
+      - npm_cache
     restart: unless-stopped
   analysis:
     build: workers/analysis
@@ -41,6 +49,7 @@ services:
       - kafka-0
       - kafka-1
       - kafka-2
+      - npm_cache
     restart: unless-stopped
   link_writer:
     build: workers/link_writer
@@ -55,6 +64,7 @@ services:
       - kafka-0
       - kafka-1
       - kafka-2
+      - npm_cache
     restart: unless-stopped
   err_log_writer:
     build: workers/err_log_writer
@@ -69,6 +79,7 @@ services:
       - kafka-0
       - kafka-1
       - kafka-2
+      - npm_cache
     restart: unless-stopped
   link_fix_detector:
     build: workers/link_fix_detector
@@ -83,6 +94,7 @@ services:
       - kafka-0
       - kafka-1
       - kafka-2
+      - npm_cache
     restart: unless-stopped
   redis:
    build: infrastructure/redis
