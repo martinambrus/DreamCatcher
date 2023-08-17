@@ -32,9 +32,11 @@ export class XML_Parser {
    *
    * @param { string } xml_data  The raw XML markup data from an RSS feed.
    * @param { string } feed_url  URL of the feed from which the XML data originates.
+   * @param { string } kafka_key Key for this link message received from Kafka.
+   *                             This is actually a trace ID that needs to be passed on.
    * @private
    */
-  public async process_xml_feed( xml_data: string, feed_url: string ): Promise<void> {
+  public async process_xml_feed( xml_data: string, feed_url: string, kafka_key: string ): Promise<void> {
     try {
       let
         feed: { [p: string]: any } & Parser.Output<{ [p: string]: any }> = await this.rss_parser.parseString( xml_data ),
@@ -124,7 +126,7 @@ export class XML_Parser {
 
       // fire up links data
       for ( let link_data of items_to_sort ) {
-        await Utils.publish_new_link_data( link_data );
+        await Utils.publish_new_link_data( link_data, kafka_key );
       }
     } catch ( err ) {
       // invalid XML feed data

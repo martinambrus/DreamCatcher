@@ -106,18 +106,18 @@ export class KafkaProducer {
   /**
    * Publishes a new feed item data.
    *
-   * @param object msg Feed item data to publish.
+   * @param { string } trace_id ID of the Jaeger trace.
+   * @param { object } msg      Feed item data to publish.
    * @return void
    * @public
    */
-  public async pub_item( msg: object ): Promise<void> {
+  public async pub_item( trace_id: string, msg: object ): Promise<void> {
     if ( this.ready ) {
       try {
         // no await - we're not returning anything here
         this.producer.send({
           topic: this.new_links_channel_name,
-          // TODO: replace key with open trace ID
-          messages: [{ key: Date.now() + '_' + Math.random(), value: JSON.stringify( msg ) }],
+          messages: [{ key: trace_id, value: JSON.stringify( msg ) }],
           acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
           compression: CompressionTypes.GZIP,
         });
@@ -131,18 +131,22 @@ export class KafkaProducer {
   /**
    * Publishes new log data.
    *
-   * @param object msg Log data to publish.
-   * @return void
+   * @param  { Object } msg Log data to publish.
    * @public
    */
-  public async log_msg( msg: object ): Promise<void> {
+  public async log_msg( msg: Object ): Promise<void> {
     if ( this.ready ) {
       try {
+        // extract trace ID, if found
+        let msg_key = Date.now() + '_' + Math.random(); // random key if trace ID is not present
+        if ( msg[ 'trace_id' ] || ( msg[ 'extra_data' ] && msg[ 'extra_data' ][ 'trace_id' ] )  ) {
+          msg_key = msg[ 'trace_id' ] ?? msg[ 'extra_data' ][ 'trace_id' ];
+        }
+
         // no await - we're not returning anything here
         this.producer.send({
           topic: this.logs_channel_name,
-          // TODO: replace key with open trace ID
-          messages: [{ key: Date.now() + '_' + Math.random(), value: JSON.stringify( msg ) }],
+          messages: [{ key: msg_key, value: JSON.stringify( msg ) }],
           acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
           compression: CompressionTypes.GZIP,
         });

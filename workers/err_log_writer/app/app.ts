@@ -4,7 +4,8 @@ import { ErrLogWriter } from "./ErrLogWriter.js";
 import { KafkaProducer } from "./KafkaProducer.js";
 import { KafkaConsumer } from "./KafkaConsumer.js";
 import pkg from 'pg';
-import { createClient } from 'redis';
+import { RedisSubClient } from './RedisSubClient.js';
+import { RedisPubClient } from './RedisPubClient.js';
 
 const { Client } = pkg;
 
@@ -23,16 +24,14 @@ const SERVICE_ID: string = 'err_log_writer';
   // Global logger
   const logger: Logger = new Logger(CLIENT_ID, SERVICE_ID);
 
-  // Redis client
-  let redis_client: any;
-  try {
-    redis_client = createClient({url: 'redis://' + env.REDIS_HOSTNAME + ':' + env.REDIS_PORT});
-    await redis_client.connect();
-    logger.set_redis_client( redis_client );
-  } catch ( err ) {
-    console.log( logger.get_log( 'Exception while trying to connect to Redis ' + "\n" + JSON.stringify( err ) ) );
-    exit( 1 );
-  }
+  // Redis Sub client
+  let redis_sub: RedisSubClient = new RedisSubClient( logger );
+  await redis_sub.connect( env.REDIS_HOSTNAME, env.REDIS_PORT );
+
+  // Redis Pub client
+  let redis_pub: RedisPubClient = new RedisPubClient( logger );
+  await redis_pub.connect( env.REDIS_HOSTNAME, env.REDIS_PORT );
+  logger.set_redis_pub_client( redis_pub );
 
   // Kafka producer
   const kafka_producer: KafkaProducer = new KafkaProducer( ( env.KAFKA_NODES ? env.KAFKA_NODES.split(',') : [] ), logger, SERVICE_ID );
@@ -53,7 +52,7 @@ const SERVICE_ID: string = 'err_log_writer';
 
   // try connecting to PGSQL
   if (!POSTGRES_DB || !POSTGRES_PASSWORD || !POSTGRES_USER) {
-    let exit_code: number = parseInt( await redis_client.get( 'ERR_POSTGRES_MISSING_CONNECTION_DATA' ) );
+    let exit_code: number = parseInt( await redis_pub.get( 'ERR_POSTGRES_MISSING_CONNECTION_DATA' ) );
     await logger.log_msg( 'missing one of POSTGRES environment variables', exit_code );
     exit( exit_code );
   } else {
@@ -61,12 +60,12 @@ const SERVICE_ID: string = 'err_log_writer';
     try {
       await dbconn.connect();
     } catch (err) {
-      let exit_code: number = parseInt( await redis_client.get( 'ERR_POSTGRES_CANNOT_CONNECT' ) );
+      let exit_code: number = parseInt( await redis_pub.get( 'ERR_POSTGRES_CANNOT_CONNECT' ) );
       await logger.log_msg( 'could not connect to POSTGRES\n' + JSON.stringify( err ), exit_code );
       exit( exit_code );
     }
   }
 
   // create the LinkWriter class instance and run program
-  new ErrLogWriter( SERVICE_ID, kafka_producer, kafka_consumer, logger, redis_client, dbconn );
+  new ErrLogWriter( SERVICE_ID, kafka_producer, kafka_consumer, logger, dbconn, redis_sub, redis_pub );
 })();

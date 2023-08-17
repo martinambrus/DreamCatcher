@@ -213,13 +213,6 @@ services:
       - kafka-1
       - kafka-2
     restart: unless-stopped
-  monitorix:
-    image: "erikmroll/monitorix"
-    networks:
-      - internal
-    ports:
-      - 127.0.0.1:8080:8080
-    restart: unless-stopped
 networks:
   internal:
     name: internal

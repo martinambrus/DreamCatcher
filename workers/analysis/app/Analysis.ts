@@ -3,8 +3,19 @@ import { LOG_SEVERITIES, Logger } from './Logger.js';
 import pkg from "pg";
 import { KafkaProducer } from './KafkaProducer.js';
 import { KafkaConsumer } from './KafkaConsumer.js';
+import { RedisPubClient } from './RedisPubClient.js';
+import { RedisSubClient } from './RedisSubClient.js';
+import { Telemetry } from './Telemetry.js';
 
 export class Analysis {
+
+  /**
+   * Current version of this service.
+   * Must be changed for each production-ready release.
+   * @private
+   * @type { string }
+   */
+  private readonly version: string = '0.1a';
 
   /**
    * Instance of the Logger class.
@@ -59,11 +70,20 @@ export class Analysis {
   private readonly kafka_consumer_logs: KafkaConsumer;
 
   /**
-   * Redis client instance, used to fetch error codes.
-   * @type { any }
+   * Redis subscriber client instance,
+   * used to subscribe to channels.
+   * @type { RedisSubClient }
    * @private
    */
-  private readonly redis_client: any;
+  private readonly redis_sub: RedisSubClient;
+
+  /**
+   * Redis publisher and getter client instance,
+   * used to fetch error codes.
+   * @type { RedisPubClient }
+   * @private
+   */
+  private readonly redis_pub: RedisPubClient;
 
   /**
    * PostgreSQL client class instance.
@@ -78,7 +98,7 @@ export class Analysis {
    * @private
    * @type { object }
    */
-  private inc_stats_and_fetch_times: Object = {
+  private inc_stats_and_fetch_times: { name: string, text: string } = {
     name: 'update_feed_data',
     text: 'SELECT update_feed_after_fetch_success( $1, $2, $3, $4, $5, $6, $7, $8, $9 )',
   };
@@ -89,7 +109,7 @@ export class Analysis {
    * @private
    * @type { object }
    */
-  private inc_fetch_times_only: Object = {
+  private inc_fetch_times_only: { name: string, text: string } = {
     name: 'update_feed_fetch_times',
     text: 'SELECT update_feed_after_fetch_failed( $1, $2 )',
   };
@@ -114,10 +134,11 @@ export class Analysis {
    * @param { KafkaConsumer } kafka_consumer_logs  Kafka Consumer used to listen for RSS feeds to parse.
    * @param { KafkaConsumer } kafka_consumer_links Kafka Consumer used to listen for link data to parse.
    * @param { Logger }        logger               A Logger class instanced used for logging purposes.
-   * @param { any }           redisClient          A Redis client to fetch error codes.
    * @param { pkg.Client }    dbconn               A PGSQL client instance.
+   * @param { RedisSubClient } redis_sub      A Redis Sub client to subscribe to channels.
+   * @param { RedisPubClient } redis_pub      A Redis Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer_logs: KafkaConsumer, kafka_consumer_links: KafkaConsumer, logger: Logger, redisClient: any, dbconn: pkg.Client ) {
+  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer_logs: KafkaConsumer, kafka_consumer_links: KafkaConsumer, logger: Logger, dbconn: pkg.Client, redis_sub: RedisSubClient, redis_pub: RedisPubClient ) {
     // Kafka
     this.kafka_producer = kafka_producer;
     this.kafka_consumer_logs = kafka_consumer_logs;
@@ -130,7 +151,8 @@ export class Analysis {
     this.dbconn = dbconn;
 
     // Redis
-    this.redis_client = redisClient;
+    this.redis_sub = redis_sub;
+    this.redis_pub = redis_pub;
 
     // strings
     this.service_name = service_name;
@@ -142,20 +164,20 @@ export class Analysis {
     // load all error codes for which we want to increment number of errors per feed
     ( async (): Promise<void> => {
       for (let err_code_string of ['ERR_RSS_FETCH_INVALID_JSON_FEED', 'ERR_RSS_FETCH_PROCESSING', 'ERR_RSS_FETCH_TIMEOUT', 'ERR_RSS_FETCH_WRONG_URL_CANNOT_FIX']) {
-        self.important_rss_fetch_error_codes.push( parseInt( await self.redis_client.get( err_code_string ) ) );
+        self.important_rss_fetch_error_codes.push( parseInt( await self.redis_pub.get( err_code_string ) ) );
       }
     })();
 
     // create a task that will update this service active status every minute
     setInterval( (): void => {
       if ( self.kafka_consumer_logs.get_active() && self.kafka_consumer_links.get_active() && self.kafka_producer.get_active() ) {
-        self.redis_client.set( self.service_name + '_active', 1 );
+        self.redis_pub.set( self.service_name + '_active', 1 );
       }
     }, 60000 );
 
     // mark ourselves as active from the start, if both - producer and consumer - are active
     if ( self.kafka_consumer_logs.get_active() && self.kafka_consumer_links.get_active() && self.kafka_producer.get_active() ) {
-      this.redis_client.set( this.service_name + '_active', 1 );
+      this.redis_pub.set( this.service_name + '_active', 1 );
     }
 
     // subscribe to RSS new links channel, so we can update statistics for links amount per day, month and year
@@ -163,7 +185,7 @@ export class Analysis {
     this.kafka_consumer_links.subscribe( [ this.links_channel_name ] ).then( async () => {
       // start processing links data for analytical purposes
       if ( !await self.kafka_consumer_links.consume( self.update_ok_stats.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.redis_client.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
+        let exit_code: number = parseInt( await self.redis_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
         await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
         exit( exit_code );
       }
@@ -173,7 +195,7 @@ export class Analysis {
     this.kafka_consumer_logs.subscribe( [ this.logs_channel_name ] ).then( async () => {
       // start processing logs for analytical purposes
       if ( !await self.kafka_consumer_logs.consume( self.update_error_stats.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.redis_client.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
+        let exit_code: number = parseInt( await self.redis_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
         await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
         exit( exit_code );
       }
@@ -192,8 +214,11 @@ export class Analysis {
    */
   private async update_ok_stats( { topic, partition, message, heartbeat, pause } ): Promise<void> {
     if ( topic == this.links_channel_name ) {
-      let original_msg: string = message.value.toString();
-      message = JSON.parse( message.value.toString() );
+      const
+        original_msg: string = message.value.toString(),
+        trace_id_string: string = message.key.toString();
+
+      message = JSON.parse( original_msg );
 
       if ( message ) {
         // check that we have the right message
@@ -208,15 +233,43 @@ export class Analysis {
             message.extra_data.first_item_ts = Math.round( Date.now() / 1000 );
           }
 
+          let trace_carrier: Object;
+
+          // we may receive a non-traceable logs which are not assignable to any single trace
           try {
+            trace_carrier = JSON.parse( trace_id_string );
+          } catch ( err ) {
+            trace_carrier = null;
+          }
+
+          const
+            analysis_telemetry: Telemetry = ( trace_carrier !== null ? await new Telemetry( this.service_name, this.version, message.extra_data.feed_url ).start( trace_carrier ) : null ),
+            telemetry_name: string = 'analysis_update';
+
+          try {
+            if ( analysis_telemetry !== null ) {
+              await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Fetch successful' );
+            }
+
             // no need to await for this log message, since we only debug-log it
             //this.logger.log_msg( 'writing stats data and updating fetch times for ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
             this.inc_stats_and_fetch_times[ 'values' ] = [ message.extra_data.feed_url, dt.getHours(), dt.getDay(), this.daysIntoYear(dt), this.weekIntoYear( dt ), ( dt.getMonth() + 1 ), dt.getFullYear(), message.extra_data.links_count, message.extra_data.first_item_ts ];
             this.dbconn.query( this.inc_stats_and_fetch_times );
+
+            if ( analysis_telemetry !== null ) {
+              analysis_telemetry.close_active_span( telemetry_name );
+            }
           } catch ( err ) {
             // no await - if this message is not stored, we'll see this in telemetry
             this.logger.log_msg('Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
+            if ( analysis_telemetry !== null ) {
+              await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + original_msg, 1 );
+              analysis_telemetry.close_active_span( telemetry_name );
+            }
           }
+
+          // publish to Redis that we're done with tracing
+          this.redis_pub.publish( env.REDIS_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
         }
       } else {
         // no await - if this message is not stored, we'll see this in telemetry
@@ -234,21 +287,52 @@ export class Analysis {
    */
   private async update_error_stats( { topic, partition, message, heartbeat, pause } ): Promise<void> {
     if ( topic == this.logs_channel_name ) {
-      let original_msg: string = message.value.toString();
-      message = JSON.parse( message.value.toString() );
+      const
+        original_msg: string = message.value.toString(),
+        trace_id_string: string = message.key.toString();
+
+      message = JSON.parse( original_msg );
 
       if ( message ) {
         // check that we have the right message
         if ( message.service == 'rss_fetch' && this.important_rss_fetch_error_codes.includes( parseInt( message.code ) ) ) {
+          let trace_carrier: Object;
+
+          // we may receive a non-traceable logs which are not assignable to any single trace
           try {
+            trace_carrier = JSON.parse( trace_id_string );
+          } catch ( err ) {
+            trace_carrier = null;
+          }
+
+          const
+            analysis_telemetry: Telemetry = ( trace_carrier !== null ? await new Telemetry( this.service_name, this.version, message.extra_data.feed_url ).start( trace_carrier ) : null ),
+            telemetry_name: string = 'analysis_update';
+
+          try {
+            if ( analysis_telemetry !== null ) {
+              await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Fetch failed' );
+            }
+
             // no need to wait for this log
             //this.logger.log_msg( 'updating fetch times for failed fetch of ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
             this.inc_fetch_times_only[ 'values' ] = [ message.extra_data.feed_url, message.msg ];
             this.dbconn.query( this.inc_fetch_times_only );
+
+            if ( analysis_telemetry !== null ) {
+              analysis_telemetry.close_active_span( telemetry_name );
+            }
           } catch ( err ) {
             // no await - if this message is not stored, we'll see this in telemetry
             this.logger.log_msg('Exception while trying to update feed fetch data of ' + message.msg.feed_url + '\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
+            if ( analysis_telemetry !== null ) {
+              await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Exception while trying to update feed fetch data of ' + message.msg.feed_url + '\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 1 );
+              analysis_telemetry.close_active_span( telemetry_name );
+            }
           }
+
+          // publish to Redis that we're done with tracing
+          this.redis_pub.publish( env.REDIS_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
         }
       } else {
         // no await - if this message is not stored, we'll see this in telemetry

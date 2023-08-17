@@ -9,9 +9,20 @@ import { Utils } from './Utils.js';
 import { XML_Parser } from './XML_Parser.js';
 import { JSON_Parser } from './JSON_Parser.js';
 import fetch from 'node-fetch';
+import { RedisPubClient } from './RedisPubClient.js';
+import { RedisSubClient } from './RedisSubClient.js';
+import { Telemetry } from './Telemetry.js';
 const cacheable: CacheableLookup = new CacheableLookup();
 
 export class RSSFetch {
+
+  /**
+   * Current version of this service.
+   * Must be changed for each production-ready release.
+   * @private
+   * @type { string }
+   */
+  private readonly version: string = '0.1a';
 
   /**
    * Instance of the Logger class.
@@ -37,11 +48,20 @@ export class RSSFetch {
   private readonly kafka_consumer: KafkaConsumer;
 
   /**
-   * Redis client instance, used to fetch error codes.
-   * @type { any }
+   * Redis subscriber client instance,
+   * used to subscribe to channels.
+   * @type { RedisSubClient }
    * @private
    */
-  private readonly redis_client: any;
+  private readonly redis_sub: RedisSubClient;
+
+  /**
+   * Redis publisher and getter client instance,
+   * used to fetch error codes.
+   * @type { RedisPubClient }
+   * @private
+   */
+  private readonly redis_pub: RedisPubClient;
 
   /**
    * Parser for RSS/ATOM feed data.
@@ -90,12 +110,14 @@ export class RSSFetch {
    * that were created outside of this main class.
    * Also creates instances of XML and JSON parser internal classes.
    *
-   * @param { KafkaProducer } kafka_producer Kafka Producer used to publish messages.
-   * @param { KafkaConsumer } kafka_consumer Kafka Consumer used to listen for RSS feeds to parse.
-   * @param { Logger }        logger         A Logger class instanced used for logging purposes.
-   * @param { any }           redisClient    A Redis client to fetch error codes.
+   * @param { KafkaProducer }  kafka_producer Kafka Producer used to publish messages.
+   * @param { KafkaConsumer }  kafka_consumer Kafka Consumer used to listen for RSS feeds to parse.
+   * @param { Logger }         logger         A Logger class instanced used for logging purposes.
+   * @param { string }         service_name   ID of the service from main application for Redis publishing purposes
+   * @param { RedisSubClient } redis_sub      A Redis Sub client to subscribe to channels.
+   * @param { RedisPubClient } redis_pub      A Redis Pub client to fetch error codes.
    */
-  constructor( kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: Logger, redisClient: any, service_name: string ) {
+  constructor( kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: Logger, service_name: string, redis_sub: RedisSubClient, redis_pub: RedisPubClient ) {
     // initialize Utils static class with default values
     Utils.kafka_producer = kafka_producer;
     Utils.service_name = service_name;
@@ -122,7 +144,8 @@ export class RSSFetch {
     this.logger = logger;
 
     // Redis
-    this.redis_client = redisClient;
+    this.redis_sub = redis_sub;
+    this.redis_pub = redis_pub;
 
     // XML parser
     this.xml_parser = new XML_Parser();
@@ -139,20 +162,20 @@ export class RSSFetch {
     // create a task that will update this service active status every minute
     setInterval( (): void => {
       if ( self.kafka_consumer.get_active() && self.kafka_producer.get_active() ) {
-        self.redis_client.set( self.service_name + '_active', 1 );
+        self.redis_pub.set( self.service_name + '_active', 1 );
       }
     }, 60000 );
 
     // mark ourselves as active from the start, if both - producer and consumer - are active
     if ( this.kafka_consumer.get_active() && this.kafka_producer.get_active() ) {
-      this.redis_client.set( this.service_name + '_active', 1 );
+      this.redis_pub.set( this.service_name + '_active', 1 );
     }
 
     // subscribe to receive RSS feed links to be parsed
     this.kafka_consumer.subscribe( [ this.feed_fetch_channel_name ] ).then( async () => {
       // start processing RSS feed URLs
       if ( !await self.kafka_consumer.consume( self.parse_feed_url.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.redis_client.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
+        let exit_code: number = parseInt( await self.redis_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
         await self.logger.log_msg( 'Error while trying to set RSS parsing function - Kafka Consumer not ready.', exit_code );
         exit( exit_code );
       }
@@ -171,11 +194,21 @@ export class RSSFetch {
    */
   private async parse_feed_url( { topic, partition, message, heartbeat, pause } ): Promise<void> {
     if ( topic == this.feed_fetch_channel_name ) {
-      let kafka_message_data = null;
+      let
+        kafka_message_data = null,
+        kafka_key_data: string = null,
+        trace_carrier: Object = null,
+        analysis_telemetry: Telemetry,
+        telemetry_name: string;
+
       try {
-        kafka_message_data = JSON.parse(message.value.toString());
+        kafka_message_data = JSON.parse( message.value.toString() );
+        kafka_key_data     = message.key.toString();
+        trace_carrier      = JSON.parse( kafka_key_data );
+        analysis_telemetry = await new Telemetry( this.service_name, this.version, kafka_message_data.url ).start( trace_carrier );
+        telemetry_name     = 'rss_fetch';
       } catch ( err ) {
-        await this.logger.log_msg( 'Error parsing control center RSS feed data:  ' + message + '\nerr: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
+        await this.logger.log_msg( 'Error parsing control center RSS feed data:  ' + JSON.stringify( message ) + '\nerr: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
       }
 
       if ( !kafka_message_data || !kafka_message_data.url ) {
@@ -184,7 +217,12 @@ export class RSSFetch {
       } else {
         // get data for this RSS feed URL
         try {
-          let feed_data: { status: number, data: string }|null = await this.get_url_status_with_data( kafka_message_data.url );
+          const url_status_span_name: string = 'rss_fetch_url_status_plus_data';
+
+          await analysis_telemetry.add_span( url_status_span_name, { 'feed_url' : kafka_message_data.url } );
+          let feed_data: { status: number, data: string }|null = await this.get_url_status_with_data( kafka_message_data.url, analysis_telemetry.get_telemetry_carrier() );
+          analysis_telemetry.close_active_span( url_status_span_name );
+
           if ( feed_data !== null ) {
             // check that this is not a JSON feed
             let json = null;
@@ -198,29 +236,46 @@ export class RSSFetch {
             if ( json === null ) {
               // this is an XML feed
               try {
-                await this.xml_parser.process_xml_feed( feed_data.data, kafka_message_data.url );
+                const process_xml_feed_span_name: string = 'rss_fetch_process_xml_feed';
+                await analysis_telemetry.add_span( process_xml_feed_span_name, { 'feed_url' : kafka_message_data.url } );
+                await this.xml_parser.process_xml_feed( feed_data.data, kafka_message_data.url, kafka_key_data );
+                analysis_telemetry.close_active_span( process_xml_feed_span_name );
               } catch( err ) {
                 // something's gone wrong with XML parsing, log error
                 await this.logger.log_msg( `invalid XML feed data for ${kafka_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
+                await analysis_telemetry.add_span( telemetry_name, {}, `invalid XML feed data for ${kafka_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
+                analysis_telemetry.close_active_span( telemetry_name );
               }
             } else {
               // this is a JSON feed
               if ( json !== false ) {
                 try {
-                  await this.json_parser.process_json_feed( json, kafka_message_data.url );
+                  const process_json_feed_span_name: string = 'rss_fetch_process_json_feed';
+                  await analysis_telemetry.add_span( process_json_feed_span_name, { 'feed_url' : kafka_message_data.url } );
+                  await this.json_parser.process_json_feed( json, kafka_message_data.url, kafka_key_data );
+                  analysis_telemetry.close_active_span( process_json_feed_span_name );
                 } catch( err ) {
                   // something's gone wrong with JSON parsing, log error
                   await this.logger.log_msg( `invalid JSON feed data for ${kafka_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
+                  await analysis_telemetry.add_span( telemetry_name, {}, `invalid JSON feed data for ${kafka_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
+                  analysis_telemetry.close_active_span( telemetry_name );
                 }
               } else {
                 // invalid JSON feed data, log error
                 await this.logger.log_msg( `invalid (unparsable) JSON feed ( ${kafka_message_data.url} ) detected, body was: ${feed_data.data}`, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
+                await analysis_telemetry.add_span( telemetry_name, {}, `invalid (unparsable) JSON feed ( ${kafka_message_data.url} ) detected, body was: ${feed_data.data}`, 1 );
+                analysis_telemetry.close_active_span( telemetry_name );
               }
             }
           }
         } catch ( err ) {
           await this.logger.log_msg( 'Error processing ' + kafka_message_data.url + ' with error: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
+          await analysis_telemetry.add_span( telemetry_name, {}, 'Error processing ' + kafka_message_data.url + ' with error: ' + JSON.stringify( err ), 1 );
+          analysis_telemetry.close_active_span( telemetry_name );
         }
+
+        // publish to Redis that we're done with tracing
+        this.redis_pub.publish( env.REDIS_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: kafka_key_data } ) );
       }
     }
   }
@@ -230,12 +285,13 @@ export class RSSFetch {
    * If the URL is invalid, this function will try to correct it
    * by trying HTTPS prefix first, then falling back to HTTP.
    *
-   * @param { string } url The URL to retrieve data for.
+   * @param { string } url      The URL to retrieve data for.
+   * @param { string } trace_id Serialized trace carrier under which to log change in URL if it was fixed.
    * @private
    * @return { Promise<{ status: number, data: string }|null> } Returns either an object with status and page data received
    *                                                            or null if the passed URL was invalid and we were unable to fix it.
    */
-  private async get_url_status_with_data( url: string ): Promise<{ status: number, data: string }|null> {
+  private async get_url_status_with_data( url: string, trace_id: string ): Promise<{ status: number, data: string }|null> {
     let
       lower_url: string = url.toLowerCase(),
       ret: { status: number, data: string } = { status: -1, data: '' };
@@ -275,7 +331,7 @@ export class RSSFetch {
       // if we got here, our URL fix was successful
       // notify the relevant service to update the URL in database
       if ( ret !== null ) {
-        await this.logger.log_msg(msg, 'ERR_RSS_FETCH_WRONG_URL', LOG_SEVERITIES.LOG_SEVERITY_NOTICE, {feed_url: new_url, old_feed_url: url});
+        await this.logger.log_msg(msg, 'ERR_RSS_FETCH_WRONG_URL', LOG_SEVERITIES.LOG_SEVERITY_NOTICE, { feed_url: new_url, old_feed_url: url, trace_id : trace_id });
       }
     } else {
       // URL is valid, retrieve data

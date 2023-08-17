@@ -74,15 +74,17 @@ export class Utils {
    * Publishes link data via Kafka Producer.
    *
    * @param { Object } link_data The link data to publish.
+   * @param { string } kafka_key Key for this link message received from Kafka.
+   *                             This is actually a trace ID that needs to be passed on.
    * @private
    */
-  public static async publish_new_link_data( link_data: Object ): Promise<void> {
+  public static async publish_new_link_data( link_data: Object, kafka_key: string ): Promise<void> {
     // add service name to the link data message
     link_data[ 'service' ] = Utils.service_name;
 
     // publish new link message
     // no await - we're not returning anything here
-    Utils.kafka_producer.pub_item( link_data );
+    Utils.kafka_producer.pub_item( kafka_key, link_data );
   }
 
   /**

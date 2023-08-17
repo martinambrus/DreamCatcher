@@ -1,4 +1,5 @@
 import { KafkaProducer } from "./KafkaProducer.js";
+import { RedisPubClient } from './RedisPubClient.js';
 
 /**
  * Enumeration of LOG severities.
@@ -41,11 +42,11 @@ export class Logger {
   private kafka_producer: KafkaProducer = null;
 
   /**
-   * Redis client instance.
+   * Redis Sub client instance.
    * @private
-   * @type { any }
+   * @type { RedisPub }
    */
-  private redis_client: any = null;
+  private redis_pub: RedisPubClient = null;
 
   /**
    * Create a global logger instance and sets client ID
@@ -53,14 +54,14 @@ export class Logger {
    *
    * @param { string }           client_id      Client ID to identify client in log messages.
    * @param { string }           service_id     Service ID to add to Redis logs.
-   * @param { any }              redis_client   Redis client instance.
+   * @param { RedisPubClient }   redis_pub      Redis Pub client instance, used to fetch error codes.
    * @param { KafkaClient|null } kafka_producer Kafka producer used for publishing log messages.
    * @constructor
    */
-  constructor(client_id: string, service_id: string, redis_client: any = null, kafka_producer: KafkaProducer|null = null ) {
+  constructor(client_id: string, service_id: string, redis_pub: RedisPubClient = null, kafka_producer: KafkaProducer|null = null ) {
     this.client_id = client_id;
     this.service_id = service_id;
-    this.redis_client = redis_client;
+    this.redis_pub = redis_pub;
     this.kafka_producer = kafka_producer;
   }
 
@@ -73,11 +74,11 @@ export class Logger {
   }
 
   /**
-   * Sets a new Redis client.
-   * @param { any } redis_client The Redis client to use from now on.
+   * Sets a new Redis Pub client.
+   * @param { RedisPubClient } redis_pub The Redis Pub client to use from now on.
    */
-  public set_redis_client( redis_client: any ): void {
-    this.redis_client = redis_client;
+  public set_redis_pub_client( redis_pub: RedisPubClient ): void {
+    this.redis_pub = redis_pub;
   }
 
   /**
@@ -117,7 +118,7 @@ export class Logger {
 
       if (code) {
         if ( typeof code === 'string' ) {
-          log_msg[ 'code' ] = parseInt( await this.redis_client.get( code ) );
+          log_msg[ 'code' ] = parseInt( await this.redis_pub.get( code ) );
         } else {
           log_msg[ 'code' ] = code;
         }

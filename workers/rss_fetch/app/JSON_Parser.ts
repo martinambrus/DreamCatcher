@@ -9,9 +9,11 @@ export class JSON_Parser {
    *
    * @param { Object } json_data JSON feed object with all its data.
    * @param { string } feed_url  URL of the feed from which the json_data object was created.
+   * @param { string } kafka_key Key for this link message received from Kafka.
+   *                             This is actually a trace ID that needs to be passed on.
    * @private
    */
-  public async process_json_feed( json_data: Object, feed_url: string ): Promise<void> {
+  public async process_json_feed( json_data: Object, feed_url: string, kafka_key: string ): Promise<void> {
     // check for the JSON data validity - we only require items here,
     // no need to check for other relevant keys as per the JSON RSS Feed 1.1 specs
     // https://www.jsonfeed.org/version/1.1/
@@ -98,7 +100,7 @@ export class JSON_Parser {
       // fire up links data
       for ( let link_data of items_to_sort ) {
         // no await - we're not checking whether this link was successfully added
-        Utils.publish_new_link_data( link_data );
+        Utils.publish_new_link_data( link_data, kafka_key );
       }
     } else {
       // invalid JSON feed data
