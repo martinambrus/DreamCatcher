@@ -1,0 +1,178 @@
+services:
+  npm_cache:
+    build:
+      context: ./
+      dockerfile: npm_cache/Dockerfile
+    image: npm_cache
+  control_center:
+    build: control_center
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - postgres
+      - redis
+      - kafka-0
+      - rss_fetch
+      - analysis
+      - link_writer
+      - link_fix_detector
+      - err_log_writer
+      - npm_cache
+    restart: unless-stopped
+  rss_fetch:
+    build: workers/rss_fetch
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - kafka-0
+      - npm_cache
+    restart: unless-stopped
+  analysis:
+    build: workers/analysis
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
+      - kafka-0
+      - npm_cache
+    restart: unless-stopped
+  link_writer:
+    build: workers/link_writer
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
+      - kafka-0
+      - npm_cache
+    restart: unless-stopped
+  err_log_writer:
+    build: workers/err_log_writer
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
+      - kafka-0
+      - npm_cache
+    restart: unless-stopped
+  link_fix_detector:
+    build: workers/link_fix_detector
+    networks:
+      - internal
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - redis
+      - rss_fetch
+      - postgres
+      - kafka-0
+      - npm_cache
+    restart: unless-stopped
+  redis:
+   build: infrastructure/redis
+   networks:
+     - internal
+   restart: unless-stopped
+   container_name: redis_server
+   hostname: redis_server
+   ports:
+     - 127.0.0.1:6379:6379
+  postgres:
+    image: "postgres:15.3-alpine"
+    networks:
+      - internal
+    container_name: db_server
+    hostname: db_server
+    ports:
+      - 127.0.0.1:5432:5432
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/datadir/pgdata:/var/lib/postgresql/pgdata
+      - ./infrastructure/postgre/sql:/docker-entrypoint-initdb.d
+      - ./infrastructure/postgre/credentials:/credentials
+    environment:
+      POSTGRES_DB_FILE: /credentials/db_name
+      POSTGRES_USER_FILE: /credentials/db_user
+      POSTGRES_PASSWORD_FILE: /credentials/db_password
+      POSTGRES_EXTENSIONS: pg_trgm, plpgsql, unaccent
+      PGDATA: /var/lib/postgresql/pgdata
+  kafka-0:
+    image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:9092:9092
+      - 127.0.0.1:9093:9093
+    restart: unless-stopped
+    environment:
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - ./infrastructure/datadir/kafka_0_dev_data:/bitnami/kafka
+  jaeger:
+    image: "jaegertracing/all-in-one"
+    networks:
+      - internal
+    container_name: trace_logger
+    hostname: trace_logger
+    environment:
+      SPAN_STORAGE_TYPE: badger
+      BADGER_EPHEMERAL: false
+      BADGER_DIRECTORY_VALUE: /badger/data
+      BADGER_DIRECTORY_KEY: /badger/key
+      COLLECTOR_OTLP_ENABLED: true
+    #      COLLECTOR_ZIPKIN_HOST_PORT: 9411
+    #      COLLECTOR_ZIPKIN_HTTP_ENABLED: true
+    ports:
+      - 16686:16686
+      - 14268:14268
+      #- 9411:9411
+      - 5778:5778
+      - 5775:5775/udp
+      - 6831:6831/udp
+      - 6832:6832/udp
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/datadir/jaeger:/badger
+  kafka_magic:
+    image: "digitsy/kafka-magic"
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:8081:80
+    volumes:
+      - ./infrastructure/datadir/kafka_magic:/config
+    environment:
+      KMAGIC_ALLOW_TOPIC_DELETE: "true"
+      KMAGIC_ALLOW_SCHEMA_DELETE: "true"
+      KMAGIC_CONFIG_STORE_TYPE: "file"
+      KMAGIC_CONFIG_STORE_CONNECTION: "Data Source=/config/KafkaMagicConfig.db;"
+      KMAGIC_CONFIG_ENCRYPTION_KEY: "ABCD8589!8x^pqX1"
+    depends_on:
+      - kafka-0
+    restart: unless-stopped
+networks:
+  internal:
+    name: internal
