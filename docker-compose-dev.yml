@@ -5,7 +5,10 @@ services:
       dockerfile: npm_cache/Dockerfile
     image: npm_cache
   control_center:
-    build: control_center
+    build:
+      context: control_center
+      dockerfile: Dockerfile
+      target: dev
     networks:
       - internal
     environment:
@@ -22,7 +25,10 @@ services:
       - npm_cache
     restart: unless-stopped
   rss_fetch:
-    build: workers/rss_fetch
+    build:
+      context: workers/rss_fetch
+      dockerfile: Dockerfile
+      target: dev
     networks:
       - internal
     environment:
@@ -33,7 +39,10 @@ services:
       - npm_cache
     restart: unless-stopped
   analysis:
-    build: workers/analysis
+    build:
+      context: workers/analysis
+      dockerfile: Dockerfile
+      target: dev
     networks:
       - internal
     environment:
@@ -46,7 +55,10 @@ services:
       - npm_cache
     restart: unless-stopped
   link_writer:
-    build: workers/link_writer
+    build:
+      context: workers/link_writer
+      dockerfile: Dockerfile
+      target: dev
     networks:
       - internal
     environment:
@@ -59,7 +71,10 @@ services:
       - npm_cache
     restart: unless-stopped
   err_log_writer:
-    build: workers/err_log_writer
+    build:
+      context: workers/err_log_writer
+      dockerfile: Dockerfile
+      target: dev
     networks:
       - internal
     environment:
@@ -72,7 +87,10 @@ services:
       - npm_cache
     restart: unless-stopped
   link_fix_detector:
-    build: workers/link_fix_detector
+    build:
+      context: workers/link_fix_detector
+      dockerfile: Dockerfile
+      target: dev
     networks:
       - internal
     environment:

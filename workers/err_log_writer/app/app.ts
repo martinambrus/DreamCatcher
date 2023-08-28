@@ -26,11 +26,11 @@ const SERVICE_ID: string = 'err_log_writer';
 
   // Redis Sub client
   let redis_sub: RedisSubClient = new RedisSubClient( logger );
-  await redis_sub.connect( env.REDIS_HOSTNAME, env.REDIS_PORT );
+  await redis_sub.connect( env.REDIS_NODES, env.REDIS_PORT );
 
   // Redis Pub client
   let redis_pub: RedisPubClient = new RedisPubClient( logger );
-  await redis_pub.connect( env.REDIS_HOSTNAME, env.REDIS_PORT );
+  await redis_pub.connect( env.REDIS_NODES, env.REDIS_PORT );
   logger.set_redis_pub_client( redis_pub );
 
   // Kafka producer

@@ -9,7 +9,7 @@
 - `sudo apt-get update && sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y`
 - `git clone https://github.com/martinambrus/dreamcatcher.git && cd dreamcatcher`
 - `for filename in ./infrastructure/postgre/credentials/*; do mv "./$filename" "./$(echo "$filename" | sed -e 's/_example//g')"; done`
-- `shopt -s nullglob && shopt -s globstar && shopt -s dotglob && for fname in **/*.example ; do mv -- "${fname}" "${fname%.example}"; done`
+- `shopt -s nullglob && shopt -s globstar && shopt -s dotglob && for fname in **/*.example.dev ; do mv -- "${fname}" "${fname%.example.dev}"; done`
 - `mkdir -m 777 -p infrastructure/datadir/kafka_0_data && mkdir -m 777 -p infrastructure/datadir/kafka_1_data && mkdir -m 777 -p infrastructure/datadir/kafka_2_data`
 - `sudo chmod +x *.sh && sudo ./start_docker.sh`
 

@@ -5,14 +5,19 @@ services:
       dockerfile: npm_cache/Dockerfile
     image: npm_cache
   control_center:
-    build: control_center
+    build:
+      context: control_center
+      dockerfile: Dockerfile
+      target: prod
     networks:
       - internal
     environment:
       - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
       - postgres
-      - redis
+      - redis-sentinel-0
+      - redis-sentinel-1
+      - redis-sentinel-2
       - kafka-0
       - kafka-1
       - kafka-2
@@ -24,26 +29,36 @@ services:
       - npm_cache
     restart: unless-stopped
   rss_fetch:
-    build: workers/rss_fetch
+    build:
+      context: workers/rss_fetch
+      dockerfile: Dockerfile
+      target: prod
     networks:
       - internal
     environment:
       - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis
+      - redis-sentinel-0
+      - redis-sentinel-1
+      - redis-sentinel-2
       - kafka-0
       - kafka-1
       - kafka-2
       - npm_cache
     restart: unless-stopped
   analysis:
-    build: workers/analysis
+    build:
+      context: workers/analysis
+      dockerfile: Dockerfile
+      target: prod
     networks:
       - internal
     environment:
       - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis
+      - redis-sentinel-0
+      - redis-sentinel-1
+      - redis-sentinel-2
       - rss_fetch
       - postgres
       - kafka-0
@@ -52,13 +67,18 @@ services:
       - npm_cache
     restart: unless-stopped
   link_writer:
-    build: workers/link_writer
+    build:
+      context: workers/link_writer
+      dockerfile: Dockerfile
+      target: prod
     networks:
       - internal
     environment:
       - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis
+      - redis-sentinel-0
+      - redis-sentinel-1
+      - redis-sentinel-2
       - rss_fetch
       - postgres
       - kafka-0
@@ -67,13 +87,18 @@ services:
       - npm_cache
     restart: unless-stopped
   err_log_writer:
-    build: workers/err_log_writer
+    build:
+      context: workers/err_log_writer
+      dockerfile: Dockerfile
+      target: prod
     networks:
       - internal
     environment:
       - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis
+      - redis-sentinel-0
+      - redis-sentinel-1
+      - redis-sentinel-2
       - rss_fetch
       - postgres
       - kafka-0
@@ -82,13 +107,18 @@ services:
       - npm_cache
     restart: unless-stopped
   link_fix_detector:
-    build: workers/link_fix_detector
+    build:
+      context: workers/link_fix_detector
+      dockerfile: Dockerfile
+      target: prod
     networks:
       - internal
     environment:
       - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis
+      - redis-sentinel-0
+      - redis-sentinel-1
+      - redis-sentinel-2
       - rss_fetch
       - postgres
       - kafka-0
@@ -96,15 +126,54 @@ services:
       - kafka-2
       - npm_cache
     restart: unless-stopped
-  redis:
+  redis-0:
    build: infrastructure/redis
    networks:
      - internal
    restart: unless-stopped
-   container_name: redis_server
-   hostname: redis_server
    ports:
      - 127.0.0.1:6379:6379
+  redis-1:
+    build: infrastructure/redis
+    networks:
+      - internal
+    restart: unless-stopped
+    ports:
+      - 6379
+  redis-2:
+    build: infrastructure/redis
+    networks:
+      - internal
+    restart: unless-stopped
+    ports:
+      - 6379
+  redis-sentinel-0:
+    build: infrastructure/redis-sentinel
+    networks:
+      - internal
+    ports:
+      - 26379
+    depends_on:
+      - redis-0
+    restart: unless-stopped
+  redis-sentinel-1:
+    build: infrastructure/redis-sentinel
+    networks:
+      - internal
+    ports:
+      - 26379
+    depends_on:
+      - redis-1
+    restart: unless-stopped
+  redis-sentinel-2:
+    build: infrastructure/redis-sentinel
+    networks:
+      - internal
+    ports:
+      - 26379
+    depends_on:
+      - redis-2
+    restart: unless-stopped
   postgres:
     image: "postgres:15.3-alpine"
     networks:
