@@ -127,21 +127,30 @@ services:
       - npm_cache
     restart: unless-stopped
   redis-0:
-   build: infrastructure/redis
+   build:
+     context: infrastructure/redis
+     dockerfile: Dockerfile
+     target: base
    networks:
      - internal
    restart: unless-stopped
    ports:
      - 127.0.0.1:6379:6379
   redis-1:
-    build: infrastructure/redis
+    build:
+      context: infrastructure/redis
+      dockerfile: Dockerfile
+      target: slave
     networks:
       - internal
     restart: unless-stopped
     ports:
       - 6379
   redis-2:
-    build: infrastructure/redis
+    build:
+      context: infrastructure/redis
+      dockerfile: Dockerfile
+      target: slave
     networks:
       - internal
     restart: unless-stopped
