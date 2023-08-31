@@ -1,0 +1,8 @@
+{
+  "version": "0.1a",
+  "dependencies": {
+    "@types/node": "^20.5.7",
+    "bullmq": "^4.8.0"
+  },
+  "type": "module"
+}
