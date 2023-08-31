@@ -1,11 +1,11 @@
 import { env, exit } from 'node:process';
-import { LOG_SEVERITIES, Logger } from './Logger.js';
 import pkg from "pg";
 import { KafkaProducer } from './KafkaProducer.js';
 import { KafkaConsumer } from './KafkaConsumer.js';
-import { RedisPubClient } from './RedisPubClient.js';
-import { RedisSubClient } from './RedisSubClient.js';
 import { Telemetry } from './Telemetry.js';
+import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
+import { IRedisSub } from './Redis/Interfaces/IRedisSub.js';
+import { IRedisPub } from './Redis/Interfaces/IRedisPub.js';
 
 export class Analysis {
 
@@ -20,9 +20,9 @@ export class Analysis {
   /**
    * Instance of the Logger class.
    * @private
-   * @type { Logger }
+   * @type { ILogger }
    */
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
 
   /**
    * Main app service ID, so we can use it in Kafka logs.
@@ -72,18 +72,18 @@ export class Analysis {
   /**
    * Redis subscriber client instance,
    * used to subscribe to channels.
-   * @type { RedisSubClient }
+   * @type { IRedisSub }
    * @private
    */
-  private readonly redis_sub: RedisSubClient;
+  private readonly redis_sub: IRedisSub;
 
   /**
    * Redis publisher and getter client instance,
    * used to fetch error codes.
-   * @type { RedisPubClient }
+   * @type { IRedisPub }
    * @private
    */
-  private readonly redis_pub: RedisPubClient;
+  private readonly redis_pub: IRedisPub;
 
   /**
    * PostgreSQL client class instance.
@@ -133,12 +133,12 @@ export class Analysis {
    * @param { KafkaProducer } kafka_producer       Kafka Producer used to publish messages.
    * @param { KafkaConsumer } kafka_consumer_logs  Kafka Consumer used to listen for RSS feeds to parse.
    * @param { KafkaConsumer } kafka_consumer_links Kafka Consumer used to listen for link data to parse.
-   * @param { Logger }        logger               A Logger class instanced used for logging purposes.
+   * @param { ILogger }       logger               A Logger class instanced used for logging purposes.
    * @param { pkg.Client }    dbconn               A PGSQL client instance.
-   * @param { RedisSubClient } redis_sub      A Redis Sub client to subscribe to channels.
-   * @param { RedisPubClient } redis_pub      A Redis Pub client to fetch error codes.
+   * @param { IRedisSub }     redis_sub      A Redis Sub client to subscribe to channels.
+   * @param { IRedisPub }     redis_pub      A Redis Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer_logs: KafkaConsumer, kafka_consumer_links: KafkaConsumer, logger: Logger, dbconn: pkg.Client, redis_sub: RedisSubClient, redis_pub: RedisPubClient ) {
+  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer_logs: KafkaConsumer, kafka_consumer_links: KafkaConsumer, logger: ILogger, dbconn: pkg.Client, redis_sub: IRedisSub, redis_pub: IRedisPub ) {
     // Kafka
     this.kafka_producer = kafka_producer;
     this.kafka_consumer_logs = kafka_consumer_logs;
@@ -222,7 +222,7 @@ export class Analysis {
 
       if ( message ) {
         // check that we have the right message
-        if ( message.service == 'link_writer' && message.severity == LOG_SEVERITIES.LOG_SEVERIRY_NOTICE ) {
+        if ( message.service == 'link_writer' && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE ) {
           let dt: Date = new Date();
 
           if ( !message.extra_data.links_count ) {

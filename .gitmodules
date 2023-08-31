@@ -1,0 +1,24 @@
+[submodule "control_center/app/Redis"]
+	path = control_center/app/Redis
+	url = https://github.com/martinambrus/dreamcatcher-redis.git
+	branch = main
+[submodule "workers/analysis/app/Redis"]
+	path = workers/analysis/app/Redis
+	url = https://github.com/martinambrus/dreamcatcher-redis.git
+	branch = main
+[submodule "workers/err_log_writer/app/Redis"]
+	path = workers/err_log_writer/app/Redis
+	url = https://github.com/martinambrus/dreamcatcher-redis.git
+	branch = main
+[submodule "workers/link_fix_detector/app/Redis"]
+	path = workers/link_fix_detector/app/Redis
+	url = https://github.com/martinambrus/dreamcatcher-redis.git
+	branch = main
+[submodule "workers/link_writer/app/Redis"]
+	path = workers/link_writer/app/Redis
+	url = https://github.com/martinambrus/dreamcatcher-redis.git
+	branch = main
+[submodule "workers/rss_fetch/app/Redis"]
+	path = workers/rss_fetch/app/Redis
+	url = https://github.com/martinambrus/dreamcatcher-redis.git
+	branch = main

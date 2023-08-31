@@ -1,11 +1,11 @@
 import { env, exit } from 'node:process';
-import { LOG_SEVERITIES, Logger } from './Logger.js';
 import pkg from "pg";
 import { KafkaProducer } from './KafkaProducer.js';
 import { KafkaConsumer } from './KafkaConsumer.js';
-import { RedisSubClient } from './RedisSubClient.js';
-import { RedisPubClient } from './RedisPubClient.js';
 import { Telemetry } from './Telemetry.js';
+import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
+import { IRedisSub } from './Redis/Interfaces/IRedisSub.js';
+import { IRedisPub } from './Redis/Interfaces/IRedisPub.js';
 
 export class ErrLogWriter {
 
@@ -27,9 +27,9 @@ export class ErrLogWriter {
   /**
    * Instance of the Logger class.
    * @private
-   * @type { Logger }
+   * @type { ILogger }
    */
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
 
   /**
    * Kafka logs topic name.
@@ -57,18 +57,18 @@ export class ErrLogWriter {
   /**
    * Redis subscriber client instance,
    * used to subscribe to channels.
-   * @type { RedisSubClient }
+   * @type { IRedisSub }
    * @private
    */
-  private readonly redis_sub: RedisSubClient;
+  private readonly redis_sub: IRedisSub;
 
   /**
    * Redis publisher and getter client instance,
    * used to fetch error codes.
-   * @type { RedisPubClient }
+   * @type { IRedisPub }
    * @private
    */
-  private readonly redis_pub: RedisPubClient;
+  private readonly redis_pub: IRedisPub;
 
   /**
    * PostgreSQL client class instance.
@@ -84,12 +84,12 @@ export class ErrLogWriter {
    * @param { string }        service_name   ID of the service from main application for Redis publishing purposes
    * @param { KafkaProducer } kafka_producer Kafka Producer used to publish messages.
    * @param { KafkaConsumer } kafka_consumer Kafka Consumer used to listen for links data to parse.
-   * @param { Logger }        logger A Logger class instanced used for logging purposes.
+   * @param { ILogger }       logger A Logger class instanced used for logging purposes.
    * @param { pkg.Client }    dbconn A PGSQL client instance.
-   * @param { RedisSubClient } redis_sub      A Redis Sub client to subscribe to channels.
-   * @param { RedisPubClient } redis_pub      A Redis Pub client to fetch error codes.
+   * @param { IRedisSub }     redis_sub      A Redis Sub client to subscribe to channels.
+   * @param { IRedisPub }     redis_pub      A Redis Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: Logger, dbconn: pkg.Client, redis_sub: RedisSubClient, redis_pub: RedisPubClient ) {
+  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, dbconn: pkg.Client, redis_sub: IRedisSub, redis_pub: IRedisPub ) {
     // Kafka
     this.kafka_producer = kafka_producer;
     this.kafka_consumer = kafka_consumer;
@@ -168,14 +168,14 @@ export class ErrLogWriter {
           values.push( JSON.stringify( extra ) );
 
           try {
-            console.log( this.logger.get_log( 'logging: ' + original_msg ) );
+            console.log( this.logger.format( 'logging: ' + original_msg ) );
             const res = await this.dbconn.query( text, values );
 
             if ( !res.rows.length ) {
-              console.log( this.logger.get_log( 'Could not insert log into db' ) );
+              console.log( this.logger.format( 'Could not insert log into db' ) );
             }
           } catch ( err ) {
-            console.log( this.logger.get_log( 'DB error while trying to insert log data:\n' + JSON.stringify( err ) ) );
+            console.log( this.logger.format( 'DB error while trying to insert log data:\n' + JSON.stringify( err ) ) );
 
             // we only log errors where we fail to write a log into the DB,
             // as we're actually logging the error inside of the service where it happened
@@ -201,7 +201,7 @@ export class ErrLogWriter {
           this.redis_pub.publish( env.REDIS_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
         }
       } else {
-        console.log( this.logger.get_log('Exception while trying to decode and store log data: ' + original_msg ) );
+        console.log( this.logger.format('Exception while trying to decode and store log data: ' + original_msg ) );
       }
     }
   }

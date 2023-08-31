@@ -1,6 +1,7 @@
 import { exit } from 'node:process';
 import { Kafka, Consumer, EachMessageHandler } from 'kafkajs';
 import { Logger } from "./Logger.js";
+import { ILogger } from './Redis/Interfaces/ILogger.js';
 
 export class KafkaConsumer {
 
@@ -34,33 +35,33 @@ export class KafkaConsumer {
 
   /**
    * A logger class instance.
-   * @type { Logger }
+   * @type { ILogger }
    * @private
    */
-  private logger: Logger;
+  private logger: ILogger;
 
   /**
    * Defines internal Kafka setup and creates a Kafka client
    * based off the brokers data received.
    *
    * @param { Array<string> } brokers   List of all Kafka brokers to be aware of.
-   * @param { Logger }        logger    Log writer and sender.
+   * @param { ILogger }       logger    Log writer and sender.
    * @param { string }        client_id ID of the client that uniquely identifies this Kafka consumer.
    *
    * @constructor
    */
-  constructor( brokers: Array<string>, logger: Logger, client_id: string ) {
+  constructor( brokers: Array<string>, logger: ILogger, client_id: string ) {
     // check for a valid brokers array
     if ( brokers.length == 1 && brokers[ 0 ] == '' ) {
       // we're most probably missing an ENV key
-      console.log( logger.get_log( 'Brokers missing for Kafka Consumer! Received: ' + brokers.toString() ) );
+      console.log( logger.format( 'Brokers missing for Kafka Consumer! Received: ' + brokers.toString() ) );
       exit( 1 );
     }
 
     this.logger = logger;
     this.client_id = client_id;
 
-    console.log( logger.get_log( 'Creating Kafka client to connect to the following brokers (consumer): ' + brokers.toString() ) );
+    console.log( logger.format( 'Creating Kafka client to connect to the following brokers (consumer): ' + brokers.toString() ) );
 
     this.client = new Kafka({
       clientId: client_id,
@@ -81,9 +82,9 @@ export class KafkaConsumer {
     try {
       await this.consumer.connect();
       this.ready = true;
-      console.log( this.logger.get_log( 'Successfully connected to Kafka brokers (consumer).' ) );
+      console.log( this.logger.format( 'Successfully connected to Kafka brokers (consumer).' ) );
     } catch ( err ) {
-      console.log( this.logger.get_log( 'Exception while trying to connect to Kafka brokers (consumer) ' + "\n" + err.message ) );
+      console.log( this.logger.format( 'Exception while trying to connect to Kafka brokers (consumer) ' + "\n" + err.message ) );
       exit( 1 );
     }
   }
@@ -94,7 +95,7 @@ export class KafkaConsumer {
    */
   public async subscribe( topics: Array<string> ): Promise<void> {
     await this.consumer.subscribe( { topics: topics } );
-    this.logger.get_log( 'subscribed to the following topics: ' + topics.toString() );
+    this.logger.format( 'subscribed to the following topics: ' + topics.toString() );
   }
 
   /**
@@ -111,7 +112,7 @@ export class KafkaConsumer {
     if ( this.ready ) {
       try {
         await this.consumer.run({ eachMessage: callback });
-        this.logger.get_log( 'now consuming RSS feed messages' );
+        this.logger.format( 'now consuming RSS feed messages' );
       } catch ( err ) {
         // no await - we're returning boolean that's manually set below
         this.logger.log_msg( 'Error setting consumer callback: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING' );

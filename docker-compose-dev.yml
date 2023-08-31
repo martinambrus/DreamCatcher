@@ -103,14 +103,17 @@ services:
       - npm_cache
     restart: unless-stopped
   redis:
-   build: infrastructure/redis
-   networks:
-     - internal
-   restart: unless-stopped
-   container_name: redis_server
-   hostname: redis_server
-   ports:
-     - 127.0.0.1:6379:6379
+    build:
+      context: infrastructure/redis
+      dockerfile: Dockerfile
+      target: base
+    networks:
+      - internal
+    restart: unless-stopped
+    container_name: redis_server
+    hostname: redis_server
+    ports:
+      - 127.0.0.1:6379:6379
   postgres:
     image: "postgres:15.3-alpine"
     networks:
@@ -174,23 +177,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./infrastructure/datadir/jaeger:/badger
-  kafka_magic:
-    image: "digitsy/kafka-magic"
-    networks:
-      - internal
-    ports:
-      - 127.0.0.1:8081:80
-    volumes:
-      - ./infrastructure/datadir/kafka_magic:/config
-    environment:
-      KMAGIC_ALLOW_TOPIC_DELETE: "true"
-      KMAGIC_ALLOW_SCHEMA_DELETE: "true"
-      KMAGIC_CONFIG_STORE_TYPE: "file"
-      KMAGIC_CONFIG_STORE_CONNECTION: "Data Source=/config/KafkaMagicConfig.db;"
-      KMAGIC_CONFIG_ENCRYPTION_KEY: "ABCD8589!8x^pqX1"
-    depends_on:
-      - kafka-0
-    restart: unless-stopped
 networks:
   internal:
     name: internal

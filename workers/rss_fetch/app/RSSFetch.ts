@@ -1,4 +1,3 @@
-import { LOG_SEVERITIES, Logger } from "./Logger.js";
 import { KafkaProducer } from "./KafkaProducer.js";
 import { KafkaConsumer } from "./KafkaConsumer.js";
 import { env, exit } from "node:process";
@@ -9,9 +8,10 @@ import { Utils } from './Utils.js';
 import { XML_Parser } from './XML_Parser.js';
 import { JSON_Parser } from './JSON_Parser.js';
 import fetch from 'node-fetch';
-import { RedisPubClient } from './RedisPubClient.js';
-import { RedisSubClient } from './RedisSubClient.js';
 import { Telemetry } from './Telemetry.js';
+import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
+import { IRedisSub } from './Redis/Interfaces/IRedisSub.js';
+import { IRedisPub } from './Redis/Interfaces/IRedisPub.js';
 const cacheable: CacheableLookup = new CacheableLookup();
 
 export class RSSFetch {
@@ -27,9 +27,9 @@ export class RSSFetch {
   /**
    * Instance of the Logger class.
    * @private
-   * @type { Logger }
+   * @type { ILogger }
    */
-  private readonly logger: Logger;
+  private readonly logger: ILogger;
 
   /**
    * Instance of the KafkaProducer used for message publishing
@@ -50,18 +50,18 @@ export class RSSFetch {
   /**
    * Redis subscriber client instance,
    * used to subscribe to channels.
-   * @type { RedisSubClient }
+   * @type { IRedisSub }
    * @private
    */
-  private readonly redis_sub: RedisSubClient;
+  private readonly redis_sub: IRedisSub;
 
   /**
    * Redis publisher and getter client instance,
    * used to fetch error codes.
-   * @type { RedisPubClient }
+   * @type { IRedisPub }
    * @private
    */
-  private readonly redis_pub: RedisPubClient;
+  private readonly redis_pub: IRedisPub;
 
   /**
    * Parser for RSS/ATOM feed data.
@@ -112,12 +112,12 @@ export class RSSFetch {
    *
    * @param { KafkaProducer }  kafka_producer Kafka Producer used to publish messages.
    * @param { KafkaConsumer }  kafka_consumer Kafka Consumer used to listen for RSS feeds to parse.
-   * @param { Logger }         logger         A Logger class instanced used for logging purposes.
+   * @param { ILogger }        logger         A Logger class instanced used for logging purposes.
    * @param { string }         service_name   ID of the service from main application for Redis publishing purposes
-   * @param { RedisSubClient } redis_sub      A Redis Sub client to subscribe to channels.
-   * @param { RedisPubClient } redis_pub      A Redis Pub client to fetch error codes.
+   * @param { IRedisSub }      redis_sub      A Redis Sub client to subscribe to channels.
+   * @param { IRedisPub }      redis_pub      A Redis Pub client to fetch error codes.
    */
-  constructor( kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: Logger, service_name: string, redis_sub: RedisSubClient, redis_pub: RedisPubClient ) {
+  constructor( kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, service_name: string, redis_sub: IRedisSub, redis_pub: IRedisPub ) {
     // initialize Utils static class with default values
     Utils.kafka_producer = kafka_producer;
     Utils.service_name = service_name;

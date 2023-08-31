@@ -1,8 +1,9 @@
 import { env, exit } from 'node:process';
 import { Kafka, Producer, CompressionTypes } from 'kafkajs';
-import { Logger } from "./Logger.js";
+import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
+import { IMessageQueue } from './Redis/Interfaces/IMessageQueue.js';
 
-export class KafkaProducer {
+export class KafkaProducer implements IMessageQueue {
 
   /**
    * Kafka client
@@ -12,13 +13,6 @@ export class KafkaProducer {
   private client: Kafka;
 
   /**
-   * Identification for this Kafka producer.
-   * @type { string }
-   * @private
-   */
-  private client_id: string;
-
-  /**
    * Kafka producer
    * @type { any }
    * @private
@@ -26,10 +20,10 @@ export class KafkaProducer {
   private producer: Producer;
 
   /**
-   * New links channel name.
+   * Feeds fetch channel name.
    * @private
    */
-  private new_links_channel_name: string;
+  private feed_fetch_channel_name: string;
 
   /**
    * Logs channel name.
@@ -46,36 +40,35 @@ export class KafkaProducer {
 
   /**
    * A logger class instance.
-   * @type { Logger }
+   * @type { ILogger }
    * @private
    */
-  private logger: Logger;
+  private logger: ILogger;
 
   /**
    * Defines internal Kafka setup and creates a Kafka client
    * based off the brokers data received.
    *
    * @param { Array<string> } brokers   List of all Kafka brokers to be aware of.
-   * @param { Logger }        logger    Log writer and sender.
+   * @param { ILogger }       logger    Log writer and sender.
    * @param { string }        client_id ID of the client that uniquely identifies this Kafka producer.
    *
    * @constructor
    */
-  constructor( brokers: Array<string>, logger: Logger, client_id: string ) {
+  constructor( brokers: Array<string>, logger: ILogger, client_id: string ) {
     // check for a valid brokers array
     if ( brokers.length == 1 && brokers[ 0 ] == '' ) {
       // we're most probably missing missing an ENV key
-      console.log( logger.get_log( 'Brokers missing for Kafka Producer! Received: ' + brokers.toString() ) );
+      console.log( logger.format( 'Brokers missing for Kafka Producer! Received: ' + brokers.toString() ) );
       exit( 1 );
     }
 
-    this.new_links_channel_name = env.KAFKA_NEW_LINKS_CHANNEL;
     this.logs_channel_name = env.KAFKA_LOGS_CHANNEL;
+    this.feed_fetch_channel_name = env.KAFKA_FEED_FETCH_CHANNEL;
 
     this.logger = logger;
-    this.client_id = client_id;
 
-    console.log( logger.get_log( 'Creating Kafka client to connect to the following brokers (producer): ' + brokers.toString() ) );
+    console.log( logger.format( 'Creating Kafka client to connect to the following brokers (producer): ' + brokers.toString() ) );
 
     this.client = new Kafka({
       clientId: client_id,
@@ -96,10 +89,32 @@ export class KafkaProducer {
     try {
       await this.producer.connect();
       this.ready = true;
-      console.log( this.logger.get_log( 'Successfully connected to Kafka brokers (producer).' ) );
     } catch ( err ) {
-      console.log( this.logger.get_log( 'Exception while trying to connect to Kafka brokers (producer) ' + "\n" + JSON.stringify( err ) ) );
+      console.log( this.logger.format( 'Exception while trying to connect to Kafka brokers (producer) ' + "\n" + JSON.stringify( err ) ) );
       exit( 1 );
+    }
+  }
+
+  /**
+   * Publishes a feed fetch data.
+   *
+   * @param { string } trace_id ID of the Jaeger trace.
+   * @param { object } msg      Fetch data to publish.
+   * @return void
+   * @public
+   */
+  public async pub_feed( trace_id: string, msg: object ): Promise<void> {
+    if ( this.ready ) {
+      try {
+        await this.producer.send({
+          topic: this.feed_fetch_channel_name,
+          messages: [{ key: trace_id, value: JSON.stringify( msg ) }],
+          acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
+          compression: CompressionTypes.GZIP,
+        });
+      } catch ( err ) {
+        await this.logger.log_msg( 'Error publishing feed fetch to Kafka cluster:\n' + msg.toString() + '\nerr: ' + JSON.stringify( err ), 'ERR_CONTROL_CENTER_CANNOT_PUBLISH_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { trace_id: trace_id } );
+      }
     }
   }
 
@@ -128,6 +143,32 @@ export class KafkaProducer {
       } catch ( err ) {
         let dt: Date = new Date();
         console.log( '[' + dt.getDate() + '.' + ( dt.getMonth() + 1 ) + '.' + dt.getFullYear() + ' ' + dt.getHours() + ':' + dt.getMinutes() + ':' + dt.getSeconds() + '] Error publishing log data to Kafka cluster:\n' + msg.toString() + "\n", err );
+      }
+    }
+  }
+
+  /**
+   * Sends message to the message queue.
+   *
+   * @param { string } topic    Topic to sent the message to.
+   * @param { Object } msg      Message data to publish. Will be converted into a JSON string.
+   * @param { string } trace_id Optional. ID of the tracing software's root span, so we can continue
+   *                            tracing the request as it flows through the relevant microservices.
+   * @return Promise<void>
+   */
+  public async send( topic: string, message: Object, trace_id: string ): Promise<void> {
+    if ( this.ready ) {
+      try {
+        // no await - we're not returning anything here
+        this.producer.send({
+          topic: topic,
+          messages: [{ key: trace_id, value: JSON.stringify( message ) }],
+          acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
+          compression: CompressionTypes.GZIP,
+        });
+      } catch ( err ) {
+        let dt: Date = new Date();
+        console.log( '[' + dt.getDate() + '.' + ( dt.getMonth() + 1 ) + '.' + dt.getFullYear() + ' ' + dt.getHours() + ':' + dt.getMinutes() + ':' + dt.getSeconds() + '] Error publishing log data to Kafka cluster:\n' + message.toString() + "\n", err );
       }
     }
   }

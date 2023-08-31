@@ -1,0 +1,281 @@
+1.    Preprocessing: Convert your text data into numerical representations that can be fed into the neural network. You can use techniques like word embeddings (e.g., Word2Vec, GloVe) or tokenization methods to represent the text as numerical vectors.
+
+2.    Input Encoding: Represent each blog article as a sequence of word embeddings or one-hot encoded vectors. Pad or truncate the sequences to a fixed length so that they can be processed by the CNN.
+
+const word2vec = require('word2vec');
+const stopwords = require('stopwords');
+const natural = require('natural');
+
+// Example blog article
+const blogArticle = `
+This is an example blog article. It contains some text with numeric data like 100 mph or 500 kW.
+`;
+
+// Tokenize the blog article
+const tokens = blogArticle.split(/\s+/);
+
+// Remove stop words
+const filteredTokens = tokens.filter(token => !stopwords.english.includes(token.toLowerCase()));
+
+// Initialize Porter Stemmer for word stemming
+const stemmer = natural.PorterStemmer;
+
+// Preprocess and tokenize text
+const processedTokens = filteredTokens.map(token => {
+    // Convert to lowercase
+    const lowerCaseToken = token.toLowerCase();
+    // Remove non-alphanumeric characters and trim
+    const cleanedToken = lowerCaseToken.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+    // If the token contains only digits, keep it as-is (numeric data)
+    if (/^\d+$/.test(cleanedToken)) {
+        return cleanedToken;
+    }
+    // Stem the token
+    const stemmedToken = stemmer.stem(cleanedToken);
+    return stemmedToken;
+});
+
+// Load the pre-trained model
+const model = word2vec.loadModel('path_to_pretrained_model.bin'); // Replace with actual path
+
+// Fine-tune the model with new words
+model.learnMany([processedTokens]);
+
+// Define maximum sequence length
+const maxSeqLength = 100;
+
+// Pad or trim the processed tokens (same code as before)
+// ...
+
+// Encode the tokenized input
+const encodedInput = processedTokens.map(token => {
+    if (token === '<PAD>') {
+        return new Array(model.size).fill(0); // Padding token vector
+    }
+    return model.getVector(token);
+});
+
+console.log(encodedInput);
+
+
+
+
+3.    Convolutional Layers: Apply one or more convolutional layers to capture local patterns and features within the text. Each convolutional layer consists of multiple filters that slide over the input and perform convolutions to extract features. The resulting feature maps capture different aspects of the text.
+
+4.    Pooling Layers: Intersperse pooling layers (e.g., max pooling) between the convolutional layers to reduce the dimensionality and extract the most salient features from each feature map.
+
+const tf = require('@tensorflow/tfjs-node');
+
+// Sample word embeddings (replace with your actual data)
+const wordEmbeddings = [
+    [0.1, 0.2, 0.3, ...], // Vector representation of word 1
+    [0.4, 0.5, 0.6, ...], // Vector representation of word 2
+    // ...
+];
+
+// Convert word embeddings to a TensorFlow tensor
+const embeddingsTensor = tf.tensor(wordEmbeddings);
+
+// Create a 1D convolutional layer
+const convolutionalLayer1 = tf.layers.conv1d({
+    filters: 32,
+    kernelSize: 3,
+    activation: 'relu',
+    inputShape: [wordEmbeddings.length, wordEmbeddings[0].length]
+});
+
+// Apply the first convolutional layer to the embeddings
+const convOutput1 = convolutionalLayer1.apply(embeddingsTensor.expandDims(0));
+
+// Create a 1D pooling layer
+const poolingLayer1 = tf.layers.maxPooling1d({
+    poolSize: 2
+});
+
+// Apply the first pooling layer to the convolutional output
+const pooledOutput1 = poolingLayer1.apply(convOutput1);
+
+// Create a second convolutional layer
+const convolutionalLayer2 = tf.layers.conv1d({
+    filters: 64,
+    kernelSize: 3,
+    activation: 'relu'
+});
+
+// Apply the second convolutional layer to the pooled output
+const convOutput2 = convolutionalLayer2.apply(pooledOutput1);
+
+// Create a second pooling layer
+const poolingLayer2 = tf.layers.maxPooling1d({
+    poolSize: 2
+});
+
+// Apply the second pooling layer to the second convolutional output
+const pooledOutput2 = poolingLayer2.apply(convOutput2);
+
+// Create a third convolutional layer
+const convolutionalLayer3 = tf.layers.conv1d({
+    filters: 128,
+    kernelSize: 3,
+    activation: 'relu'
+});
+
+// Apply the third convolutional layer to the second pooled output
+const convOutput3 = convolutionalLayer3.apply(pooledOutput2);
+
+// Create a third pooling layer
+const poolingLayer3 = tf.layers.maxPooling1d({
+    poolSize: 2
+});
+
+// Apply the third pooling layer to the third convolutional output
+const pooledOutput3 = poolingLayer3.apply(convOutput3);
+
+// Print the output shape after all layers
+console.log('Final output shape:', pooledOutput3.shape);
+
+
+
+
+5.    Flattening and Dense Layers: Flatten the output of the last pooling layer into a one-dimensional vector and connect it to one or more fully connected (dense) layers. These layers learn higher-level representations and classify the input into the desired categories (like or dislike).
+
+6.    Output Layer: Use a (softmax) sigmoid activation function in the output layer to produce class probabilities. If you have two classes (like and dislike), the output layer will have two units, and the predicted class will be the one with the highest probability.
+
+const tf = require('@tensorflow/tfjs-node');
+
+// Assuming you have processed and pooled output named 'pooledOutput3'
+
+// Flatten the pooled output
+const flattenedOutput = tf.layers.flatten().apply(pooledOutput3);
+
+// Create a dense (fully connected) layer with regularization
+const denseLayer = tf.layers.dense({
+    units: 256, // Number of neurons in the layer
+    activation: 'relu', // Activation function (e.g., ReLU)
+    kernelRegularizer: tf.regularizers.l2({ l2: 0.01 }) // L2 regularization
+});
+
+// Apply dropout regularization to the dense layer
+const dropoutLayer = tf.layers.dropout({
+    rate: 0.4 // Dropout rate
+});
+const dropoutOutput = dropoutLayer.apply(denseLayer.apply(flattenedOutput));
+
+// Create the output layer for binary sentiment classification
+const outputLayer = tf.layers.dense({
+    units: 1, // Number of output neurons (1 for binary classification)
+    activation: 'sigmoid', // Activation function (sigmoid for binary classification)
+    kernelRegularizer: tf.regularizers.l2({ l2: 0.01 }) // L2 regularization
+});
+
+// Apply the output layer to the dropout output
+const modelOutput = outputLayer.apply(dropoutOutput);
+
+// Create the model
+const model = tf.model({
+    inputs: pooledOutput3, // Input layer (pooled output from CNN layers)
+    outputs: modelOutput // Output layer
+});
+
+// Compile the model
+model.compile({
+    optimizer: 'adam', // Optimizer algorithm (e.g., Adam)
+    loss: 'binaryCrossentropy', // Loss function (binary cross-entropy for binary classification)
+    metrics: ['accuracy'] // Metrics to monitor during training
+});
+
+// Define early stopping
+const earlyStopping = tf.callbacks.earlyStopping({
+    monitor: 'val_loss', // Monitor validation loss
+    patience: 5, // Number of epochs with no improvement before stopping
+    restoreBestWeights: true // Restore the model to the best weights
+});
+
+// Print model summary
+model.summary();
+
+// Load and preprocess your dataset
+const trainingData = loadAndPreprocessTrainingData(); // Replace with actual loading code
+const trainingLabels = loadTrainingLabels(); // Replace with actual loading code
+
+// Train the model with early stopping
+model.fit(trainingData, trainingLabels, {
+    epochs: 100,
+    batchsize: 32,
+    validationSplit: 0.2,
+    callbacks: [earlyStopping]
+});
+
+
+
+
+
+
+
+7.    Training: Train the network using labeled data (blog articles labeled as like or dislike). Use a suitable loss function such as categorical cross-entropy and optimize the network parameters using gradient descent algorithms like Adam or RMSprop.
+
+const tf = require('@tensorflow/tfjs-node');
+
+// Assume you have the following data
+const blogArticles = [
+    { embeddings: [0.1, 0.2, 0.3, ...], label: 'liked' },
+    { embeddings: [0.4, 0.5, 0.6, ...], label: 'disliked' },
+    // ... more articles ...
+];
+
+// Convert labels to numerical values
+const labelsToNumeric = {
+    'liked': 1,
+    'disliked': 0
+};
+
+// Separate embeddings and labels
+const embeddings = blogArticles.map(article => article.embeddings);
+const labels = blogArticles.map(article => labelsToNumeric[article.label]);
+
+// Convert to TensorFlow tensors
+const embeddingsTensor = tf.tensor(embeddings);
+const labelsTensor = tf.tensor(labels);
+
+// Create train and validation splits
+const splitRatio = 0.8; // 80% training, 20% validation
+const numTrainingExamples = Math.floor(embeddings.length * splitRatio);
+
+const trainingData = embeddingsTensor.slice([0, 0], [numTrainingExamples, -1]);
+const trainingLabels = labelsTensor.slice([0], [numTrainingExamples]);
+
+const validationData = embeddingsTensor.slice([numTrainingExamples, 0], [-1, -1]);
+const validationLabels = labelsTensor.slice([numTrainingExamples], [-1]);
+
+console.log('Training data shape:', trainingData.shape);
+console.log('Training labels shape:', trainingLabels.shape);
+console.log('Validation data shape:', validationData.shape);
+console.log('Validation labels shape:', validationLabels.shape);
+
+// Define the model architecture (similar to your previous code)
+const model = tf.sequential();
+model.add(tf.layers.flatten({ inputShape: [embeddings[0].length] }));
+model.add(tf.layers.dense({ units: 256, activation: 'relu' }));
+model.add(tf.layers.dropout({ rate: 0.4 }));
+model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+
+// Compile the model
+model.compile({
+    optimizer: 'adam',
+    loss: 'binaryCrossentropy',
+    metrics: ['accuracy']
+});
+
+// Train the model with early stopping
+model.fit(trainingData, trainingLabels, {
+    epochs: 50,
+    batchSize: 32,
+    validationData: [validationData, validationLabels],
+    callbacks: [tf.callbacks.earlyStopping({
+        monitor: 'val_loss',
+        patience: 5,
+        restoreBestWeights: true
+    })]
+}).then(info => {
+    console.log('Final accuracy on validation data:', info.history.val_accuracy[info.history.val_accuracy.length - 1]);
+});
