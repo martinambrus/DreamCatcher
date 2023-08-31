@@ -13,6 +13,11 @@ export interface IKeyStoreSub {
   connect( url: string, port: string ): Promise<void>;
 
   /**
+   * Returns the connection from key store class.
+   */
+  get_connection(): any;
+
+  /**
    * A proxy for KeyStoreClass->subscribe()
    *
    * @param { string }   channel  Name of the channel to subscribe to.

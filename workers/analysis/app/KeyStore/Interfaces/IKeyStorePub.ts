@@ -13,6 +13,11 @@ export interface IKeyStorePub {
   connect( url: string, port: string ): Promise<void>;
 
   /**
+   * Returns the connection from key store class.
+   */
+  get_connection(): any;
+
+  /**
    * A proxy for KeyStoreClass->get().
    *
    * @param { string } key The key for which we want to retrieve a value.
