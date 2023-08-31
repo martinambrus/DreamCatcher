@@ -98,4 +98,11 @@ export class KeyStoreClientBase {
       console.log( this.logger.format( 'Successfully connected to ' + this.client_name + ' (' + this.name + ') via ' + url + ( port ? ':' + port : '' ) ) );
     });
   }
+
+  /**
+   * Returns the active connection.
+   */
+  public get_connection(): any {
+    return ( typeof( this.client ) !== 'undefined' ? this.client : null );
+  }
 }
