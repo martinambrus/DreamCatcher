@@ -1,8 +1,11 @@
-import { RedisClientBase } from './RedisClientBase.js';
+import { KeyStoreClientBase } from './KeyStoreClientBase.js';
 import { ILogger } from './Interfaces/ILogger.js';
 import { IKeyStorePub } from './Interfaces/IKeyStorePub.js';
 
-export class RedisPubClient extends RedisClientBase implements IKeyStorePub {
+/**
+ * Publishing variant of the key store class.
+ */
+export class KeyStorePubClient extends KeyStoreClientBase implements IKeyStorePub {
 
   /**
    * Stores a logger class instance.
@@ -15,7 +18,7 @@ export class RedisPubClient extends RedisClientBase implements IKeyStorePub {
   }
 
   /**
-   * A proxy for Redis->get().
+   * A proxy for KeyStore->get().
    *
    * @param { string } key The key for which we want to retrieve a value.
    */
@@ -24,7 +27,7 @@ export class RedisPubClient extends RedisClientBase implements IKeyStorePub {
   }
 
   /**
-   * A proxy for Redis->set().
+   * A proxy for KeyStore->set().
    *
    * @param { string } key   The key for which we want to set a value.
    * @param { string } value The value we want to set.
@@ -34,7 +37,7 @@ export class RedisPubClient extends RedisClientBase implements IKeyStorePub {
   }
 
   /**
-   * A proxy for Redis->publish()
+   * A proxy for KeyStore->publish()
    *
    * @param { string } channel Channel into which we want to publish a message.
    * @param { string } message The message we want to publish.

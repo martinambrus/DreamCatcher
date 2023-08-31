@@ -1,8 +1,11 @@
-import { RedisClientBase } from './RedisClientBase.js';
+import { KeyStoreClientBase } from './KeyStoreClientBase.js';
 import { ILogger } from './Interfaces/ILogger.js';
 import { IKeyStoreSub } from './Interfaces/IKeyStoreSub.js';
 
-export class RedisSubClient extends RedisClientBase implements IKeyStoreSub {
+/**
+ * Subscribing variant of the key store class.
+ */
+export class KeyStoreSubClient extends KeyStoreClientBase implements IKeyStoreSub {
 
   /**
    * Stores a logger class instance.
@@ -15,7 +18,7 @@ export class RedisSubClient extends RedisClientBase implements IKeyStoreSub {
   }
 
   /**
-   * A proxy for Redis->subscribe()
+   * A proxy for KeyStore->subscribe()
    *
    * @param { string }   channel  Name of the channel to subscribe to.
    * @param { Function } callback Function to be executed when a new message from our channel arrives.
