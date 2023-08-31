@@ -3,7 +3,7 @@
  */
 
 import { IMessageQueue } from './IMessageQueue.js';
-import { IRedisPub } from './IRedisPub.js';
+import { IKeyStorePub } from './IKeyStorePub.js';
 
 /**
  * Enumeration of LOG severities.
@@ -25,10 +25,10 @@ export interface ILogger {
   set_mq_broker( mq_broker: IMessageQueue ): void;
 
   /**
-   * Sets a new Redis Pub client.
-   * @param { IRedisPub } redis_pub The Redis Pub client to use from now on.
+   * Sets a new Key Store Pub client.
+   * @param { IKeyStorePub } key_store_pub The Key Store Pub client to use from now on.
    */
-  set_redis_pub_client( redis_pub: IRedisPub ): void;
+  set_key_store_pub_client( key_store_pub: IKeyStorePub ): void;
 
   /**
    * Formats a log message by prefixing it with date/time and client ID.
@@ -43,7 +43,7 @@ export interface ILogger {
    * Logs message into the message queue log.
    *
    * @param { string }        msg        Message to log.
-   * @param { number|string } code       A numeric error code. If string is passed, code will be looked up from the Redis client.
+   * @param { number|string } code       A numeric error code. If string is passed, code will be looked up from the key store client.
    *                                     Set as optional parameter here, since it will be pre-set to a general default value
    *                                     in the actual implementation.
    * @param { string }        severity   Log severity - on of the LOG_SEVERITIES enum, @see { Analysis.LOG_SEVERITIES }

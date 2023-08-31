@@ -1,26 +1,26 @@
 /**
- * Interface for Redis publishing client.
+ * Interface for key store publishing client.
  */
-export interface IRedisPub {
+export interface IKeyStorePub {
 
   /**
-   * Initializes the Redis client and connects to Redis instance.
+   * Initializes the key store client and connects to the key store backend instance.
    *
-   * @param { string } url  Either a single redis hostname (if the second port parameter is set)
-   *                        or a string containing URLs for a Redis cluster.
-   * @param { string } port Redis port.
+   * @param { string } url  Either a single key store backend hostname (if the second port parameter is set)
+   *                        or a string containing URLs for a key store backend cluster.
+   * @param { string } port Key store port.
    */
   connect( url: string, port: string ): Promise<void>;
 
   /**
-   * A proxy for Redis->get().
+   * A proxy for KeyStoreClass->get().
    *
    * @param { string } key The key for which we want to retrieve a value.
    */
   get( key: string ): Promise<string>;
 
   /**
-   * A proxy for Redis->set().
+   * A proxy for KeyStoreClass->set().
    *
    * @param { string } key   The key for which we want to set a value.
    * @param { string } value The value we want to set.
@@ -28,7 +28,7 @@ export interface IRedisPub {
   set( key: string, value: any ): Promise<string>;
 
   /**
-   * A proxy for Redis->publish()
+   * A proxy for KeyStoreClass->publish()
    *
    * @param { string } channel Channel into which we want to publish a message.
    * @param { string } message The message we want to publish.
