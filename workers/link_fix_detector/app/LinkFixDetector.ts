@@ -3,9 +3,9 @@ import pkg from "pg";
 import { KafkaProducer } from './KafkaProducer.js';
 import { KafkaConsumer } from './KafkaConsumer.js';
 import { Telemetry } from './Telemetry.js';
-import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
-import { IRedisSub } from './Redis/Interfaces/IRedisSub.js';
-import { IRedisPub } from './Redis/Interfaces/IRedisPub.js';
+import { IKeyStoreSub } from './KeyStore/Interfaces/IKeyStoreSub.js';
+import { IKeyStorePub } from './KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
 
 export class LinkFixDetector {
 
@@ -55,20 +55,20 @@ export class LinkFixDetector {
   private readonly kafka_consumer: KafkaConsumer;
 
   /**
-   * Redis subscriber client instance,
+   * Key store subscriber client instance,
    * used to subscribe to channels.
-   * @type { IRedisSub }
+   * @type { IKeyStoreSub }
    * @private
    */
-  private readonly redis_sub: IRedisSub;
+  private readonly key_store_sub: IKeyStoreSub;
 
   /**
-   * Redis publisher and getter client instance,
+   * Key store publisher and getter client instance,
    * used to fetch error codes.
-   * @type { IRedisPub }
+   * @type { IKeyStorePub }
    * @private
    */
-  private readonly redis_pub: IRedisPub;
+  private readonly key_store_pub: IKeyStorePub;
 
   /**
    * PostgreSQL client class instance.
@@ -78,27 +78,27 @@ export class LinkFixDetector {
   private readonly dbconn: pkg.Client;
 
   /**
-   * Error code to check for when receiving Kafka log messages,
+   * Error code to check for when receiving message queue broker log messages,
    * so we know which error message to react to and when to rewrite
    * an invalid feed URL.
    * @private
    * @type { number }
    */
-  private redis_wrong_link_err_code: number;
+  private key_store_wrong_link_err_code: number;
 
   /**
-   * Stores references to Redis, PGSQL and Logger classes
+   * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    *
-   * @param { string }        service_name   ID of the service from main application for Redis publishing purposes
+   * @param { string }        service_name   ID of the service from main application for key store publishing purposes
    * @param { KafkaProducer } kafka_producer Kafka Producer used to publish messages.
    * @param { KafkaConsumer } kafka_consumer Kafka Consumer used to listen for links data to parse.
    * @param { ILogger }       logger A Logger class instanced used for logging purposes.
    * @param { pkg.Client }    dbconn A PGSQL client instance.
-   * @param { IRedisSub }     redis_sub      A Redis Sub client to subscribe to channels.
-   * @param { IRedisPub }     redis_pub      A Redis Pub client to fetch error codes.
+   * @param { IKeyStoreSub }  key_store_sub A Key Store Sub client to subscribe to channels.
+   * @param { IKeyStorePub }  key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, dbconn: pkg.Client, redis_sub: IRedisSub, redis_pub: IRedisPub ) {
+  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
     // Kafka
     this.kafka_producer = kafka_producer;
     this.kafka_consumer = kafka_consumer;
@@ -109,9 +109,9 @@ export class LinkFixDetector {
     // Database
     this.dbconn = dbconn;
 
-    // Redis
-    this.redis_sub = redis_sub;
-    this.redis_pub = redis_pub;
+    // key store
+    this.key_store_sub = key_store_sub;
+    this.key_store_pub = key_store_pub;
 
     // strings
     this.service_name = service_name;
@@ -122,23 +122,23 @@ export class LinkFixDetector {
     // create a task that will update this service active status every minute
     setInterval( (): void => {
       if ( self.kafka_consumer.get_active() && self.kafka_producer.get_active() ) {
-        self.redis_pub.set( self.service_name + '_active', 1 );
+        self.key_store_pub.set( self.service_name + '_active', 1 );
       }
     }, 60000 );
 
     // mark ourselves as active from the start, if both - producer and consumer - are active
     if ( this.kafka_consumer.get_active() && this.kafka_producer.get_active() ) {
-      this.redis_pub.set( this.service_name + '_active', 1 );
+      this.key_store_pub.set( this.service_name + '_active', 1 );
     }
 
     // subscribe to RSS new links channel, so we can update wrong feed links when they are found
     this.kafka_consumer.subscribe( [ this.logs_channel_name ] ).then( async () => {
-      // store redis error code
-      self.redis_wrong_link_err_code = parseInt( await self.redis_pub.get( 'ERR_RSS_FETCH_WRONG_URL' ) );
+      // store error code
+      self.key_store_wrong_link_err_code = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_WRONG_URL' ) );
 
       // start processing newfound links
       if ( !await self.kafka_consumer.consume( self.db_update_wrong_feed_url.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.redis_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
+        let exit_code: number = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
         await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
         exit( exit_code );
       }
@@ -165,7 +165,7 @@ export class LinkFixDetector {
 
       if ( message ) {
         // check that we have the right message
-        if ( message.service.indexOf( 'rss_fetch' ) > -1 && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE && message.code == this.redis_wrong_link_err_code ) {
+        if ( message.service.indexOf( 'rss_fetch' ) > -1 && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE && message.code == this.key_store_wrong_link_err_code ) {
           let trace_carrier: Object;
 
           // we may receive a non-traceable logs which are not assignable to any single trace
@@ -199,8 +199,8 @@ export class LinkFixDetector {
             }
           }
 
-          // publish to Redis that we're done with tracing
-          this.redis_pub.publish( env.REDIS_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
+          // publish to key store that we're done with tracing
+          this.key_store_pub.publish( env.KEY_STORE_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
         }
       } else {
         // no await - if this message is not stored, we'll see this in telemetry

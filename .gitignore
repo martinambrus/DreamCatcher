@@ -6,4 +6,3 @@ infrastructure/postgre/credentials/db_user
 infrastructure/datadir
 node_modules
 package-lock.json
-composer.lock

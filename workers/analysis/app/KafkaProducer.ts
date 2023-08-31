@@ -1,7 +1,7 @@
 import { env, exit } from 'node:process';
 import { Kafka, Producer, CompressionTypes } from 'kafkajs';
-import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
-import { IMessageQueue } from './Redis/Interfaces/IMessageQueue.js';
+import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
+import { IMessageQueue } from './KeyStore/Interfaces/IMessageQueue.js';
 
 export class KafkaProducer implements IMessageQueue {
 

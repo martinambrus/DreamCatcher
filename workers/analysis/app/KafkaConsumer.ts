@@ -1,7 +1,6 @@
 import { exit } from 'node:process';
 import { Kafka, Consumer, EachMessageHandler } from 'kafkajs';
-import { Logger } from "./Logger.js";
-import { ILogger } from './Redis/Interfaces/ILogger.js';
+import { ILogger } from './KeyStore/Interfaces/ILogger.js';
 
 export class KafkaConsumer {
 

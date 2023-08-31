@@ -1,7 +1,7 @@
-import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
-import { IRedisPub } from './Redis/Interfaces/IRedisPub.js';
-import { IMessageQueue } from './Redis/Interfaces/IMessageQueue.js';
+import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
+import { IMessageQueue } from './KeyStore/Interfaces/IMessageQueue.js';
 import { env } from 'node:process';
+import { IKeyStorePub } from './KeyStore/Interfaces/IKeyStorePub.js';
 
 /**
  * A logging class that formats log messages and logs them
@@ -18,7 +18,7 @@ export class Logger implements ILogger {
   private readonly client_id: string;
 
   /**
-   * Main app service ID, so we can use it in Redis logs.
+   * Main app service ID, so we can use it in logs.
    * @private
    * @type { string }
    */
@@ -32,11 +32,11 @@ export class Logger implements ILogger {
   private mq_broker: IMessageQueue = null;
 
   /**
-   * Redis Pub client instance.
+   * Key Store Pub client instance.
    * @private
-   * @type { IRedisPub }
+   * @type { IKeyStorePub }
    */
-  private redis_pub: IRedisPub = null;
+  private key_store_pub: IKeyStorePub = null;
 
   /**
    * Logs channel name.
@@ -48,19 +48,19 @@ export class Logger implements ILogger {
    * Create a global logger instance and sets client ID
    * to the correct value for later logging purposes.
    *
-   * @param { string }             client_id  Client ID to identify client in log messages.
-   * @param { string }             service_id Service ID to add to Redis logs.
-   * @param { IRedisPub }          redis_pub  Redis Pub client instance, used to fetch error codes.
-   * @param { IMessageQueue|null } mq_broker  Message broker, used for publishing log messages.
+   * @param { string }             client_id     Client ID to identify client in log messages.
+   * @param { string }             service_id    Service ID to add to logs.
+   * @param { IKeyStorePub }       key_store_pub Key Store Pub client instance, used to fetch error codes.
+   * @param { IMessageQueue|null } mq_broker     Message broker, used for publishing log messages.
    * @constructor
    */
-  constructor(client_id: string, service_id: string, redis_pub: IRedisPub = null, mq_broker: IMessageQueue|null = null ) {
+  constructor(client_id: string, service_id: string, key_store_pub: IKeyStorePub = null, mq_broker: IMessageQueue|null = null ) {
     this.client_id = client_id;
     this.service_id = service_id;
-    this.redis_pub = redis_pub;
+    this.key_store_pub = key_store_pub;
     this.mq_broker = mq_broker;
 
-    this.logs_channel_name = env.REDIS_NEW_LINKS_CHANNEL;
+    this.logs_channel_name = env.KEY_STORE_NEW_LINKS_CHANNEL;
   }
 
   /**
@@ -72,11 +72,11 @@ export class Logger implements ILogger {
   }
 
   /**
-   * Sets a new Redis Pub client.
-   * @param { IRedisPub } redis_pub The Redis Pub client to use from now on.
+   * Sets a new Key Store Pub client.
+   * @param { IKeyStorePub } key_store_pub The Key Store Pub client to use from now on.
    */
-  public set_redis_pub_client( redis_pub: IRedisPub ): void {
-    this.redis_pub = redis_pub;
+  public set_key_store_pub_client( key_store_pub: IKeyStorePub ): void {
+    this.key_store_pub = key_store_pub;
   }
 
   /**
@@ -96,7 +96,7 @@ export class Logger implements ILogger {
    * Logs message into the message queue log.
    *
    * @param { string }        msg        Message to log.
-   * @param { number|string } code       A numeric error code. If string is passed, code will be looked up from the Redis client.
+   * @param { number|string } code       A numeric error code. If string is passed, code will be looked up from the key store client.
    * @param { string }        severity   Log severity - on of the LOG_SEVERITIES enum, @see { Analysis.LOG_SEVERITIES }
    * @param { Object }        extra_data Any extra data to be passed to the message.
    */
@@ -116,7 +116,7 @@ export class Logger implements ILogger {
 
       if (code) {
         if ( typeof code === 'string' ) {
-          log_msg['code'] = parseInt( await this.redis_pub.get( code ) );
+          log_msg['code'] = parseInt( await this.key_store_pub.get( code ) );
         } else {
           log_msg['code'] = code;
         }

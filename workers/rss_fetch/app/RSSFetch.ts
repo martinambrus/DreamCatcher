@@ -9,9 +9,9 @@ import { XML_Parser } from './XML_Parser.js';
 import { JSON_Parser } from './JSON_Parser.js';
 import fetch from 'node-fetch';
 import { Telemetry } from './Telemetry.js';
-import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
-import { IRedisSub } from './Redis/Interfaces/IRedisSub.js';
-import { IRedisPub } from './Redis/Interfaces/IRedisPub.js';
+import { IKeyStoreSub } from './KeyStore/Interfaces/IKeyStoreSub.js';
+import { IKeyStorePub } from './KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
 const cacheable: CacheableLookup = new CacheableLookup();
 
 export class RSSFetch {
@@ -48,20 +48,20 @@ export class RSSFetch {
   private readonly kafka_consumer: KafkaConsumer;
 
   /**
-   * Redis subscriber client instance,
+   * Key store subscriber client instance,
    * used to subscribe to channels.
-   * @type { IRedisSub }
+   * @type { IKeyStoreSub }
    * @private
    */
-  private readonly redis_sub: IRedisSub;
+  private readonly key_store_sub: IKeyStoreSub;
 
   /**
-   * Redis publisher and getter client instance,
+   * Key store publisher and getter client instance,
    * used to fetch error codes.
-   * @type { IRedisPub }
+   * @type { IKeyStorePub }
    * @private
    */
-  private readonly redis_pub: IRedisPub;
+  private readonly key_store_pub: IKeyStorePub;
 
   /**
    * Parser for RSS/ATOM feed data.
@@ -78,7 +78,7 @@ export class RSSFetch {
   private readonly json_parser: JSON_Parser;
 
   /**
-   * Name of the service, used in Redis heartbeat updates.
+   * Name of the service, used in key store heartbeat updates.
    * @private
    * @type { string }
    */
@@ -113,11 +113,11 @@ export class RSSFetch {
    * @param { KafkaProducer }  kafka_producer Kafka Producer used to publish messages.
    * @param { KafkaConsumer }  kafka_consumer Kafka Consumer used to listen for RSS feeds to parse.
    * @param { ILogger }        logger         A Logger class instanced used for logging purposes.
-   * @param { string }         service_name   ID of the service from main application for Redis publishing purposes
-   * @param { IRedisSub }      redis_sub      A Redis Sub client to subscribe to channels.
-   * @param { IRedisPub }      redis_pub      A Redis Pub client to fetch error codes.
+   * @param { string }         service_name   ID of the service from main application for key store publishing purposes
+   * @param { IKeyStoreSub }   key_store_sub  A Key Store Sub client to subscribe to channels.
+   * @param { IKeyStorePub }   key_store_pub  A Key Store Pub client to fetch error codes.
    */
-  constructor( kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, service_name: string, redis_sub: IRedisSub, redis_pub: IRedisPub ) {
+  constructor( kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, service_name: string, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
     // initialize Utils static class with default values
     Utils.kafka_producer = kafka_producer;
     Utils.service_name = service_name;
@@ -143,9 +143,9 @@ export class RSSFetch {
     // Logger
     this.logger = logger;
 
-    // Redis
-    this.redis_sub = redis_sub;
-    this.redis_pub = redis_pub;
+    // key store
+    this.key_store_sub = key_store_sub;
+    this.key_store_pub = key_store_pub;
 
     // XML parser
     this.xml_parser = new XML_Parser();
@@ -162,20 +162,20 @@ export class RSSFetch {
     // create a task that will update this service active status every minute
     setInterval( (): void => {
       if ( self.kafka_consumer.get_active() && self.kafka_producer.get_active() ) {
-        self.redis_pub.set( self.service_name + '_active', 1 );
+        self.key_store_pub.set( self.service_name + '_active', 1 );
       }
     }, 60000 );
 
     // mark ourselves as active from the start, if both - producer and consumer - are active
     if ( this.kafka_consumer.get_active() && this.kafka_producer.get_active() ) {
-      this.redis_pub.set( this.service_name + '_active', 1 );
+      this.key_store_pub.set( this.service_name + '_active', 1 );
     }
 
     // subscribe to receive RSS feed links to be parsed
     this.kafka_consumer.subscribe( [ this.feed_fetch_channel_name ] ).then( async () => {
       // start processing RSS feed URLs
       if ( !await self.kafka_consumer.consume( self.parse_feed_url.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.redis_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
+        let exit_code: number = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
         await self.logger.log_msg( 'Error while trying to set RSS parsing function - Kafka Consumer not ready.', exit_code );
         exit( exit_code );
       }
@@ -280,8 +280,8 @@ export class RSSFetch {
           analysis_telemetry.close_active_span( telemetry_name );
         }
 
-        // publish to Redis that we're done with tracing
-        this.redis_pub.publish( env.REDIS_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: kafka_key_data } ) );
+        // publish to key store that we're done with tracing
+        this.key_store_pub.publish( env.KEY_STORE_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: kafka_key_data } ) );
       }
     }
   }

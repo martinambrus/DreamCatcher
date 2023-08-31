@@ -2,9 +2,9 @@ import { env, exit } from "node:process";
 import { KafkaProducer } from "./KafkaProducer.js";
 import pkg from "pg";
 import { Telemetry } from './Telemetry.js';
-import { ILogger, LOG_SEVERITIES } from './Redis/Interfaces/ILogger.js';
-import { IRedisSub } from './Redis/Interfaces/IRedisSub.js';
-import { IRedisPub } from './Redis/Interfaces/IRedisPub.js';
+import { IKeyStoreSub } from './MQ/Interfaces/IKeyStoreSub.js';
+import { IKeyStorePub } from './MQ/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './MQ/Interfaces/ILogger.js';
 
 export class ControlCenter {
 
@@ -32,20 +32,20 @@ export class ControlCenter {
   private readonly kafka_producer: KafkaProducer;
 
   /**
-   * Redis subscriber client instance,
+   * Key store subscriber client instance,
    * used to subscribe to channels.
-   * @type { IRedisSub }
+   * @type { IKeyStoreSub }
    * @private
    */
-  private readonly redis_sub: IRedisSub;
+  private readonly key_store_sub: IKeyStoreSub;
 
   /**
-   * Redis publisher and getter client instance,
+   * Key Store publisher and getter client instance,
    * used to fetch error codes.
-   * @type { IRedisPub }
+   * @type { IKeyStorePub }
    * @private
    */
-  private readonly redis_pub: IRedisPub;
+  private readonly key_store_pub: IKeyStorePub;
 
   /**
    * PostgreSQL client class instance.
@@ -56,7 +56,7 @@ export class ControlCenter {
 
   /**
    * List of all known services that need to send activation message
-   * via Redis, so the Control Center knows we are in a healthy state
+   * via key store, so the Control Center knows we are in a healthy state
    * and can start checking for RSS feeds in need of fetching.
    * @private
    * @type { Array<string> }
@@ -126,23 +126,23 @@ export class ControlCenter {
    * @param { KafkaProducer }  kafka_producer Kafke Producer used to publish messages.
    * @param { ILogger }        logger         A Logger class instanced used for logging purposes.
    * @param { pkg.Client }     dbconn         A PGSQL client instance.
-   * @param { IRedisSub }      redis_sub      A Redis Sub client to subscribe to channels.
-   * @param { IRedisPub }      redis_pub      A Redis Pub client to fetch error codes.
+   * @param { IKeyStoreSub }   key_store_sub  A Key Store Sub client to subscribe to channels.
+   * @param { IKeyStorePub }   key_store_pub  A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, logger: ILogger, dbconn: pkg.Client, redis_sub: IRedisSub, redis_pub: IRedisPub ) {
+  constructor( service_name: string, kafka_producer: KafkaProducer, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
     this.service_name = service_name;
     this.kafka_producer = kafka_producer;
     this.logger = logger;
     this.dbconn = dbconn;
-    this.redis_sub = redis_sub;
-    this.redis_pub = redis_pub;
+    this.key_store_sub = key_store_sub;
+    this.key_store_pub = key_store_pub;
 
     // publish info about our instance going live
     this.logger.log_msg( 'control center up and running, checking feeds every ' + env.RSS_CHECK_INTERVAL_SECONDS + ' seconds', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
 
-    // keep checking for a Redis status where all services write their active states,
+    // keep checking for a key store status where all services write their active states,
     // and if there's any service not active yet, wait until ALL are active
-    // ... check every minute - in case Redis drops, all services will re-submit their OK states into it
+    // ... check every minute - in case key store server drops, all services will re-submit their OK states into it
     //     when it runs again
     setInterval( this.services_status_check.bind( this ), 57000);
 
@@ -154,11 +154,11 @@ export class ControlCenter {
     setInterval( this.check_and_close_timed_out_telemetries.bind( this ), 63000);
 
     // watch for telemetry messages from other services, so we can close the root span as needed
-    this.redis_sub.subscribe( env.REDIS_TELEMETRY_CHANNEL, this.watch_telemetry_messages.bind( this ) );
+    this.key_store_sub.subscribe( env.KEY_STORE_TELEMETRY_CHANNEL, this.watch_telemetry_messages.bind( this ) );
   }
 
   /**
-   * When a new message from the telemetry Redis channel arrives,
+   * When a new message from the telemetry key store channel arrives,
    * this method will detect whether it's coming from one of the tail-end
    * services. If so, we'll check whether all tail-end services processed
    * the given trace and close the root span for it.
@@ -166,7 +166,7 @@ export class ControlCenter {
    * This message also refreshes last active timestamp for the given
    * active telemetry.
    *
-   * @param { string } message Message from Redis.
+   * @param { string } message Message from key store.
    * @private
    */
   private watch_telemetry_messages( message: string ): void {
@@ -237,8 +237,8 @@ export class ControlCenter {
     let all_active: boolean = true;
 
     for ( let service_name of this.all_services_list ) {
-      // check Redis for active state of the service
-      if ( await this.redis_pub.get( service_name + '_active' ) !== '1' ) {
+      // check key store for active state of the service
+      if ( await this.key_store_pub.get( service_name + '_active' ) !== '1' ) {
         all_active = false;
         console.log( this.logger.format( 'service ' + service_name + ' not ready' ) );
       }
@@ -291,7 +291,7 @@ export class ControlCenter {
           });
         }
       } catch ( err ) {
-        let exit_code: number = parseInt( await this.redis_pub.get( 'ERR_CONTROL_CENTER_DB_ERROR' ) );
+        let exit_code: number = parseInt( await this.key_store_pub.get( 'ERR_CONTROL_CENTER_DB_ERROR' ) );
         await this.logger.log_msg( 'Exception while trying to retrieve rss feeds to fetch\n' + JSON.stringify( err ), exit_code );
         await this.dbconn.end();
         exit( exit_code ); // docker will restart the container, so we'll start clean

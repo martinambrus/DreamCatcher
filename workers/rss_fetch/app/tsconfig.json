@@ -3,7 +3,8 @@
     "outDir": ".",
     "allowJs": true,
     "target": "es2017",
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext"
   },
   "include": ["*.ts"],
   "exclude": ["*.js", "*.json"]
