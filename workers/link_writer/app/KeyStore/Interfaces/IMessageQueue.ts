@@ -13,6 +13,6 @@ export interface IMessageQueue {
    *                            Will be set to a random ID if we're not logging a traceable request.
    * @return Promise<void>
    */
-  send( topic: string, message: Object, trace_id: string ): Promise<void>;
+  send( topic: string, message: Object, trace_id: string ): Promise<any>;
 
 }
