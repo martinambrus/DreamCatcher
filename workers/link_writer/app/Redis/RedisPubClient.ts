@@ -1,8 +1,8 @@
-import { IRedisPub } from './Interfaces/IRedisPub.js';
 import { RedisClientBase } from './RedisClientBase.js';
 import { ILogger } from './Interfaces/ILogger.js';
+import { IKeyStorePub } from './Interfaces/IKeyStorePub.js';
 
-export class RedisPubClient extends RedisClientBase implements IRedisPub {
+export class RedisPubClient extends RedisClientBase implements IKeyStorePub {
 
   /**
    * Stores a logger class instance.
