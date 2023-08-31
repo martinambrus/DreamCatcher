@@ -2,7 +2,7 @@
  * Interface for log handling classes.
  */
 
-import { IMessageQueue } from './IMessageQueue.js';
+import { IMessageQueuePub } from './IMessageQueuePub.js';
 import { IKeyStorePub } from './IKeyStorePub.js';
 
 /**
@@ -20,9 +20,9 @@ export interface ILogger {
 
   /**
    * Sets a new message queue broker.
-   * @param { IMessageQueue } mq_broker The message queue broker to use from now on.
+   * @param { IMessageQueuePub } mq_broker The message queue broker to use from now on.
    */
-  set_mq_broker( mq_broker: IMessageQueue ): void;
+  set_mq_broker( mq_broker: IMessageQueuePub ): void;
 
   /**
    * Sets a new Key Store Pub client.
