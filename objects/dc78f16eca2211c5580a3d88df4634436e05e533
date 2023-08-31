@@ -1,0 +1,72 @@
+[map "52ec388a-4b19-3abf-ad69-cb21cb40f490"]
+	object = 218b1d8e978a9bee8ffbe9980858a8afa6b0c045
+	path = workers/link_writer/app/KeyStore
+	stage = sync
+	type = extract module
+[map "d45e7737-2abc-3d4e-9282-a7bab1cc41fc"]
+	object = 218b1d8e978a9bee8ffbe9980858a8afa6b0c045
+	path = workers/link_fix_detector/app/KeyStore
+	stage = sync
+	type = extract module
+[map "8617e69c-40c6-338a-a64e-ba65319b9bdc"]
+	object = 218b1d8e978a9bee8ffbe9980858a8afa6b0c045
+	path = workers/analysis/app/KeyStore
+	stage = sync
+	type = extract module
+[map "87b8b50d-c326-34d4-bf87-3e7945db6c9c"]
+	object = 218b1d8e978a9bee8ffbe9980858a8afa6b0c045
+	path = workers/err_log_writer/app/KeyStore
+	stage = sync
+	type = extract module
+[map "e9fa6c90-381a-3ca3-b4dc-537e4fb69967"]
+	object = 218b1d8e978a9bee8ffbe9980858a8afa6b0c045
+	path = workers/rss_fetch/app/KeyStore
+	stage = sync
+	type = extract module
+[map "e05abb00-fa27-36b9-a7cb-f1056256b89c"]
+	object = d923bb5a6295c09b1df518f44161c92c9632020b
+	path = control_center/app/MQ
+	stage = sync
+	type = extract module
+[module "8ac38d52-10ef-327a-9258-1189e37396af"]
+	conflict = request-pull
+	path = control_center/app/MQ
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "6a9c4af7-2dd8-3f85-8455-40ec4f4f9a3c"]
+	conflict = request-pull
+	path = workers/analysis/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "0406cbda-a89d-32e7-be16-fc55a6d3d632"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "f2b4340e-39f6-343d-89dc-7d5f286f2192"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "b2cff2af-a098-3af5-8eba-27b0d8864488"]
+	conflict = request-pull
+	path = workers/link_writer/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "f0959b73-e9f9-3a66-99ab-333349f05750"]
+	conflict = request-pull
+	path = workers/rss_fetch/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
