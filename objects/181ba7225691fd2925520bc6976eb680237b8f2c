@@ -1,0 +1,27 @@
+[map "fb9adac1-b322-30a2-970d-eca94862a684"]
+	object = a0ae9d32dea741a5b9974b2769afec983e4792cb
+	type = include + expand tree
+[map "1810ce0a-12c4-3295-9d41-bcca58caf6ae"]
+	object = d144c595317066d2b4f7e993ced92c985471e105
+	path = control_center/app/Redis
+	type = expand module
+[map "10a41c0e-5ed3-3d50-885d-aacbbd3ad209"]
+	object = d144c595317066d2b4f7e993ced92c985471e105
+	path = workers/analysis/app/Redis
+	type = expand module
+[map "0bfb59fe-4e85-3764-815b-fd1d7b371931"]
+	object = d144c595317066d2b4f7e993ced92c985471e105
+	path = workers/err_log_writer/app/Redis
+	type = expand module
+[map "ed918e17-b32a-37e1-8e25-33ca4ebc7207"]
+	object = d144c595317066d2b4f7e993ced92c985471e105
+	path = workers/link_fix_detector/app/Redis
+	type = expand module
+[map "a207d8f1-9f63-3a61-9aa7-f869e649609e"]
+	object = d144c595317066d2b4f7e993ced92c985471e105
+	path = workers/link_writer/app/Redis
+	type = expand module
+[map "9646399b-d430-3077-a5c4-cdd24a253035"]
+	object = d144c595317066d2b4f7e993ced92c985471e105
+	path = workers/rss_fetch/app/Redis
+	type = expand module
