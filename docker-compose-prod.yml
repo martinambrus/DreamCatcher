@@ -11,21 +11,7 @@ services:
       target: prod
     networks:
       - internal
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - postgres
-      - redis-sentinel-0
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - kafka-0
-      - kafka-1
-      - kafka-2
-      - rss_fetch
-      - analysis
-      - link_writer
-      - link_fix_detector
-      - err_log_writer
       - npm_cache
     restart: unless-stopped
   rss_fetch:
@@ -35,15 +21,7 @@ services:
       target: prod
     networks:
       - internal
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis-sentinel-0
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - kafka-0
-      - kafka-1
-      - kafka-2
       - npm_cache
     restart: unless-stopped
   analysis:
@@ -53,17 +31,7 @@ services:
       target: prod
     networks:
       - internal
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis-sentinel-0
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - rss_fetch
-      - postgres
-      - kafka-0
-      - kafka-1
-      - kafka-2
       - npm_cache
     restart: unless-stopped
   link_writer:
@@ -73,17 +41,7 @@ services:
       target: prod
     networks:
       - internal
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis-sentinel-0
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - rss_fetch
-      - postgres
-      - kafka-0
-      - kafka-1
-      - kafka-2
       - npm_cache
     restart: unless-stopped
   err_log_writer:
@@ -93,17 +51,7 @@ services:
       target: prod
     networks:
       - internal
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis-sentinel-0
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - rss_fetch
-      - postgres
-      - kafka-0
-      - kafka-1
-      - kafka-2
       - npm_cache
     restart: unless-stopped
   link_fix_detector:
@@ -113,17 +61,7 @@ services:
       target: prod
     networks:
       - internal
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
     depends_on:
-      - redis-sentinel-0
-      - redis-sentinel-1
-      - redis-sentinel-2
-      - rss_fetch
-      - postgres
-      - kafka-0
-      - kafka-1
-      - kafka-2
       - npm_cache
     restart: unless-stopped
   redis-0:
@@ -202,63 +140,6 @@ services:
       POSTGRES_PASSWORD_FILE: /credentials/db_password
       POSTGRES_EXTENSIONS: pg_trgm, plpgsql, unaccent
       PGDATA: /var/lib/postgresql/pgdata
-  kafka-0:
-    image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
-    networks:
-      - internal
-    ports:
-      - 127.0.0.1:9092:9092
-      - 127.0.0.1:9093:9093
-    restart: unless-stopped
-    environment:
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
-      - KAFKA_CFG_NODE_ID=0
-      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - ALLOW_PLAINTEXT_LISTENER=yes
-    volumes:
-      - ./infrastructure/datadir/kafka_0_data:/bitnami/kafka
-  kafka-1:
-    image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
-    networks:
-      - internal
-    ports:
-      - 9092
-      - 9093
-    restart: unless-stopped
-    environment:
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - ALLOW_PLAINTEXT_LISTENER=yes
-    volumes:
-      - ./infrastructure/datadir/kafka_1_data:/bitnami/kafka
-  kafka-2:
-    image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
-    networks:
-      - internal
-    ports:
-      - 9092
-      - 9093
-    restart: unless-stopped
-    environment:
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093,1@kafka-1:9093,2@kafka-2:9093
-      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
-      - KAFKA_CFG_NODE_ID=2
-      - ALLOW_PLAINTEXT_LISTENER=yes
-    volumes:
-      - ./infrastructure/datadir/kafka_2_data:/bitnami/kafka
   jaeger:
     image: "jaegertracing/all-in-one"
     networks:
