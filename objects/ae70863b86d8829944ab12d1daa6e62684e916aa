@@ -1,7 +1,7 @@
 [map "b784ff24-7071-31df-9e39-6df0ed472e9c"]
 	object = e68e63b309a29a6f00a51397ce7291c2eb2d8515
 	type = include + expand tree
-[map "24992442-e812-368d-8c8e-db911a7bba15"]
-	object = 099e173b54aeb740aadac7c9f10755a37c157a7e
+[map "eb759265-d2d9-3e97-82ed-fd333ffb4dd2"]
+	object = 0cd6c258fe82dcdea1c30f7585f8aa6e2d622a75
 	path = control_center/app/Redis
 	type = expand module
