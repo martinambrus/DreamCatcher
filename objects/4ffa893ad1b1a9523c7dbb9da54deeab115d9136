@@ -1,0 +1,84 @@
+[map "bacf8074-7982-344d-8ac1-afe8ba22b03e"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = workers/link_fix_detector/app/Redis
+	stage = sync
+	type = extract module
+[map "b1335f52-4ee0-318e-bd76-43d776e4c4fe"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = workers/link_writer/app/Redis
+	stage = sync
+	type = extract module
+[map "897a40da-e089-3005-9685-afde38dc6fd8"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = workers/rss_fetch/app/Redis
+	stage = sync
+	type = extract module
+[map "8c33d87e-2be9-39f9-b032-c120011e5d36"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = workers/err_log_writer/app/Redis
+	stage = sync
+	type = extract module
+[map "efa35f15-54e2-3ad3-bb0c-c0a583b53bc4"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = workers/analysis/app/Redis
+	stage = sync
+	type = extract module
+[map "cb860c57-4cd2-3d5c-a1e8-58339cd8ae01"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = control_center/app/Redis
+	stage = sync
+	type = extract module
+[module "8ac38d52-10ef-327a-9258-1189e37396af"]
+	conflict = request-pull
+	path = control_center/app/MQ
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "57bfa984-1363-3139-a9a7-8e8937704972"]
+	conflict = request-pull
+	path = control_center/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "71c045a2-52a9-3947-bd0a-b1016d7e6f15"]
+	conflict = request-pull
+	path = workers/analysis/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "d8f33961-9034-3625-b85f-600aa9282647"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "9f0d2b8d-5092-3834-9ce5-1d5d54239a2f"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "1079e6ad-89f5-338c-bf67-1213270a774c"]
+	conflict = request-pull
+	path = workers/link_writer/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "18fc37d6-7c62-353a-ab45-c85660441c57"]
+	conflict = request-pull
+	path = workers/rss_fetch/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[map "a3fa2265-1595-3efa-ab0c-0ff384fcb62e"]
+	object = 474c00323582ad6b012f39de087052fda57c8c89
+	path = control_center/app/MQ
+	stage = sync
+	type = extract module
