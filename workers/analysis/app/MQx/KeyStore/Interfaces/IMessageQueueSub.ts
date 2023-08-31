@@ -8,10 +8,10 @@ export interface IMessageQueueSub {
    * to the callback function provided.
    *
    * @param { string }   topic    The topic from which we want to be receiving messages with this class instance.
-   * @param { Function } callback The callback function to call when a new message arrives.
+   * @param { any }      callback The callback function to call when a new message arrives.
    * @return Promise<any>
    * @public
    */
-  consume( topic: string, callback: Function ): Promise<any>;
+  consume( topic: string, callback: any ): Promise<any>;
 
 }
