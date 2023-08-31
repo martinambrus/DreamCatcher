@@ -1,7 +1,7 @@
 /**
- * Interface for a message queue broker.
+ * Interface for a publishing message queue broker.
  */
-export interface IMessageQueue {
+export interface IMessageQueuePub {
 
   /**
    * Sends message to the message queue.
