@@ -1,15 +1,27 @@
 [map "b784ff24-7071-31df-9e39-6df0ed472e9c"]
 	object = e68e63b309a29a6f00a51397ce7291c2eb2d8515
 	type = include + expand tree
-[map "3f63f85b-7138-3a17-ae55-9ba1f9d24f30"]
-	object = 11540f486fa32561d9dc6a6e5bd36bf838ff8fff
+[map "cb32afac-9247-367b-8f5c-a08b3dd57c67"]
+	object = d736006a814a42a458b9023d66d4e4d645614b36
+	path = workers/err_log_writer/app/Redis
+	type = expand module
+[map "8cd7c4ac-17b1-384b-8f3d-e1c7451ab838"]
+	object = d736006a814a42a458b9023d66d4e4d645614b36
 	path = workers/analysis/app/Redis
 	type = expand module
-[map "eb056621-0c43-39dc-8ad3-60df2ec4889d"]
-	object = 11540f486fa32561d9dc6a6e5bd36bf838ff8fff
+[map "1942e6d8-0ded-3756-ac71-9fd8858d6d69"]
+	object = d736006a814a42a458b9023d66d4e4d645614b36
 	path = control_center/app/Redis
 	type = expand module
-[map "8d8db57c-c420-31b3-9be7-7ebc4d2904a5"]
-	object = 11540f486fa32561d9dc6a6e5bd36bf838ff8fff
-	path = workers/err_log_writer/app/Redis
+[map "a4a22300-d64c-3b30-ab26-f3ddd257688f"]
+	object = d736006a814a42a458b9023d66d4e4d645614b36
+	path = workers/link_fix_detector/app/Redis
+	type = expand module
+[map "7790cf8e-63dc-31be-b9cb-4ffa97f20fb2"]
+	object = d736006a814a42a458b9023d66d4e4d645614b36
+	path = workers/link_writer/app/Redis
+	type = expand module
+[map "cdcc4da8-ec47-306c-8917-0fb39e8d0acf"]
+	object = d736006a814a42a458b9023d66d4e4d645614b36
+	path = workers/rss_fetch/app/Redis
 	type = expand module
