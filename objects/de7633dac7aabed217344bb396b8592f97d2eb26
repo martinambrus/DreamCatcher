@@ -1,0 +1,27 @@
+[map "58b3f5b5-9a04-3d2a-a24a-caa0408c6f75"]
+	object = 8b09bb37e0a4b49ab1ea2ab5f4007a9d4b190722
+	type = include + expand tree
+[map "7d76c679-7e02-3dcd-9a37-df146e20ef29"]
+	object = ec552303ce48f83bd18ed72f04bb58c91ce48410
+	path = control_center/app/KeyStore
+	type = expand module
+[map "6c21d5dc-87ce-3fbf-89ce-c2087120cd34"]
+	object = ec552303ce48f83bd18ed72f04bb58c91ce48410
+	path = workers/analysis/app/KeyStore
+	type = expand module
+[map "7da32e5e-3583-339c-bd5f-c87e13082ef6"]
+	object = ec552303ce48f83bd18ed72f04bb58c91ce48410
+	path = workers/err_log_writer/app/KeyStore
+	type = expand module
+[map "2919c7ab-a621-3550-b3a5-5272ab74b628"]
+	object = ec552303ce48f83bd18ed72f04bb58c91ce48410
+	path = workers/link_fix_detector/app/KeyStore
+	type = expand module
+[map "fdc91d7a-32e2-3b2c-8bf6-248c45ffe852"]
+	object = ec552303ce48f83bd18ed72f04bb58c91ce48410
+	path = workers/link_writer/app/KeyStore
+	type = expand module
+[map "ed149b69-d965-38b1-b7e9-df1a7def2b54"]
+	object = ec552303ce48f83bd18ed72f04bb58c91ce48410
+	path = workers/rss_fetch/app/KeyStore
+	type = expand module
