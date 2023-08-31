@@ -1,7 +1,11 @@
 [map "b784ff24-7071-31df-9e39-6df0ed472e9c"]
 	object = e68e63b309a29a6f00a51397ce7291c2eb2d8515
 	type = include + expand tree
-[map "eb759265-d2d9-3e97-82ed-fd333ffb4dd2"]
-	object = 0cd6c258fe82dcdea1c30f7585f8aa6e2d622a75
+[map "1d4f6e70-0323-3a9d-9e36-efb89d1b361c"]
+	object = 0c24316b3d5d7e28c746872fa86cf0f78f9a8654
 	path = control_center/app/Redis
+	type = expand module
+[map "96bba965-c8b6-34d9-8d2b-57c84da901c9"]
+	object = 0c24316b3d5d7e28c746872fa86cf0f78f9a8654
+	path = workers/analysis/app/Redis
 	type = expand module
