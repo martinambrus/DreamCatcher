@@ -1,0 +1,36 @@
+[map "efa35f15-54e2-3ad3-bb0c-c0a583b53bc4"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = workers/analysis/app/Redis
+	stage = sync
+	type = extract module
+[map "cb860c57-4cd2-3d5c-a1e8-58339cd8ae01"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = control_center/app/Redis
+	stage = sync
+	type = extract module
+[module "57bfa984-1363-3139-a9a7-8e8937704972"]
+	conflict = request-pull
+	path = control_center/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "71c045a2-52a9-3947-bd0a-b1016d7e6f15"]
+	conflict = request-pull
+	path = workers/analysis/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "d8f33961-9034-3625-b85f-600aa9282647"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/Redis
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/master sync refs/heads/main
+	url = agnostic://gh/685092267
+[map "8c33d87e-2be9-39f9-b032-c120011e5d36"]
+	object = ae70863b86d8829944ab12d1daa6e62684e916aa
+	path = workers/err_log_writer/app/Redis
+	stage = sync
+	type = extract module

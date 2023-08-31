@@ -1,11 +1,15 @@
 [map "b784ff24-7071-31df-9e39-6df0ed472e9c"]
 	object = e68e63b309a29a6f00a51397ce7291c2eb2d8515
 	type = include + expand tree
-[map "1d4f6e70-0323-3a9d-9e36-efb89d1b361c"]
-	object = 0c24316b3d5d7e28c746872fa86cf0f78f9a8654
+[map "3f63f85b-7138-3a17-ae55-9ba1f9d24f30"]
+	object = 11540f486fa32561d9dc6a6e5bd36bf838ff8fff
+	path = workers/analysis/app/Redis
+	type = expand module
+[map "eb056621-0c43-39dc-8ad3-60df2ec4889d"]
+	object = 11540f486fa32561d9dc6a6e5bd36bf838ff8fff
 	path = control_center/app/Redis
 	type = expand module
-[map "96bba965-c8b6-34d9-8d2b-57c84da901c9"]
-	object = 0c24316b3d5d7e28c746872fa86cf0f78f9a8654
-	path = workers/analysis/app/Redis
+[map "8d8db57c-c420-31b3-9be7-7ebc4d2904a5"]
+	object = 11540f486fa32561d9dc6a6e5bd36bf838ff8fff
+	path = workers/err_log_writer/app/Redis
 	type = expand module
