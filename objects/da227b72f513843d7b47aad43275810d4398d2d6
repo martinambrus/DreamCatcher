@@ -1,0 +1,84 @@
+[map "a3fa2265-1595-3efa-ab0c-0ff384fcb62e"]
+	object = 474c00323582ad6b012f39de087052fda57c8c89
+	path = control_center/app/MQ
+	stage = sync
+	type = extract module
+[module "8f5b03b8-bb52-3c85-9a03-5cfd02196633"]
+	conflict = request-pull
+	path = control_center/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "8ac38d52-10ef-327a-9258-1189e37396af"]
+	conflict = request-pull
+	path = control_center/app/MQ
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "6a9c4af7-2dd8-3f85-8455-40ec4f4f9a3c"]
+	conflict = request-pull
+	path = workers/analysis/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "0406cbda-a89d-32e7-be16-fc55a6d3d632"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "f2b4340e-39f6-343d-89dc-7d5f286f2192"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "b2cff2af-a098-3af5-8eba-27b0d8864488"]
+	conflict = request-pull
+	path = workers/link_writer/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[module "f0959b73-e9f9-3a66-99ab-333349f05750"]
+	conflict = request-pull
+	path = workers/rss_fetch/app/KeyStore
+	pull = merge rebase
+	pull = squash always
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685092267
+[map "7251d268-0ca5-3951-ad2c-d1911c916b18"]
+	object = 2f1eb47b8eaa2414ab8c4f675a3f5dbc2bd8514d
+	path = control_center/app/KeyStore
+	stage = sync
+	type = extract module
+[map "f6884aa2-4ddb-3f6d-9c54-a965fc7e86ae"]
+	object = 2f1eb47b8eaa2414ab8c4f675a3f5dbc2bd8514d
+	path = workers/analysis/app/KeyStore
+	stage = sync
+	type = extract module
+[map "b2d5dc95-1397-3c12-8516-d48aa57cee15"]
+	object = 2f1eb47b8eaa2414ab8c4f675a3f5dbc2bd8514d
+	path = workers/err_log_writer/app/KeyStore
+	stage = sync
+	type = extract module
+[map "41e02b7b-2b16-3266-896a-7af4d26eac7e"]
+	object = 2f1eb47b8eaa2414ab8c4f675a3f5dbc2bd8514d
+	path = workers/link_fix_detector/app/KeyStore
+	stage = sync
+	type = extract module
+[map "bb210794-b49e-3143-80b1-f714d6525654"]
+	object = 2f1eb47b8eaa2414ab8c4f675a3f5dbc2bd8514d
+	path = workers/link_writer/app/KeyStore
+	stage = sync
+	type = extract module
+[map "1cd716c2-1084-3685-9644-64a9d9215307"]
+	object = 2f1eb47b8eaa2414ab8c4f675a3f5dbc2bd8514d
+	path = workers/rss_fetch/app/KeyStore
+	stage = sync
+	type = extract module
