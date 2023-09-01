@@ -64,7 +64,6 @@ export class MessageQueueSub implements IMessageQueueSub {
       callback,
       {
         connection: this.connection,
-        sharedConnection: true,
         concurrency: parseInt( env.MQ_MAX_CONCURRENCY )
       }
     );
