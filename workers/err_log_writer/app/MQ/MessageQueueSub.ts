@@ -1,7 +1,7 @@
 import { ILogger } from './KeyStore/Interfaces/ILogger.js';
 import { IMessageQueueSub } from './KeyStore/Interfaces/IMessageQueueSub.js';
 import { env, exit } from 'node:process';
-import { Consumer, EachMessageHandler, Kafka } from 'kafkajs';
+import { Consumer, Kafka } from 'kafkajs';
 
 /**
  * Message queue class, responsible for retrieving messages
@@ -82,13 +82,13 @@ export class MessageQueueSub implements IMessageQueueSub {
    * Consumes messages from the given topic and passes them
    * to the callback function provided.
    *
-   * @param { string }             topic    The topic from which we want to be receiving messages with this class instance.
-   * @param { EachMessageHandler } callback The callback function to call when a new message arrives.
+   * @param { string }   topic    The topic from which we want to be receiving messages with this class instance.
+   * @param { Function } callback The callback function to call when a new message arrives.
    *
    * @return Promise<void>
    * @public
    */
-  public async consume( topic: string, callback: EachMessageHandler ): Promise<void> {
+  public async consume( topic: string, callback: Function ): Promise<void> {
     if ( this.ready ) {
       if ( this.topics_subscribed.indexOf( topic ) > -1 ) {
         throw 'This consumer is already processing messages from the topic ' + topic + '. Please create a new consumer with its unique ID to subscribe to the same topic again.';
@@ -98,7 +98,19 @@ export class MessageQueueSub implements IMessageQueueSub {
       }
 
       try {
-        await this.consumer.run( { eachMessage: callback } );
+        await this.consumer.run( { eachMessage: async ( { topic, partition, message, heartbeat, pause } ): Promise<void> => {
+            const
+              original_msg: string = message.value.toString(),
+              trace_id_string: string = message.key.toString();
+
+            message = JSON.parse( original_msg );
+
+            if ( message ) {
+              callback( message, trace_id_string );
+            } else {
+              console.log( this.logger.format('Exception while trying to decode log data: ' + original_msg ) );
+            }
+        }});
         this.logger.format( 'now consuming messages from topic ' + topic );
       } catch ( err ) {
         // no await - we're returning boolean that's manually set below
