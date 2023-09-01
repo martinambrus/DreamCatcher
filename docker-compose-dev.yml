@@ -9,6 +9,8 @@ services:
       context: control_center
       dockerfile: Dockerfile
       target: dev
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
     networks:
       - internal
     depends_on:
@@ -19,6 +21,8 @@ services:
       context: workers/rss_fetch
       dockerfile: Dockerfile
       target: dev
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
     networks:
       - internal
     depends_on:
@@ -29,6 +33,8 @@ services:
       context: workers/analysis
       dockerfile: Dockerfile
       target: dev
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
     networks:
       - internal
     depends_on:
@@ -39,6 +45,8 @@ services:
       context: workers/link_writer
       dockerfile: Dockerfile
       target: dev
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
     networks:
       - internal
     depends_on:
@@ -49,6 +57,8 @@ services:
       context: workers/err_log_writer
       dockerfile: Dockerfile
       target: dev
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
     networks:
       - internal
     depends_on:
@@ -59,6 +69,8 @@ services:
       context: workers/link_fix_detector
       dockerfile: Dockerfile
       target: dev
+    environment:
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
     networks:
       - internal
     depends_on:
@@ -95,6 +107,25 @@ services:
       POSTGRES_PASSWORD_FILE: /credentials/db_password
       POSTGRES_EXTENSIONS: pg_trgm, plpgsql, unaccent
       PGDATA: /var/lib/postgresql/pgdata
+  kafka-0:
+    image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:9092:9092
+      - 127.0.0.1:9093:9093
+    restart: unless-stopped
+    environment:
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka-0:9093
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - ./infrastructure/datadir/kafka_0_dev_data:/bitnami/kafka
   jaeger:
     image: "jaegertracing/all-in-one"
     networks:
@@ -120,6 +151,15 @@ services:
     restart: unless-stopped
     volumes:
       - ./infrastructure/datadir/jaeger:/badger
+  kafka_ui:
+    image: "provectuslabs/kafka-ui:latest"
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:8081:8080
+    environment:
+      DYNAMIC_CONFIG_ENABLED: 'true'
+    restart: unless-stopped
 networks:
   internal:
     name: internal

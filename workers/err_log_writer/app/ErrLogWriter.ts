@@ -1,11 +1,11 @@
 import { env, exit } from 'node:process';
 import pkg from "pg";
-import { KafkaProducer } from './KafkaProducer.js';
-import { KafkaConsumer } from './KafkaConsumer.js';
 import { Telemetry } from './Telemetry.js';
-import { IKeyStoreSub } from './KeyStore/Interfaces/IKeyStoreSub.js';
-import { IKeyStorePub } from './KeyStore/Interfaces/IKeyStorePub.js';
-import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
+import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
+import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
+import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
 
 export class ErrLogWriter {
 
@@ -32,27 +32,27 @@ export class ErrLogWriter {
   private readonly logger: ILogger;
 
   /**
-   * Kafka logs topic name.
+   * MQ logs topic name.
    * @private
    * @type { string }
    */
   private readonly logs_channel_name: string;
 
   /**
-   * Instance of the KafkaProducer used for message publishing
+   * Instance of the MQ Producer used for message publishing
    * sections of the code.
    * @private
-   * @type { KafkaProducer }
+   * @type { IMessageQueuePub }
    */
-  private readonly kafka_producer: KafkaProducer;
+  private readonly mq_producer: IMessageQueuePub;
 
   /**
-   * Instance of the KafkaConsumer used to listen
+   * Instance of the MQ Consumer used to listen
    * for RSS feeds to parse.
    * @private
-   * @type { KafkaConsumer }
+   * @type { IMessageQueueSub }
    */
-  private readonly kafka_consumer: KafkaConsumer;
+  private readonly mq_consumer: IMessageQueueSub;
 
   /**
    * Key store subscriber client instance,
@@ -81,18 +81,18 @@ export class ErrLogWriter {
    * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    *
-   * @param { string }        service_name   ID of the service from main application for key store publishing purposes
-   * @param { KafkaProducer } kafka_producer Kafka Producer used to publish messages.
-   * @param { KafkaConsumer } kafka_consumer Kafka Consumer used to listen for links data to parse.
-   * @param { ILogger }       logger A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }    dbconn A PGSQL client instance.
-   * @param { IKeyStoreSub }  key_store_sub  A Key Store Sub client to subscribe to channels.
-   * @param { IKeyStorePub }  key_store_pub  A Key Store Pub client to fetch error codes.
+   * @param { string }           service_name  ID of the service from main application for key store publishing purposes
+   * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
+   * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for links data to parse.
+   * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
+   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IKeyStoreSub }     key_store_sub A Key Store Sub client to subscribe to channels.
+   * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
-    // Kafka
-    this.kafka_producer = kafka_producer;
-    this.kafka_consumer = kafka_consumer;
+  constructor( service_name: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
+    // MQ
+    this.mq_producer = mq_producer;
+    this.mq_consumer = mq_consumer;
 
     // Logger
     this.logger = logger;
@@ -106,103 +106,81 @@ export class ErrLogWriter {
 
     // strings
     this.service_name = service_name;
-    this.logs_channel_name = env.KAFKA_LOGS_CHANNEL;
+    this.logs_channel_name = env.LOGS_CHANNEL_NAME;
+
+    // publish info about our instance going live
+    this.logger.log_msg( 'err_log_writer up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
 
     let self = this;
 
     // create a task that will update this service active status every minute
+    // ... this is here in case Redis goes down, so we can show that we are alive again
     setInterval( (): void => {
-      if ( self.kafka_consumer.get_active() && self.kafka_producer.get_active() ) {
-        self.key_store_pub.set( self.service_name + '_active', 1 );
-      }
+      self.key_store_pub.set( self.service_name + '_active', 1 );
     }, 60000 );
 
-    // mark ourselves as active from the start, if both - producer and consumer - are active
-    if ( this.kafka_consumer.get_active() && this.kafka_producer.get_active() ) {
-      this.key_store_pub.set( this.service_name + '_active', 1 );
-    }
+    // mark ourselves as active from the start
+    this.key_store_pub.set( this.service_name + '_active', 1 );
 
     // subscribe to logs channel, so we can store error logs into the DB
-    this.kafka_consumer.subscribe( [ this.logs_channel_name ] ).then( async () => {
-      // start processing logs
-      if ( !await self.kafka_consumer.consume( self.log_error.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
-        await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
-        exit( exit_code );
-      }
-
-      // publish info about our instance going live
-      this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-    });
+    this.mq_consumer.consume( this.logs_channel_name, self.log_error.bind( this ) );
   }
 
   /**
    * Logs errors into the database, so they can be browsed easily.
    *
-   * @param { Object } data This is the data received from Kafka consumer.
-   *                        Object structure: topic, partition, message, heartbeat, pause
+   * @param { Object } data This is the processed data received from Kafka consumer.
+   *                        Object structure: topic, message, trace_id
    * @private
    */
-  private async log_error( { topic, partition, message, heartbeat, pause } ): Promise<void> {
-    if ( topic == this.logs_channel_name ) {
-      const
-        original_msg: string = message.value.toString(),
-        trace_id_string: string = message.key.toString();
+  private async log_error( { topic, message, trace_id } ): Promise<void> {
+    if ( message.severity == LOG_SEVERITIES.LOG_SEVERITY_ERROR ) {
+      // try inserting the log data into the DB
+      const text: string     = 'INSERT INTO err_log( service_id, code, log_time, msg, extra ) VALUES( $1, $2, $3, $4, $5 ) RETURNING id';
+      let values: Array<any> = [ message.service, ( message.code ? message.code : 0 ), message.time, message.msg.replace( /\[[^\]]+\] /gm, '' ) ]; // remove timedate prefix from message
 
-      message = JSON.parse( original_msg );
-
-      if ( message ) {
-        if ( message.severity == LOG_SEVERITIES.LOG_SEVERITY_ERROR ) {
-          // try inserting the log data into the DB
-          const text: string     = 'INSERT INTO err_log( service_id, code, log_time, msg, extra ) VALUES( $1, $2, $3, $4, $5 ) RETURNING id';
-          let values: Array<any> = [ message.service, ( message.code ? message.code : 0 ), message.time, message.msg.replace( /\[[^\]]+\] /gm, '' ) ]; // remove timedate prefix from message
-
-          // check for any extra data in the message and add it to the extra column
-          let extra: Object = {};
-          for ( let i in message ) {
-            if ( ![ 'service', 'code', 'severity', 'time', 'msg' ].includes( i ) ) {
-              extra[ i ] = message[ i ];
-            }
-          }
-
-          values.push( JSON.stringify( extra ) );
-
-          try {
-            console.log( this.logger.format( 'logging: ' + original_msg ) );
-            const res = await this.dbconn.query( text, values );
-
-            if ( !res.rows.length ) {
-              console.log( this.logger.format( 'Could not insert log into db' ) );
-            }
-          } catch ( err ) {
-            console.log( this.logger.format( 'DB error while trying to insert log data:\n' + JSON.stringify( err ) ) );
-
-            // we only log errors where we fail to write a log into the DB,
-            // as we're actually logging the error inside of the service where it happened
-            // into telemetry
-            let trace_carrier: Object;
-
-            // we may receive a non-traceable logs which are not assignable to any single trace
-            try {
-              trace_carrier = JSON.parse( trace_id_string );
-            } catch ( err ) {
-              trace_carrier = null;
-            }
-
-            const
-              error_log_telemetry: Telemetry = await new Telemetry( this.service_name, this.version, this.service_name ).start( trace_carrier ),
-              telemetry_name: string = 'error_log';
-
-            await error_log_telemetry.add_span( telemetry_name, {}, 'DB error while trying to insert error log data:\n' + JSON.stringify( err ), 1 );
-            error_log_telemetry.close_active_span( telemetry_name );
-          }
-
-          // publish to key store that we're done with tracing
-          this.key_store_pub.publish( env.KEY_STORE_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
+      // check for any extra data in the message and add it to the extra column
+      let extra: Object = {};
+      for ( let i in message ) {
+        if ( ![ 'service', 'code', 'severity', 'time', 'msg' ].includes( i ) ) {
+          extra[ i ] = message[ i ];
         }
-      } else {
-        console.log( this.logger.format('Exception while trying to decode and store log data: ' + original_msg ) );
       }
+
+      values.push( JSON.stringify( extra ) );
+
+      try {
+        console.log( this.logger.format( 'logging: ' + JSON.stringify( message ) ) );
+        const res = await this.dbconn.query( text, values );
+
+        if ( !res.rows.length ) {
+          console.log( this.logger.format( 'Could not insert log into db' ) );
+        }
+      } catch ( err ) {
+        console.log( this.logger.format( 'DB error while trying to insert log data:\n' + JSON.stringify( err ) ) );
+
+        // we only log errors where we fail to write a log into the DB,
+        // as we're actually logging the error inside of the service where it happened
+        // into telemetry
+        let trace_carrier: Object;
+
+        // we may receive a non-traceable logs which are not assignable to any single trace
+        try {
+          trace_carrier = JSON.parse( trace_id );
+        } catch ( err ) {
+          trace_carrier = null;
+        }
+
+        const
+          error_log_telemetry: Telemetry = await new Telemetry( this.service_name, this.version, this.service_name ).start( trace_carrier ),
+          telemetry_name: string = 'error_log';
+
+        await error_log_telemetry.add_span( telemetry_name, {}, 'DB error while trying to insert error log data:\n' + JSON.stringify( err ), 1 );
+        error_log_telemetry.close_active_span( telemetry_name );
+      }
+
+      // publish to key store that we're done with tracing
+      this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
     }
   }
 }

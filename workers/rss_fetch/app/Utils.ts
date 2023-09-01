@@ -1,6 +1,7 @@
 import striptags from "striptags";
 import { decode } from 'html-entities';
-import { KafkaProducer} from './KafkaProducer.js';
+import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { env } from 'node:process';
 
 export class Utils {
 
@@ -12,12 +13,12 @@ export class Utils {
   public static service_name: string;
 
   /**
-   * Instance of the KafkaProducer used for message publishing
+   * Instance of the MQ Producer used for message publishing
    * sections of the code.
    * @private
-   * @type { KafkaProducer }
+   * @type { IMessageQueuePub }
    */
-  public static kafka_producer: KafkaProducer;
+  public static mq_producer: IMessageQueuePub;
 
   /***
    * Regex used to try and extract image from item text.
@@ -71,20 +72,19 @@ export class Utils {
   }
 
   /**
-   * Publishes link data via Kafka Producer.
+   * Publishes link data via MQ Producer.
    *
    * @param { Object } link_data The link data to publish.
-   * @param { string } kafka_key Key for this link message received from Kafka.
-   *                             This is actually a trace ID that needs to be passed on.
+   * @param { string } trace_id  Trace ID for this link message received from MQ.
    * @private
    */
-  public static async publish_new_link_data( link_data: Object, kafka_key: string ): Promise<void> {
+  public static async publish_new_link_data( link_data: Object, trace_id: string ): Promise<void> {
     // add service name to the link data message
     link_data[ 'service' ] = Utils.service_name;
 
     // publish new link message
     // no await - we're not returning anything here
-    Utils.kafka_producer.pub_item( kafka_key, link_data );
+    Utils.mq_producer.send( env.NEW_LINKS_CHANNEL_NAME, link_data, trace_id, link_data[ 'link' ] );
   }
 
   /**

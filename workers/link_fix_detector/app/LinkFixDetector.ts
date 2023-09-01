@@ -1,11 +1,9 @@
 import { env, exit } from 'node:process';
 import pkg from "pg";
-import { KafkaProducer } from './KafkaProducer.js';
-import { KafkaConsumer } from './KafkaConsumer.js';
 import { Telemetry } from './Telemetry.js';
-import { IKeyStoreSub } from './KeyStore/Interfaces/IKeyStoreSub.js';
-import { IKeyStorePub } from './KeyStore/Interfaces/IKeyStorePub.js';
-import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
+import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
+import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
 
 export class LinkFixDetector {
 
@@ -25,42 +23,19 @@ export class LinkFixDetector {
   private readonly logger: ILogger;
 
   /**
-   * Main app service ID, so we can use it in Kafka logs.
+   * Main app service ID, so we can use it in MQ logs.
    * @private
    * @type { string }
    */
   private readonly service_name: string;
 
   /**
-   * Kafka logs topic name.
-   * @private
-   * @type { string }
-   */
-  private readonly logs_channel_name: string;
-
-  /**
-   * Instance of the KafkaProducer used for message publishing
-   * sections of the code.
-   * @private
-   * @type { KafkaProducer }
-   */
-  private readonly kafka_producer: KafkaProducer;
-
-  /**
-   * Instance of the KafkaConsumer used to listen
+   * Instance of the MQ Consumer used to listen
    * for RSS feeds to parse.
    * @private
-   * @type { KafkaConsumer }
+   * @type { IMessageQueueSub }
    */
-  private readonly kafka_consumer: KafkaConsumer;
-
-  /**
-   * Key store subscriber client instance,
-   * used to subscribe to channels.
-   * @type { IKeyStoreSub }
-   * @private
-   */
-  private readonly key_store_sub: IKeyStoreSub;
+  private readonly mq_consumer: IMessageQueueSub;
 
   /**
    * Key store publisher and getter client instance,
@@ -90,18 +65,15 @@ export class LinkFixDetector {
    * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    *
-   * @param { string }        service_name   ID of the service from main application for key store publishing purposes
-   * @param { KafkaProducer } kafka_producer Kafka Producer used to publish messages.
-   * @param { KafkaConsumer } kafka_consumer Kafka Consumer used to listen for links data to parse.
-   * @param { ILogger }       logger A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }    dbconn A PGSQL client instance.
-   * @param { IKeyStoreSub }  key_store_sub A Key Store Sub client to subscribe to channels.
-   * @param { IKeyStorePub }  key_store_pub A Key Store Pub client to fetch error codes.
+   * @param { string }           service_name  ID of the service from main application for key store publishing purposes
+   * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for links data to parse.
+   * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
+   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
-    // Kafka
-    this.kafka_producer = kafka_producer;
-    this.kafka_consumer = kafka_consumer;
+  constructor( service_name: string, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: pkg.Client, key_store_pub: IKeyStorePub ) {
+    // MQ
+    this.mq_consumer = mq_consumer;
 
     // Logger
     this.logger = logger;
@@ -110,102 +82,71 @@ export class LinkFixDetector {
     this.dbconn = dbconn;
 
     // key store
-    this.key_store_sub = key_store_sub;
     this.key_store_pub = key_store_pub;
 
     // strings
     this.service_name = service_name;
-    this.logs_channel_name = env.KAFKA_LOGS_CHANNEL;
+
+    // publish info about our instance going live
+    this.logger.log_msg( 'link_fix_detector up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
 
     let self = this;
 
     // create a task that will update this service active status every minute
+    // ... this is here in case Redis goes down, so we can show that we are alive again
     setInterval( (): void => {
-      if ( self.kafka_consumer.get_active() && self.kafka_producer.get_active() ) {
-        self.key_store_pub.set( self.service_name + '_active', 1 );
-      }
+      self.key_store_pub.set( self.service_name + '_active', 1 );
     }, 60000 );
 
-    // mark ourselves as active from the start, if both - producer and consumer - are active
-    if ( this.kafka_consumer.get_active() && this.kafka_producer.get_active() ) {
-      this.key_store_pub.set( this.service_name + '_active', 1 );
-    }
+    // mark ourselves as active
+    this.key_store_pub.set( this.service_name + '_active', 1 );
 
-    // subscribe to RSS new links channel, so we can update wrong feed links when they are found
-    this.kafka_consumer.subscribe( [ this.logs_channel_name ] ).then( async () => {
-      // store error code
-      self.key_store_wrong_link_err_code = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_WRONG_URL' ) );
-
-      // start processing newfound links
-      if ( !await self.kafka_consumer.consume( self.db_update_wrong_feed_url.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
-        await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
-        exit( exit_code );
-      }
-
-      // publish info about our instance going live
-      this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-    });
+    // subscribe to RSS invalid links channel, so we can update wrong feed links when they are found
+    this.mq_consumer.consume( env.RSS_INVALID_URLS_CHANEL_NAME, self.db_update_wrong_feed_url.bind( this ) );
   }
 
   /**
    * Rewrites invalid feed URL to a valid one in the database.
    *
-   * @param { Object } data This is the data received from Kafka consumer.
-   *                        Object structure: topic, partition, message, heartbeat, pause
+   * @param { Object } data This is the processed data received from Kafka consumer.
+   *                        Object structure: topic, message, trace_id
    * @private
    */
-  private async db_update_wrong_feed_url( { topic, partition, message, heartbeat, pause } ): Promise<void> {
-    if ( topic == this.logs_channel_name ) {
-      const
-        original_msg: string = message.value.toString(),
-        trace_id_string: string = message.key.toString();
+  private async db_update_wrong_feed_url( { topic, message, trace_id } ): Promise<void> {
+    let trace_carrier: Object;
 
-      message = JSON.parse( original_msg );
+    // we may receive a non-traceable logs which are not assignable to any single trace
+    try {
+      trace_carrier = JSON.parse( trace_id );
+    } catch ( err ) {
+      trace_carrier = null;
+    }
 
-      if ( message ) {
-        // check that we have the right message
-        if ( message.service.indexOf( 'rss_fetch' ) > -1 && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE && message.code == this.key_store_wrong_link_err_code ) {
-          let trace_carrier: Object;
+    const
+      url_fix_telemetry: Telemetry = ( trace_carrier !== null ? await new Telemetry( this.service_name, this.version, message.feed_url ).start( trace_carrier ) : null ),
+      telemetry_name: string = 'rss_feed_url_fix';
 
-          // we may receive a non-traceable logs which are not assignable to any single trace
-          try {
-            trace_carrier = JSON.parse( trace_id_string );
-          } catch ( err ) {
-            trace_carrier = null;
-          }
+    try {
+      if ( url_fix_telemetry !== null ) {
+        await url_fix_telemetry.add_span( telemetry_name, { 'old_feed_url' : message.old_feed_url, 'feed_url' : message.feed_url } );
+      }
 
-          const
-            url_fix_telemetry: Telemetry = ( trace_carrier !== null ? await new Telemetry( this.service_name, this.version, message.extra_data.feed_url ).start( trace_carrier ) : null ),
-            telemetry_name: string = 'rss_feed_url_fix';
+      console.log( this.logger.format( 'updating feed URL for feed ' + message.old_feed_url + ' to ' + message.feed_url ) );
+      this.dbconn.query( 'UPDATE feeds SET url = $1 WHERE url = $2', [ message.feed_url, message.old_feed_url ] );
 
-          try {
-            if ( url_fix_telemetry !== null ) {
-              await url_fix_telemetry.add_span( telemetry_name, { 'old_feed_url' : message.extra_data.old_feed_url, 'feed_url' : message.extra_data.feed_url } );
-            }
-
-            console.log( this.logger.format( 'updating feed URL for feed ' + message.extra_data.old_feed_url + ' to ' + message.extra_data.feed_url ) );
-            this.dbconn.query( 'UPDATE feeds SET url = $1 WHERE url = $2', [ message.extra_data.feed_url, message.extra_data.old_feed_url ] );
-
-            if ( url_fix_telemetry !== null ) {
-              url_fix_telemetry.close_active_span( telemetry_name );
-            }
-          } catch ( err ) {
-            // no await - if this message is not stored, we'll see this in telemetry
-            this.logger.log_msg( 'Exception while trying to update feed URL for ' + message.extra_data.old_feed_url + '\n' + JSON.stringify( err ), 'ERR_INVALID_FEED_URL_UPDATE_FAILURE' );
-            if ( url_fix_telemetry !== null ) {
-              await url_fix_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Exception while trying to update feed URL for ' + message.extra_data.old_feed_url + '\n' + JSON.stringify( err ), 1 );
-              url_fix_telemetry.close_active_span( telemetry_name );
-            }
-          }
-
-          // publish to key store that we're done with tracing
-          this.key_store_pub.publish( env.KEY_STORE_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
-        }
-      } else {
-        // no await - if this message is not stored, we'll see this in telemetry
-        this.logger.log_msg('Exception while trying to decode log data: ' + original_msg, 'ERR_LOG_MESSAGE_INVALID' );
+      if ( url_fix_telemetry !== null ) {
+        url_fix_telemetry.close_active_span( telemetry_name );
+      }
+    } catch ( err ) {
+      // no await - if this message is not stored, we'll see this in telemetry
+      this.logger.log_msg( 'Exception while trying to update feed URL for ' + message.old_feed_url + '\n' + JSON.stringify( err ), 'ERR_INVALID_FEED_URL_UPDATE_FAILURE' );
+      if ( url_fix_telemetry !== null ) {
+        await url_fix_telemetry.add_span( telemetry_name, { 'feed_url': message.feed_url }, 'Exception while trying to update feed URL for ' + message.old_feed_url + '\n' + JSON.stringify( err ), 1 );
+        url_fix_telemetry.close_active_span( telemetry_name );
       }
     }
+
+    // publish to key store that we're done with tracing
+    this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
   }
 }

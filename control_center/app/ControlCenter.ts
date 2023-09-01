@@ -1,10 +1,10 @@
 import { env, exit } from "node:process";
-import { KafkaProducer } from "./KafkaProducer.js";
 import pkg from "pg";
 import { Telemetry } from './Telemetry.js';
-import { IKeyStoreSub } from './MQ/Interfaces/IKeyStoreSub.js';
-import { IKeyStorePub } from './MQ/Interfaces/IKeyStorePub.js';
-import { ILogger, LOG_SEVERITIES } from './MQ/Interfaces/ILogger.js';
+import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
+import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
+import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 
 export class ControlCenter {
 
@@ -24,12 +24,12 @@ export class ControlCenter {
   private readonly logger: ILogger;
 
   /**
-   * Instance of the KafkaProducer used for message publishing
+   * Instance of the MQ Producer used for message publishing
    * sections of the code.
    * @private
-   * @type { KafkaProducer }
+   * @type { IMessageQueuePub }
    */
-  private readonly kafka_producer: KafkaProducer;
+  private readonly mq_producer: IMessageQueuePub;
 
   /**
    * Key store subscriber client instance,
@@ -97,7 +97,7 @@ export class ControlCenter {
    * @private
    * @type { number }
    */
-  private readonly telemetry_inactive_timeout_seconds: number = 60;//TODO: 300;
+  private readonly telemetry_inactive_timeout_seconds: number = 300;
 
   /**
    * Service name used in telemetry tracing.
@@ -119,19 +119,19 @@ export class ControlCenter {
   private telemetry_services_completions: Object = {};
 
   /**
-   * Stores references to Kafka, PGSQL and Logger classes
+   * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    *
-   * @param { string }         service_name   Name of the service. Used for Jaeger tracing identification.
-   * @param { KafkaProducer }  kafka_producer Kafke Producer used to publish messages.
-   * @param { ILogger }        logger         A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }     dbconn         A PGSQL client instance.
-   * @param { IKeyStoreSub }   key_store_sub  A Key Store Sub client to subscribe to channels.
-   * @param { IKeyStorePub }   key_store_pub  A Key Store Pub client to fetch error codes.
+   * @param { string }           service_name  Name of the service. Used for Jaeger tracing identification.
+   * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
+   * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
+   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IKeyStoreSub }     key_store_sub A Key Store Sub client to subscribe to channels.
+   * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
+  constructor( service_name: string, mq_producer: IMessageQueuePub, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
     this.service_name = service_name;
-    this.kafka_producer = kafka_producer;
+    this.mq_producer = mq_producer;
     this.logger = logger;
     this.dbconn = dbconn;
     this.key_store_sub = key_store_sub;
@@ -154,7 +154,7 @@ export class ControlCenter {
     setInterval( this.check_and_close_timed_out_telemetries.bind( this ), 63000);
 
     // watch for telemetry messages from other services, so we can close the root span as needed
-    this.key_store_sub.subscribe( env.KEY_STORE_TELEMETRY_CHANNEL, this.watch_telemetry_messages.bind( this ) );
+    this.key_store_sub.subscribe( env.TELEMETRY_CHANNEL_NAME, this.watch_telemetry_messages.bind( this ) );
   }
 
   /**
@@ -250,7 +250,7 @@ export class ControlCenter {
 
   /**
    * Checks which feeds in the database need fetching
-   * and publishes relevant Kafka messages, so they can be
+   * and publishes relevant MQ messages, so they can be
    * parsed by the listening services.
    * @private
    */
@@ -269,9 +269,9 @@ export class ControlCenter {
 
         for ( let i in res.rows ) {
           // send RSS feed URLs to the rss_fetch service for processing
-          // note: we don't use await here, so we can fire up Kafka messages fast
+          // note: we don't use await here, so we can fire up MQ messages fast
           const lifecycle_telemetry: Telemetry = await new Telemetry( this.service_name, this.version, res.rows[ i ].url ).start();
-          const pub_feed_span_name: string = 'kafka_pub_feed';
+          const pub_feed_span_name: string = 'mq_pub_feed';
 
           await lifecycle_telemetry.add_span( pub_feed_span_name );
           this.active_telemetries.push( lifecycle_telemetry );
@@ -286,9 +286,8 @@ export class ControlCenter {
             this.telemetry_services_completions[ trace_id.traceparent ][ service_name ] = false;
           }
 
-          this.kafka_producer.pub_feed( JSON.stringify( trace_id ), { url: res.rows[ i ].url } ).then( () => {
-            lifecycle_telemetry.close_active_span( pub_feed_span_name );
-          });
+          await this.mq_producer.send( env.FEED_FETCH_CHANNEL_NAME, { url: res.rows[ i ].url }, JSON.stringify( trace_id ), res.rows[ i ].url );
+          lifecycle_telemetry.close_active_span( pub_feed_span_name );
         }
       } catch ( err ) {
         let exit_code: number = parseInt( await this.key_store_pub.get( 'ERR_CONTROL_CENTER_DB_ERROR' ) );

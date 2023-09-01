@@ -1,5 +1,3 @@
-import { KafkaProducer } from "./KafkaProducer.js";
-import { KafkaConsumer } from "./KafkaConsumer.js";
 import { env, exit } from "node:process";
 import * as http from 'node:http';
 import * as https from 'node:https';
@@ -9,9 +7,10 @@ import { XML_Parser } from './XML_Parser.js';
 import { JSON_Parser } from './JSON_Parser.js';
 import fetch from 'node-fetch';
 import { Telemetry } from './Telemetry.js';
-import { IKeyStoreSub } from './KeyStore/Interfaces/IKeyStoreSub.js';
-import { IKeyStorePub } from './KeyStore/Interfaces/IKeyStorePub.js';
-import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
+import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
+import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
 const cacheable: CacheableLookup = new CacheableLookup();
 
 export class RSSFetch {
@@ -32,28 +31,20 @@ export class RSSFetch {
   private readonly logger: ILogger;
 
   /**
-   * Instance of the KafkaProducer used for message publishing
-   * sections of the code.
-   * @private
-   * @type { KafkaProducer }
-   */
-  private readonly kafka_producer: KafkaProducer;
-
-  /**
-   * Instance of the KafkaConsumer used to listen
+   * Instance of the MQ Producer used to listen
    * for RSS feeds to parse.
    * @private
-   * @type { KafkaConsumer }
+   * @type { IMessageQueuePub }
    */
-  private readonly kafka_consumer: KafkaConsumer;
+  private readonly mq_producer: IMessageQueuePub;
 
   /**
-   * Key store subscriber client instance,
-   * used to subscribe to channels.
-   * @type { IKeyStoreSub }
+   * Instance of the MQ Consumer used to listen
+   * for RSS feeds to parse.
    * @private
+   * @type { IMessageQueueSub }
    */
-  private readonly key_store_sub: IKeyStoreSub;
+  private readonly mq_consumer: IMessageQueueSub;
 
   /**
    * Key store publisher and getter client instance,
@@ -85,13 +76,6 @@ export class RSSFetch {
   private readonly service_name: string;
 
   /**
-   * Feeds fetch channel name.
-   * @private
-   * @type { string }
-   */
-  private feed_fetch_channel_name: string;
-
-  /**
    * Local HTTP agent to be used in node-fetch module.
    * @private
    * @type { http.Agent }
@@ -106,20 +90,19 @@ export class RSSFetch {
   private readonly https_agent: https.Agent;
 
   /**
-   * Stores references to Kafka, PGSQL and Logger classes
+   * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    * Also creates instances of XML and JSON parser internal classes.
    *
-   * @param { KafkaProducer }  kafka_producer Kafka Producer used to publish messages.
-   * @param { KafkaConsumer }  kafka_consumer Kafka Consumer used to listen for RSS feeds to parse.
-   * @param { ILogger }        logger         A Logger class instanced used for logging purposes.
-   * @param { string }         service_name   ID of the service from main application for key store publishing purposes
-   * @param { IKeyStoreSub }   key_store_sub  A Key Store Sub client to subscribe to channels.
-   * @param { IKeyStorePub }   key_store_pub  A Key Store Pub client to fetch error codes.
+   * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
+   * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for RSS feeds to parse.
+   * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
+   * @param { string }           service_name  ID of the service from main application for key store publishing purposes
+   * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( kafka_producer: KafkaProducer, kafka_consumer: KafkaConsumer, logger: ILogger, service_name: string, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
+  constructor( mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, service_name: string, key_store_pub: IKeyStorePub ) {
     // initialize Utils static class with default values
-    Utils.kafka_producer = kafka_producer;
+    Utils.mq_producer  = mq_producer;
     Utils.service_name = service_name;
 
     // initialize http+s agents
@@ -136,15 +119,14 @@ export class RSSFetch {
     cacheable.install( this.http_agent );
     cacheable.install( this.https_agent );
 
-    // Kafka
-    this.kafka_producer = kafka_producer;
-    this.kafka_consumer = kafka_consumer;
+    // MQ
+    this.mq_producer = mq_producer;
+    this.mq_consumer = mq_consumer;
 
     // Logger
     this.logger = logger;
 
     // key store
-    this.key_store_sub = key_store_sub;
     this.key_store_pub = key_store_pub;
 
     // XML parser
@@ -155,134 +137,111 @@ export class RSSFetch {
 
     // strings
     this.service_name = service_name;
-    this.feed_fetch_channel_name = env.KAFKA_FEED_FETCH_CHANNEL;
+
+    // publish info about our instance going live
+    this.logger.log_msg( 'rss_fetch up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
 
     let self = this;
 
     // create a task that will update this service active status every minute
+    // ... this is here in case Redis goes down, so we can show that we are alive again
     setInterval( (): void => {
-      if ( self.kafka_consumer.get_active() && self.kafka_producer.get_active() ) {
-        self.key_store_pub.set( self.service_name + '_active', 1 );
-      }
+      self.key_store_pub.set( self.service_name + '_active', 1 );
     }, 60000 );
 
-    // mark ourselves as active from the start, if both - producer and consumer - are active
-    if ( this.kafka_consumer.get_active() && this.kafka_producer.get_active() ) {
-      this.key_store_pub.set( this.service_name + '_active', 1 );
-    }
+    // mark ourselves as active
+    this.key_store_pub.set( this.service_name + '_active', 1 );
 
     // subscribe to receive RSS feed links to be parsed
-    this.kafka_consumer.subscribe( [ this.feed_fetch_channel_name ] ).then( async () => {
-      // start processing RSS feed URLs
-      if ( !await self.kafka_consumer.consume( self.parse_feed_url.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
-        await self.logger.log_msg( 'Error while trying to set RSS parsing function - Kafka Consumer not ready.', exit_code );
-        exit( exit_code );
-      }
-
-      // publish info about our instance going live
-      await this.logger.log_msg( this.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-    });
+    this.mq_consumer.consume( env.FEED_FETCH_CHANNEL_NAME, self.parse_feed_url.bind( this ) );
   }
 
   /**
-   * Receives Kafka RSS feed messages and starts parsing RSS feeds from them.
+   * Receives RSS feed messages from MQ and starts parsing RSS feeds from them.
    *
-   * @param { Object } data This is the data received from Kafka consumer.
-   *                        Object structure: topic, partition, message, heartbeat, pause
+   * @param { Object } data This is the processed data received from Kafka consumer.
+   *                        Object structure: topic, message, trace_id
    * @private
    */
-  private async parse_feed_url( { topic, partition, message, heartbeat, pause } ): Promise<void> {
-    if ( topic == this.feed_fetch_channel_name ) {
-      let
-        kafka_message_data = null,
-        kafka_key_data: string = null,
-        trace_carrier: Object = null,
-        analysis_telemetry: Telemetry,
-        telemetry_name: string;
+  private async parse_feed_url( { topic, message, trace_id } ): Promise<any> {
+    let
+      mq_message_data = message,
+      mq_key_data: string = trace_id,
+      trace_carrier: Object = JSON.parse( mq_key_data ),
+      analysis_telemetry: Telemetry = await new Telemetry( this.service_name, this.version, mq_message_data.url ).start( trace_carrier ),
+      telemetry_name: string = 'rss_fetch';
 
+    if ( !mq_message_data.url ) {
+      // invalid message from the control center
+      await this.logger.log_msg( 'Error parsing control center RSS feed data:  ' + JSON.stringify( mq_message_data ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR );
+    } else {
+      // get data for this RSS feed URL
       try {
-        kafka_message_data = JSON.parse( message.value.toString() );
-        kafka_key_data     = message.key.toString();
-        trace_carrier      = JSON.parse( kafka_key_data );
-        analysis_telemetry = await new Telemetry( this.service_name, this.version, kafka_message_data.url ).start( trace_carrier );
-        telemetry_name     = 'rss_fetch';
-      } catch ( err ) {
-        await this.logger.log_msg( 'Error parsing control center RSS feed data:  ' + JSON.stringify( message ) + '\nerr: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
-      }
+        const url_status_span_name: string = 'rss_fetch_url_status_plus_data';
 
-      if ( !kafka_message_data || !kafka_message_data.url ) {
-        // invalid message from the control center
-        await this.logger.log_msg( 'Error parsing control center RSS feed data:  ' + message, 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
-      } else {
-        // get data for this RSS feed URL
-        try {
-          const url_status_span_name: string = 'rss_fetch_url_status_plus_data';
+        await analysis_telemetry.add_span( url_status_span_name, { 'feed_url' : mq_message_data.url } );
+        let feed_data: { status: number, data: string, feed_url: string }|null = await this.get_url_status_with_data( mq_message_data.url, analysis_telemetry.get_telemetry_carrier() );
+        analysis_telemetry.close_active_span( url_status_span_name );
 
-          await analysis_telemetry.add_span( url_status_span_name, { 'feed_url' : kafka_message_data.url } );
-          let feed_data: { status: number, data: string, feed_url: string }|null = await this.get_url_status_with_data( kafka_message_data.url, analysis_telemetry.get_telemetry_carrier() );
-          analysis_telemetry.close_active_span( url_status_span_name );
+        // if our feed URL changed in the process, change it here as well,
+        // so we'll fire up a correct message for other services to pull links from it
+        if ( feed_data.feed_url != mq_message_data.url ) {
+          mq_message_data.url = feed_data.feed_url;
+        }
 
-          // if our feed URL changed in the process, change it here as well,
-          // so we'll fire up a correct message for other services to pull links from it
-          if ( feed_data.feed_url != kafka_message_data.url ) {
-            kafka_message_data.url = feed_data.feed_url;
+        if ( feed_data !== null ) {
+          // check that this is not a JSON feed
+          let json = null;
+
+          try {
+            json = JSON.parse( feed_data.data );
+          } catch ( err ) {
+            // obviously not JSON, so leave json set to null and continue
           }
 
-          if ( feed_data !== null ) {
-            // check that this is not a JSON feed
-            let json = null;
-
+          if ( json === null ) {
+            // this is an XML feed
             try {
-              json = JSON.parse( feed_data.data );
-            } catch ( err ) {
-              // obviously not JSON, so leave json set to null and continue
+              const process_xml_feed_span_name: string = 'rss_fetch_process_xml_feed';
+              await analysis_telemetry.add_span( process_xml_feed_span_name, { 'feed_url' : mq_message_data.url } );
+              await this.xml_parser.process_xml_feed( feed_data.data, mq_message_data.url, mq_key_data );
+              analysis_telemetry.close_active_span( process_xml_feed_span_name );
+            } catch( err ) {
+              // something's gone wrong with XML parsing, log error
+              await this.logger.log_msg( `invalid XML feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
+              await analysis_telemetry.add_span( telemetry_name, {}, `invalid XML feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
+              analysis_telemetry.close_active_span( telemetry_name );
             }
-
-            if ( json === null ) {
-              // this is an XML feed
+          } else {
+            // this is a JSON feed
+            if ( json !== false ) {
               try {
-                const process_xml_feed_span_name: string = 'rss_fetch_process_xml_feed';
-                await analysis_telemetry.add_span( process_xml_feed_span_name, { 'feed_url' : kafka_message_data.url } );
-                await this.xml_parser.process_xml_feed( feed_data.data, kafka_message_data.url, kafka_key_data );
-                analysis_telemetry.close_active_span( process_xml_feed_span_name );
+                const process_json_feed_span_name: string = 'rss_fetch_process_json_feed';
+                await analysis_telemetry.add_span( process_json_feed_span_name, { 'feed_url' : mq_message_data.url } );
+                await this.json_parser.process_json_feed( json, mq_message_data.url, mq_key_data );
+                analysis_telemetry.close_active_span( process_json_feed_span_name );
               } catch( err ) {
-                // something's gone wrong with XML parsing, log error
-                await this.logger.log_msg( `invalid XML feed data for ${kafka_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
-                await analysis_telemetry.add_span( telemetry_name, {}, `invalid XML feed data for ${kafka_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
+                // something's gone wrong with JSON parsing, log error
+                await this.logger.log_msg( `invalid JSON feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
+                await analysis_telemetry.add_span( telemetry_name, {}, `invalid JSON feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
                 analysis_telemetry.close_active_span( telemetry_name );
               }
             } else {
-              // this is a JSON feed
-              if ( json !== false ) {
-                try {
-                  const process_json_feed_span_name: string = 'rss_fetch_process_json_feed';
-                  await analysis_telemetry.add_span( process_json_feed_span_name, { 'feed_url' : kafka_message_data.url } );
-                  await this.json_parser.process_json_feed( json, kafka_message_data.url, kafka_key_data );
-                  analysis_telemetry.close_active_span( process_json_feed_span_name );
-                } catch( err ) {
-                  // something's gone wrong with JSON parsing, log error
-                  await this.logger.log_msg( `invalid JSON feed data for ${kafka_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
-                  await analysis_telemetry.add_span( telemetry_name, {}, `invalid JSON feed data for ${kafka_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
-                  analysis_telemetry.close_active_span( telemetry_name );
-                }
-              } else {
-                // invalid JSON feed data, log error
-                await this.logger.log_msg( `invalid (unparsable) JSON feed ( ${kafka_message_data.url} ) detected, body was: ${feed_data.data}`, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
-                await analysis_telemetry.add_span( telemetry_name, {}, `invalid (unparsable) JSON feed ( ${kafka_message_data.url} ) detected, body was: ${feed_data.data}`, 1 );
-                analysis_telemetry.close_active_span( telemetry_name );
-              }
+              // invalid JSON feed data, log error
+              await this.logger.log_msg( `invalid (unparsable) JSON feed ( ${mq_message_data.url} ) detected, body was: ${feed_data.data}`, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
+              await analysis_telemetry.add_span( telemetry_name, {}, `invalid (unparsable) JSON feed ( ${mq_message_data.url} ) detected, body was: ${feed_data.data}`, 1 );
+              analysis_telemetry.close_active_span( telemetry_name );
             }
           }
-        } catch ( err ) {
-          await this.logger.log_msg( 'Error processing ' + kafka_message_data.url + ' with error: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: kafka_message_data.url } );
-          await analysis_telemetry.add_span( telemetry_name, {}, 'Error processing ' + kafka_message_data.url + ' with error: ' + JSON.stringify( err ), 1 );
-          analysis_telemetry.close_active_span( telemetry_name );
         }
-
-        // publish to key store that we're done with tracing
-        this.key_store_pub.publish( env.KEY_STORE_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: kafka_key_data } ) );
+      } catch ( err ) {
+        await this.logger.log_msg( 'Error processing ' + mq_message_data.url + ' with error: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
+        await analysis_telemetry.add_span( telemetry_name, {}, 'Error processing ' + mq_message_data.url + ' with error: ' + JSON.stringify( err ), 1 );
+        analysis_telemetry.close_active_span( telemetry_name );
       }
+
+      // publish to key store that we're done with tracing
+      this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: mq_key_data } ) );
     }
   }
 
@@ -338,6 +297,7 @@ export class RSSFetch {
       // if we got here, our URL fix was successful
       // notify the relevant service to update the URL in database
       if ( ret !== null ) {
+        await this.mq_producer.send( env.RSS_INVALID_URLS_CHANEL_NAME, { feed_url: new_url, old_feed_url: url }, trace_id, url );
         await this.logger.log_msg(msg, 'ERR_RSS_FETCH_WRONG_URL', LOG_SEVERITIES.LOG_SEVERITY_NOTICE, { feed_url: new_url, old_feed_url: url, trace_id : trace_id });
       }
     } else {

@@ -1,11 +1,11 @@
-import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
-import { IMessageQueue } from './KeyStore/Interfaces/IMessageQueue.js';
+import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
+import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { env } from 'node:process';
-import { IKeyStorePub } from './KeyStore/Interfaces/IKeyStorePub.js';
+import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
 
 /**
  * A logging class that formats log messages and logs them
- * into the console and the Kafka cluster.
+ * into the console and the MQ.
  * @class Logger
  */
 export class Logger implements ILogger {
@@ -27,9 +27,9 @@ export class Logger implements ILogger {
   /**
    * Instance of the message broker class used for message publishing.
    * @private
-   * @type { IMessageQueue }
+   * @type { IMessageQueuePub }
    */
-  private mq_broker: IMessageQueue = null;
+  private mq_broker: IMessageQueuePub = null;
 
   /**
    * Key Store Pub client instance.
@@ -48,26 +48,25 @@ export class Logger implements ILogger {
    * Create a global logger instance and sets client ID
    * to the correct value for later logging purposes.
    *
-   * @param { string }             client_id     Client ID to identify client in log messages.
-   * @param { string }             service_id    Service ID to add to logs.
-   * @param { IKeyStorePub }       key_store_pub Key Store Pub client instance, used to fetch error codes.
-   * @param { IMessageQueue|null } mq_broker     Message broker, used for publishing log messages.
+   * @param { string }                client_id     Client ID to identify client in log messages.
+   * @param { string }                service_id    Service ID to add to logs.
+   * @param { IKeyStorePub }          key_store_pub Key Store Pub client instance, used to fetch error codes.
+   * @param { IMessageQueuePub|null } mq_broker     Message broker, used for publishing log messages.
    * @constructor
    */
-  constructor(client_id: string, service_id: string, key_store_pub: IKeyStorePub = null, mq_broker: IMessageQueue|null = null ) {
+  constructor(client_id: string, service_id: string, key_store_pub: IKeyStorePub = null, mq_broker: IMessageQueuePub|null = null ) {
+    this.logs_channel_name = env.LOGS_CHANNEL_NAME;
     this.client_id = client_id;
     this.service_id = service_id;
     this.key_store_pub = key_store_pub;
     this.mq_broker = mq_broker;
-
-    this.logs_channel_name = env.KEY_STORE_NEW_LINKS_CHANNEL;
   }
 
   /**
    * Sets a new message broker instance.
-   * @param { IMessageQueue } broker The message broker to use from now on.
+   * @param { IMessageQueuePub } broker The message broker to use from now on.
    */
-  public set_mq_broker( broker: IMessageQueue ): void {
+  public set_mq_broker( broker: IMessageQueuePub ): void {
     this.mq_broker = broker;
   }
 

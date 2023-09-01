@@ -1,11 +1,10 @@
 import { env, exit } from 'node:process';
 import pkg from "pg";
-import { KafkaProducer } from './KafkaProducer.js';
-import { KafkaConsumer } from './KafkaConsumer.js';
 import { Telemetry } from './Telemetry.js';
-import { ILogger, LOG_SEVERITIES } from './KeyStore/Interfaces/ILogger.js';
-import { IKeyStoreSub } from './KeyStore/Interfaces/IKeyStoreSub.js';
-import { IKeyStorePub } from './KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
+import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
 
 export class Analysis {
 
@@ -25,14 +24,14 @@ export class Analysis {
   private readonly logger: ILogger;
 
   /**
-   * Main app service ID, so we can use it in Kafka logs.
+   * Main app service ID, so we can use it in logs.
    * @private
    * @type { string }
    */
   private readonly service_name: string;
 
   /**
-   * Kafka logs topic name.
+   * MQ logs topic name.
    * @private
    * @type { string }
    */
@@ -46,36 +45,20 @@ export class Analysis {
   private links_channel_name: string;
 
   /**
-   * Instance of the KafkaProducer used for message publishing
+   * Instance of the MQ used for message publishing
    * sections of the code.
    * @private
-   * @type { KafkaProducer }
+   * @type { IMessageQueuePub }
    */
-  private readonly kafka_producer: KafkaProducer;
+  private readonly mq_producer: IMessageQueuePub;
 
   /**
-   * Instance of the KafkaConsumer used to listen
-   * for new links data to parse.
+   * Instance of the MQ used to listen
+   * for RSS feeds and links to parse.
    * @private
-   * @type { KafkaConsumer }
+   * @type { IMessageQueueSub }
    */
-  private readonly kafka_consumer_links: KafkaConsumer;
-
-  /**
-   * Instance of the KafkaConsumer used to listen
-   * for RSS feeds to parse.
-   * @private
-   * @type { KafkaConsumer }
-   */
-  private readonly kafka_consumer_logs: KafkaConsumer;
-
-  /**
-   * Key store subscriber client instance,
-   * used to subscribe to channels.
-   * @type { IKeyStoreSub }
-   * @private
-   */
-  private readonly key_store_sub: IKeyStoreSub;
+  private readonly mq_consumer: IMessageQueueSub;
 
   /**
    * Key store publisher and getter client instance,
@@ -129,20 +112,17 @@ export class Analysis {
    * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    *
-   * @param { string }        service_name         ID of the service from main application for key store publishing purposes
-   * @param { KafkaProducer } kafka_producer       Kafka Producer used to publish messages.
-   * @param { KafkaConsumer } kafka_consumer_logs  Kafka Consumer used to listen for RSS feeds to parse.
-   * @param { KafkaConsumer } kafka_consumer_links Kafka Consumer used to listen for link data to parse.
-   * @param { ILogger }       logger               A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }    dbconn               A PGSQL client instance.
-   * @param { IKeyStoreSub }  key_store_sub        A Key Store Sub client to subscribe to channels.
-   * @param { IKeyStorePub }  key_store_pub        A Key Store Pub client to fetch error codes.
+   * @param { string }           service_name  ID of the service from main application for key store publishing purposes
+   * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
+   * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for RSS feeds and links to parse.
+   * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
+   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, kafka_producer: KafkaProducer, kafka_consumer_logs: KafkaConsumer, kafka_consumer_links: KafkaConsumer, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
-    // Kafka
-    this.kafka_producer = kafka_producer;
-    this.kafka_consumer_logs = kafka_consumer_logs;
-    this.kafka_consumer_links = kafka_consumer_links;
+  constructor( service_name: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: pkg.Client, key_store_pub: IKeyStorePub ) {
+    // MQ
+    this.mq_producer = mq_producer;
+    this.mq_consumer = mq_consumer;
 
     // Logger
     this.logger = logger;
@@ -151,13 +131,15 @@ export class Analysis {
     this.dbconn = dbconn;
 
     // Key Store
-    this.key_store_sub = key_store_sub;
     this.key_store_pub = key_store_pub;
 
     // strings
     this.service_name = service_name;
-    this.logs_channel_name = env.KAFKA_LOGS_CHANNEL;
-    this.links_channel_name = env.KAFKA_NEW_LINKS_CHANNEL;
+    this.logs_channel_name = env.LOGS_CHANNEL_NAME;
+    this.links_channel_name = env.NEW_LINKS_CHANNEL_NAME;
+
+    // publish info about our instance going live
+    this.logger.log_msg( 'analysis up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
 
     let self = this;
 
@@ -169,176 +151,144 @@ export class Analysis {
     })();
 
     // create a task that will update this service active status every minute
+    // ... this is here in case Redis goes down, so we can show that we are alive again
     setInterval( (): void => {
-      if ( self.kafka_consumer_logs.get_active() && self.kafka_consumer_links.get_active() && self.kafka_producer.get_active() ) {
-        self.key_store_pub.set( self.service_name + '_active', 1 );
-      }
+      self.key_store_pub.set( self.service_name + '_active', 1 );
     }, 60000 );
 
-    // mark ourselves as active from the start, if both - producer and consumer - are active
-    if ( self.kafka_consumer_logs.get_active() && self.kafka_consumer_links.get_active() && self.kafka_producer.get_active() ) {
-      this.key_store_pub.set( this.service_name + '_active', 1 );
-    }
+    // mark ourselves as active in the key store
+    this.key_store_pub.set( this.service_name + '_active', 1 );
 
     // subscribe to RSS new links channel, so we can update statistics for links amount per day, month and year
     // once the link writer publishes its new links counter
-    this.kafka_consumer_links.subscribe( [ this.links_channel_name ] ).then( async () => {
-      // start processing links data for analytical purposes
-      if ( !await self.kafka_consumer_links.consume( self.update_ok_stats.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
-        await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
-        exit( exit_code );
-      }
-    });
+    // ... also, subscribe to RSS fetch errors, so we can update DB stats with error data
+    this.mq_consumer.consume( [ this.links_channel_name, this.logs_channel_name ], self.update_stats.bind( this ) );
+  }
 
-    // subscribe to RSS fetch errors, so we can update DB stats with error data
-    this.kafka_consumer_logs.subscribe( [ this.logs_channel_name ] ).then( async () => {
-      // start processing logs for analytical purposes
-      if ( !await self.kafka_consumer_logs.consume( self.update_error_stats.bind( this ) ) ) {
-        let exit_code: number = parseInt( await self.key_store_pub.get( 'ERR_RSS_FETCH_KAFKA_NOT_READY' ) );
-        await self.logger.log_msg( 'Error while trying to set link parsing function - Kafka Consumer not ready.', exit_code );
-        exit( exit_code );
+  /**
+   * A semaphore method, calling the right sub-method
+   * to process analytics based on the data received.
+   *
+   * This is here, so we don't have to use 2 consumers.
+   *
+   * @param { Object } data This is the processed data received from Kafka consumer.
+   *                        Object structure: topic, message, trace_id
+   * @private
+   */
+  private async update_stats( { topic, message, trace_id } ): Promise<any> {
+    if ( topic == this.logs_channel_name ) {
+      if ( message.service == 'link_writer' && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE ) {
+        await this.update_ok_stats( { topic: topic, message: message, trace_id: trace_id } );
       }
-
-      // publish info about our instance going live
-      this.logger.log_msg( self.service_name + ' up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-    });
+    } else if ( topic == this.links_channel_name ) {
+      if ( message.service == 'rss_fetch' && this.important_rss_fetch_error_codes.includes( parseInt( message.code ) ) ) {
+        await this.update_error_stats( { topic: topic, message: message, trace_id: trace_id } );
+      }
+    }
   }
 
   /**
    * Updates statistics when RSS feed fetch was successful.
    *
-   * @param { Object } data This is the data received from Kafka consumer.
-   *                        Object structure: topic, partition, message, heartbeat, pause
+   * @param { Object } data This is the processed data received from Kafka consumer.
+   *                        Object structure: topic, message, trace_id
    * @private
    */
-  private async update_ok_stats( { topic, partition, message, heartbeat, pause } ): Promise<void> {
-    if ( topic == this.links_channel_name ) {
-      const
-        original_msg: string = message.value.toString(),
-        trace_id_string: string = message.key.toString();
+  private async update_ok_stats( { topic, message, trace_id } ): Promise<any> {
+    let dt: Date = new Date();
 
-      message = JSON.parse( original_msg );
+    if ( !message.extra_data.links_count ) {
+      message.extra_data.links_count = 0;
+    }
 
-      if ( message ) {
-        // check that we have the right message
-        if ( message.service == 'link_writer' && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE ) {
-          let dt: Date = new Date();
+    if ( !message.extra_data.first_item_ts ) {
+      message.extra_data.first_item_ts = Math.round( Date.now() / 1000 );
+    }
 
-          if ( !message.extra_data.links_count ) {
-            message.extra_data.links_count = 0;
-          }
+    let trace_carrier: Object;
 
-          if ( !message.extra_data.first_item_ts ) {
-            message.extra_data.first_item_ts = Math.round( Date.now() / 1000 );
-          }
+    // we may receive a non-traceable logs which are not assignable to any single trace
+    try {
+      trace_carrier = JSON.parse( trace_id );
+    } catch ( err ) {
+      trace_carrier = null;
+    }
 
-          let trace_carrier: Object;
+    const
+      analysis_telemetry: Telemetry = ( trace_carrier !== null ? await new Telemetry( this.service_name, this.version, message.extra_data.feed_url ).start( trace_carrier ) : null ),
+      telemetry_name: string = 'analysis_update';
 
-          // we may receive a non-traceable logs which are not assignable to any single trace
-          try {
-            trace_carrier = JSON.parse( trace_id_string );
-          } catch ( err ) {
-            trace_carrier = null;
-          }
+    try {
+      if ( analysis_telemetry !== null ) {
+        await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Fetch successful' );
+      }
 
-          const
-            analysis_telemetry: Telemetry = ( trace_carrier !== null ? await new Telemetry( this.service_name, this.version, message.extra_data.feed_url ).start( trace_carrier ) : null ),
-            telemetry_name: string = 'analysis_update';
+      // no need to await for this log message, since we only debug-log it
+      //this.logger.log_msg( 'writing stats data and updating fetch times for ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+      this.inc_stats_and_fetch_times[ 'values' ] = [ message.extra_data.feed_url, dt.getHours(), dt.getDay(), this.daysIntoYear(dt), this.weekIntoYear( dt ), ( dt.getMonth() + 1 ), dt.getFullYear(), message.extra_data.links_count, message.extra_data.first_item_ts ];
+      this.dbconn.query( this.inc_stats_and_fetch_times );
 
-          try {
-            if ( analysis_telemetry !== null ) {
-              await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Fetch successful' );
-            }
-
-            // no need to await for this log message, since we only debug-log it
-            //this.logger.log_msg( 'writing stats data and updating fetch times for ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-            this.inc_stats_and_fetch_times[ 'values' ] = [ message.extra_data.feed_url, dt.getHours(), dt.getDay(), this.daysIntoYear(dt), this.weekIntoYear( dt ), ( dt.getMonth() + 1 ), dt.getFullYear(), message.extra_data.links_count, message.extra_data.first_item_ts ];
-            this.dbconn.query( this.inc_stats_and_fetch_times );
-
-            if ( analysis_telemetry !== null ) {
-              analysis_telemetry.close_active_span( telemetry_name );
-            }
-          } catch ( err ) {
-            // no await - if this message is not stored, we'll see this in telemetry
-            this.logger.log_msg('Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
-            if ( analysis_telemetry !== null ) {
-              await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + original_msg, 1 );
-              analysis_telemetry.close_active_span( telemetry_name );
-            }
-          }
-
-          // publish to key store that we're done with tracing
-          this.key_store_pub.publish( env.KEY_STORE_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
-        }
-      } else {
-        // no await - if this message is not stored, we'll see this in telemetry
-        this.logger.log_msg('Exception while trying to decode Link Writer log data: ' + original_msg, 'ERR_LINK_WRITER_INVALID_LOG_MSG' );
+      if ( analysis_telemetry !== null ) {
+        analysis_telemetry.close_active_span( telemetry_name );
+      }
+    } catch ( err ) {
+      // no await - if this message is not stored, we'll see this in telemetry
+      this.logger.log_msg('Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + JSON.stringify( message ), 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
+      if ( analysis_telemetry !== null ) {
+        await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Exception while trying to save statistical feed data of ' + message.extra_data.feed_url + '\n' + err.message + '\ndata: ' + JSON.stringify( message ), 1 );
+        analysis_telemetry.close_active_span( telemetry_name );
       }
     }
+
+    // publish to key store that we're done with tracing
+    this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
   }
 
   /**
    * Updates statistics when RSS feed fetch was unsuccessful.
    *
-   * @param { Object } data This is the data received from Kafka consumer.
-   *                        Object structure: topic, partition, message, heartbeat, pause
+   * @param { Object } data This is the processed data received from Kafka consumer.
+   *                        Object structure: topic, message, trace_id
    * @private
    */
-  private async update_error_stats( { topic, partition, message, heartbeat, pause } ): Promise<void> {
-    if ( topic == this.logs_channel_name ) {
-      const
-        original_msg: string = message.value.toString(),
-        trace_id_string: string = message.key.toString();
+  private async update_error_stats( { topic, message, trace_id } ): Promise<any> {
+    let trace_carrier: Object;
 
-      message = JSON.parse( original_msg );
+    // we may receive a non-traceable logs which are not assignable to any single trace
+    try {
+      trace_carrier = JSON.parse( trace_id );
+    } catch ( err ) {
+      trace_carrier = null;
+    }
 
-      if ( message ) {
-        // check that we have the right message
-        if ( message.service == 'rss_fetch' && this.important_rss_fetch_error_codes.includes( parseInt( message.code ) ) ) {
-          let trace_carrier: Object;
+    const
+      analysis_telemetry: Telemetry = ( trace_carrier !== null ? await new Telemetry( this.service_name, this.version, message.extra_data.feed_url ).start( trace_carrier ) : null ),
+      telemetry_name: string = 'analysis_update';
 
-          // we may receive a non-traceable logs which are not assignable to any single trace
-          try {
-            trace_carrier = JSON.parse( trace_id_string );
-          } catch ( err ) {
-            trace_carrier = null;
-          }
+    try {
+      if ( analysis_telemetry !== null ) {
+        await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Fetch failed' );
+      }
 
-          const
-            analysis_telemetry: Telemetry = ( trace_carrier !== null ? await new Telemetry( this.service_name, this.version, message.extra_data.feed_url ).start( trace_carrier ) : null ),
-            telemetry_name: string = 'analysis_update';
+      // no need to wait for this log
+      //this.logger.log_msg( 'updating fetch times for failed fetch of ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+      this.inc_fetch_times_only[ 'values' ] = [ message.extra_data.feed_url, message.msg ];
+      this.dbconn.query( this.inc_fetch_times_only );
 
-          try {
-            if ( analysis_telemetry !== null ) {
-              await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Fetch failed' );
-            }
-
-            // no need to wait for this log
-            //this.logger.log_msg( 'updating fetch times for failed fetch of ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-            this.inc_fetch_times_only[ 'values' ] = [ message.extra_data.feed_url, message.msg ];
-            this.dbconn.query( this.inc_fetch_times_only );
-
-            if ( analysis_telemetry !== null ) {
-              analysis_telemetry.close_active_span( telemetry_name );
-            }
-          } catch ( err ) {
-            // no await - if this message is not stored, we'll see this in telemetry
-            this.logger.log_msg('Exception while trying to update feed fetch data of ' + message.msg.feed_url + '\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
-            if ( analysis_telemetry !== null ) {
-              await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Exception while trying to update feed fetch data of ' + message.msg.feed_url + '\n' + JSON.stringify( err ) + '\ndata: ' + original_msg, 1 );
-              analysis_telemetry.close_active_span( telemetry_name );
-            }
-          }
-
-          // publish to key store that we're done with tracing
-          this.key_store_pub.publish( env.KEY_STORE_TELEMETRY_CHANNEL, JSON.stringify( { service: this.service_name, trace_id: trace_id_string } ) );
-        }
-      } else {
-        // no await - if this message is not stored, we'll see this in telemetry
-        this.logger.log_msg('Exception while trying to decode RSS Fetch log data: ' + original_msg, 'ERR_RSS_FETCH_INVALID_LOG_MSG' );
+      if ( analysis_telemetry !== null ) {
+        analysis_telemetry.close_active_span( telemetry_name );
+      }
+    } catch ( err ) {
+      // no await - if this message is not stored, we'll see this in telemetry
+      this.logger.log_msg('Exception while trying to update feed fetch data of ' + message.msg.feed_url + '\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 'ERR_ANALYSIS_FEED_FREQUENCY_UPDATE_FAILURE' );
+      if ( analysis_telemetry !== null ) {
+        await analysis_telemetry.add_span( telemetry_name, { 'feed_url': message.extra_data.feed_url }, 'Exception while trying to update feed fetch data of ' + message.msg.feed_url + '\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 1 );
+        analysis_telemetry.close_active_span( telemetry_name );
       }
     }
+
+    // publish to key store that we're done with tracing
+    this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
   }
 
   /**
