@@ -106,7 +106,7 @@ export class MessageQueueSub implements IMessageQueueSub {
             message = JSON.parse( original_msg );
 
             if ( message ) {
-              callback( message, trace_id_string );
+              callback( topic, message, trace_id_string );
             } else {
               console.log( this.logger.format('Exception while trying to decode log data: ' + original_msg ) );
             }
