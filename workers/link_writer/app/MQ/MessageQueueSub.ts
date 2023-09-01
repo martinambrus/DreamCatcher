@@ -1,7 +1,7 @@
 import { ILogger } from './KeyStore/Interfaces/ILogger.js';
 import { IMessageQueueSub } from './KeyStore/Interfaces/IMessageQueueSub.js';
-import { Processor, Worker } from 'bullmq';
-import { env } from 'node:process';
+import { env, exit } from 'node:process';
+import { Consumer, EachMessageHandler, Kafka } from 'kafkajs';
 
 /**
  * Message queue class, responsible for retrieving messages
@@ -10,19 +10,25 @@ import { env } from 'node:process';
 export class MessageQueueSub implements IMessageQueueSub {
 
   /**
-   * Server connection to use for this MQ instance.
+   * Client
+   * @type { Kafka }
    * @private
    */
-  private connection: any;
+  private client: Kafka;
 
   /**
-   * An object containing workers that exist on the MQ.
-   * These workers are named by topics of the MQ.
-   *
-   * @type { Object }
+   * Identification for this consumer.
+   * @type { string }
    * @private
    */
-  private workers: { [key: string]: Array<Worker> } = {};
+  private client_id: string;
+
+  /**
+   * Consumer
+   * @type { any }
+   * @private
+   */
+  private consumer: Consumer;
 
   /**
    * A logger class instance.
@@ -30,6 +36,20 @@ export class MessageQueueSub implements IMessageQueueSub {
    * @private
    */
   private logger: ILogger;
+
+  /**
+   * Array of all topics to which we are currently subscribed.
+   * @type { Array<string> }
+   * @private
+   */
+  private topics_subscribed: Array<string> = [];
+
+  /**
+   * Determines whether the Kafka client was successfully connected.
+   * @type { boolean }
+   * @private
+   */
+  private ready: boolean = false;
 
   /**
    * Passes the connection and logger instances to this class.
@@ -40,37 +60,51 @@ export class MessageQueueSub implements IMessageQueueSub {
    * @constructor
    */
   constructor( connection: any, logger: ILogger ) {
-    this.connection = connection;
+    this.client = connection;
     this.logger = logger;
+
+    // create a Kafka consumer
+    this.consumer = this.client.consumer({
+      groupId: this.client_id,
+    });
+
+    // connect to the consumer
+    this.consumer.connect().then( () => {
+      this.ready = true;
+      console.log( this.logger.format( 'Successfully connected to Kafka brokers (consumer).' ) );
+    }).catch( (err) => {
+      console.log( this.logger.format( 'Exception while trying to connect to Kafka brokers (consumer) ' + "\n" + err.message ) );
+      exit( 1 );
+    });
   }
 
   /**
    * Consumes messages from the given topic and passes them
    * to the callback function provided.
    *
-   * @param { string }    topic    The topic from which we want to be receiving messages with this class instance.
-   * @param { Processor } callback The callback function to call when a new message arrives.
+   * @param { string }             topic    The topic from which we want to be receiving messages with this class instance.
+   * @param { EachMessageHandler } callback The callback function to call when a new message arrives.
    *
-   * @return Promise<Worker>
+   * @return Promise<void>
    * @public
    */
-  public async consume( topic: string, callback: Processor ): Promise<Worker> {
-    if ( !this.workers[ topic ] ) {
-      this.workers[ topic ] = [];
-    }
-
-    let worker = new Worker(
-      topic,
-      callback,
-      {
-        connection: this.connection,
-        concurrency: parseInt( env.MQ_MAX_CONCURRENCY )
+  public async consume( topic: string, callback: EachMessageHandler ): Promise<void> {
+    if ( this.ready ) {
+      if ( this.topics_subscribed.indexOf( topic ) > -1 ) {
+        throw 'This consumer is already processing messages from the topic ' + topic + '. Please create a new consumer with its unique ID to subscribe to the same topic again.';
+      } else {
+        await this.consumer.subscribe( { topics: [ topic ] } );
+        this.logger.format( 'subscribed to the following topic: ' + topic );
       }
-    );
 
-    this.workers[ topic ].push( worker );
-
-    return worker;
+      try {
+        await this.consumer.run( { eachMessage: callback } );
+        this.logger.format( 'now consuming messages from topic ' + topic );
+      } catch ( err ) {
+        // no await - we're returning boolean that's manually set below
+        this.logger.log_msg( 'Error setting consumer callback: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING' );
+      }
+    }
   }
 
 }
