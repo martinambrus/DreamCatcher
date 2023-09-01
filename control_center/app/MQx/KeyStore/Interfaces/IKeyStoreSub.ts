@@ -20,9 +20,9 @@ export interface IKeyStoreSub {
   /**
    * A proxy for KeyStoreClass->subscribe()
    *
-   * @param { string }   channel  Name of the channel to subscribe to.
-   * @param { Function } callback Function to be executed when a new message from our channel arrives.
+   * @param { string|Array<string> } channel  Name of the channel(s) to subscribe to.
+   * @param { Function }             callback Function to be executed when a new message from our channel arrives.
    */
-  subscribe( channel: string, callback: any );
+  subscribe( channel: string|Array<string>, callback: any );
 
 }
