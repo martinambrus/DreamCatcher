@@ -56,8 +56,19 @@ export class MessageQueueSub implements IMessageQueueSub {
    * While the consumer is not connected / ready, we'll store all consume requests
    * into this array and we'll retry them as soon as we connect.
    * @private
+   * @type { Array }
    */
   private retry_queue: Array<{ topic: string|Array<string>, callback: Function }> = [];
+
+  /**
+   * An array with all topics that were already created in Kafka,
+   * so we don't try to re-create them with errors.
+   * Note: this will not prevent errors if a topic was created in another Kafka instance,
+   *       however that error will be singular and will disappear after the topic name is cached.
+   * @type { Array<string> }
+   * @private
+   */
+  private created_topics: Array<string> = [];
 
   /**
    * Passes the connection and logger instances to this class.
@@ -117,15 +128,26 @@ export class MessageQueueSub implements IMessageQueueSub {
           topic = [ topic ];
         }
 
+        let topics_new: Array<string> = [];
+        for ( let topic_name in topic ) {
+          if ( this.created_topics.indexOf( topic_name ) == -1 ) {
+            topics_new.push( topic_name );
+            this.created_topics.push( topic_name );
+          }
+        }
+
         // create the topic with a relevant replication factor
-        await this.client.admin().createTopics({
-          topics: topic.map( ( topic ) => ({
-            topic,
-            numPartitions: 1,
-            replicationFactor: 3,
-            configEntries: [{ name: "min.insync.replicas", value: "2" }],
-          })),
-        });
+        if ( topics_new.length ) {
+          await this.client.admin().createTopics({
+            waitForLeaders: true,
+            topics: topics_new.map( ( topic ) => ({
+              topic,
+              numPartitions: 1,
+              replicationFactor: 3,
+              configEntries: [{ name: "min.insync.replicas", value: "2" }],
+            })),
+          });
+        }
 
         await this.consumer.subscribe( { topics: topic } );
         this.logger.format( 'subscribed to the following topic: ' + topic );
