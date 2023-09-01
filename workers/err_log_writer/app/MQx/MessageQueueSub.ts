@@ -22,7 +22,7 @@ export class MessageQueueSub implements IMessageQueueSub {
    * @type { Object }
    * @private
    */
-  private workers: { [key: string]: Array<Worker> };
+  private workers: { [key: string]: Array<Worker> } = {};
 
   /**
    * A logger class instance.
