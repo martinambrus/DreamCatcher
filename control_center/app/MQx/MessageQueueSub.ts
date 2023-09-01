@@ -38,13 +38,6 @@ export class MessageQueueSub implements IMessageQueueSub {
   private logger: ILogger;
 
   /**
-   * Array of all topics to which we are currently subscribed.
-   * @type { Array<string> }
-   * @private
-   */
-  private topics_subscribed: Array<string> = [];
-
-  /**
    * Determines whether the Kafka client was successfully connected.
    * @type { boolean }
    * @private
@@ -52,11 +45,19 @@ export class MessageQueueSub implements IMessageQueueSub {
   private ready: boolean = false;
 
   /**
+   * Determines whether the Kafka consumer is already running
+   * with a consume function present.
+   * @type { boolean }
+   * @private
+   */
+  private running: boolean = false;
+
+  /**
    * While the consumer is not connected / ready, we'll store all consume requests
    * into this array and we'll retry them as soon as we connect.
    * @private
    */
-  private retry_queue: Array<{ topic: string, callback: Function }> = [];
+  private retry_queue: Array<{ topic: string|Array<string>, callback: Function }> = [];
 
   /**
    * Passes the connection and logger instances to this class.
@@ -101,18 +102,22 @@ export class MessageQueueSub implements IMessageQueueSub {
    * Consumes messages from the given topic and passes them
    * to the callback function provided.
    *
-   * @param { string }   topic    The topic from which we want to be receiving messages with this class instance.
-   * @param { Function } callback The callback function to call when a new message arrives.
+   * @param { string|Array<string> } topic    The topic(s) from which we want to be receiving messages with this class instance.
+   * @param { Function }             callback The callback function to call when a new message arrives.
    *
    * @return Promise<void>
    * @public
    */
-  public async consume( topic: string, callback: Function ): Promise<void> {
+  public async consume( topic: string|Array<string>, callback: Function ): Promise<void> {
     if ( this.ready ) {
-      if ( this.topics_subscribed.indexOf( topic ) > -1 ) {
-        throw 'This consumer is already processing messages from the topic ' + topic + '. Please create a new consumer with its unique ID to subscribe to the same topic again.';
+      if ( this.running ) {
+        throw 'This consumer is already processing messages via a previously passed method. Please create a new consumer with its unique ID to subscribe with a new method or create a single method that would handle subscription to multiple topics.';
       } else {
-        await this.consumer.subscribe( { topics: [ topic ] } );
+        if ( !( topic instanceof Array ) ) {
+          topic = [ topic ];
+        }
+
+        await this.consumer.subscribe( { topics: topic } );
         this.logger.format( 'subscribed to the following topic: ' + topic );
       }
 
@@ -130,6 +135,7 @@ export class MessageQueueSub implements IMessageQueueSub {
               console.log( this.logger.format('Exception while trying to decode log data: ' + original_msg ) );
             }
         }});
+        this.running = true;
         this.logger.format( 'now consuming messages from topic ' + topic );
       } catch ( err ) {
         // no await - we're returning boolean that's manually set below
