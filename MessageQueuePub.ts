@@ -40,9 +40,20 @@ export class MessageQueuePub implements IMessageQueuePub {
   /**
    * While the producer is not connected / ready, we'll store messages to be sent
    * in a retry queue and we'll send them as soon as we connect.
+   * @type { Array }
    * @private
    */
   private retry_queue: Array<{ topic: string, message: Object, trace_id: string }> = [];
+
+  /**
+   * An array with all topics that were already created in Kafka,
+   * so we don't try to re-create them with errors.
+   * Note: this will not prevent errors if a topic was created in another Kafka instance,
+   *       however that error will be singular and will disappear after the topic name is cached.
+   * @type { Array<string> }
+   * @private
+   */
+  private created_topics: Array<string> = [];
 
   /**
    * Passes the connection and logger instances to this class.
@@ -93,14 +104,19 @@ export class MessageQueuePub implements IMessageQueuePub {
     if ( this.ready ) {
       try {
         // create the topic with a relevant replication factor
-        await this.client.admin().createTopics({
-          topics: [ topic ].map( ( topic ) => ({
-            topic,
-            numPartitions: 1,
-            replicationFactor: 3,
-            configEntries: [{ name: "min.insync.replicas", value: "2" }],
-          })),
-        });
+        if ( this.created_topics.indexOf( topic ) == -1 ) {
+          await this.client.admin().createTopics({
+            waitForLeaders: true,
+            topics: [ topic ].map( ( topic ) => ({
+              topic,
+              numPartitions: 1,
+              replicationFactor: 3,
+              configEntries: [{ name: "min.insync.replicas", value: "2" }],
+            })),
+          });
+
+          this.created_topics.push( topic );
+        }
 
         await this.producer.send({
           topic: topic,
