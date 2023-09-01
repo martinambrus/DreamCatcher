@@ -1,6 +1,6 @@
 import { ILogger } from './KeyStore/Interfaces/ILogger.js';
 import { IMessageQueueSub } from './KeyStore/Interfaces/IMessageQueueSub.js';
-import { env, exit } from 'node:process';
+import { exit } from 'node:process';
 import { Consumer, Kafka } from 'kafkajs';
 
 /**
@@ -89,6 +89,14 @@ export class MessageQueueSub implements IMessageQueueSub {
       groupId: this.client_id,
     });
 
+    this.connect();
+  }
+
+  /**
+   * Connects a Consumer or reconnects it on a crash.
+   * @private
+   */
+  private connect() {
     // connect to the consumer
     this.consumer.connect().then( () => {
       this.ready = true;
@@ -103,6 +111,11 @@ export class MessageQueueSub implements IMessageQueueSub {
         // reset the retry queue
         this.retry_queue = [];
       }
+
+      // re-connect Consumer on a crash
+      this.consumer.on( 'consumer.crash', () => {
+        this.connect();
+      });
     }).catch( (err) => {
       console.log( this.logger.format( 'Exception while trying to connect to Kafka brokers (consumer) ' + "\n" + err.message ) );
       exit( 1 );
