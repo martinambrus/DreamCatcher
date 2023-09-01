@@ -54,12 +54,14 @@ export class MessageQueueSub implements IMessageQueueSub {
   /**
    * Passes the connection and logger instances to this class.
    *
+   * @param { string }  client_id  ID of the client to be used in the Consumer.
    * @param { any }     connection Connection to the backend MQ server.
    * @param { ILogger } logger     Instance of the logger class.
    *
    * @constructor
    */
-  constructor( connection: any, logger: ILogger ) {
+  constructor( client_id: string, connection: any, logger: ILogger ) {
+    this.client_id = client_id;
     this.client = connection;
     this.logger = logger;
 
