@@ -38,6 +38,13 @@ export class MessageQueuePub implements IMessageQueuePub {
   private logger: ILogger;
 
   /**
+   * While the producer is not connected / ready, we'll store messages to be sent
+   * in a retry queue and we'll send them as soon as we connect.
+   * @private
+   */
+  private retry_queue: Array<{ topic: string, message: Object, trace_id: string }> = [];
+
+  /**
    * Passes the connection and logger instances to this class.
    *
    * @param { Kafka }  connection Connection to the backend MQ server.
@@ -57,6 +64,16 @@ export class MessageQueuePub implements IMessageQueuePub {
     // connect to the producer
     this.producer.connect().then( () => {
       this.ready = true;
+
+      // check and process retry queue
+      if ( this.retry_queue.length ) {
+        for ( let item of this.retry_queue ) {
+          this.send( item.topic, item.message, item.trace_id );
+        }
+
+        // reset the retry queue
+        this.retry_queue = [];
+      }
     }).catch( ( err ) => {
       console.log( this.logger.format( 'Exception while trying to connect to Kafka brokers (producer) ' + "\n" + JSON.stringify( err ) ) );
       exit( 1 );
@@ -83,6 +100,8 @@ export class MessageQueuePub implements IMessageQueuePub {
       } catch ( err ) {
         await this.logger.log_msg( 'Error publishing feed fetch to Kafka cluster:\n' + JSON.stringify( message ) + '\nerr: ' + JSON.stringify( err ), 'ERR_CONTROL_CENTER_CANNOT_PUBLISH_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { trace_id: trace_id } );
       }
+    } else {
+      this.retry_queue.push( { topic: topic, message: message, trace_id: trace_id } );
     }
   }
 
