@@ -117,6 +117,16 @@ export class MessageQueueSub implements IMessageQueueSub {
           topic = [ topic ];
         }
 
+        // create the topic with a relevant replication factor
+        await this.client.admin().createTopics({
+          topics: topic.map( ( topic ) => ({
+            topic,
+            numPartitions: 1,
+            replicationFactor: 3,
+            configEntries: [{ name: "min.insync.replicas", value: "2" }],
+          })),
+        });
+
         await this.consumer.subscribe( { topics: topic } );
         this.logger.format( 'subscribed to the following topic: ' + topic );
       }
