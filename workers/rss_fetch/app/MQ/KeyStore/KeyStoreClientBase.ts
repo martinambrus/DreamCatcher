@@ -69,15 +69,16 @@ export class KeyStoreClientBase {
       this.client = new Redis({
         port: port,
         host: url,
+        maxRetriesPerRequest: null,
       });
     } else{
       // create a cluster
       let
         cluster: Array<string> = url.split(','),
-        connection_object: { name: string, sentinels: Array<{ host: string, port: string }> } = { name: 'main', sentinels: [] };
+        connection_object: { name: string, sentinels: Array<{ host: string, port: string, maxRetriesPerRequest: any }> } = { name: 'main', sentinels: [] };
       for ( let node_string of cluster ) {
         let node_string_parsed = node_string.split(':');
-        connection_object.sentinels.push( { host: node_string_parsed[ 0 ], port: node_string_parsed[ 1 ] } );
+        connection_object.sentinels.push( { host: node_string_parsed[ 0 ], port: node_string_parsed[ 1 ], maxRetriesPerRequest: null } );
       }
 
       // @ts-ignore
