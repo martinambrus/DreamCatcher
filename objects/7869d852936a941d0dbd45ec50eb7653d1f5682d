@@ -1,0 +1,7 @@
+[map "63b803e6-2f02-35bf-9d02-1074041fe85f"]
+	object = 1c6da539e2c6ebba566dbc36502aa348a531f86a
+	type = include + expand tree
+[map "655cbb74-1aad-339c-aa92-97b687c42625"]
+	object = a249553796f9209df4f36dee733af09367078f32
+	path = control_center/app/MQ
+	type = expand module
