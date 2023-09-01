@@ -92,6 +92,16 @@ export class MessageQueuePub implements IMessageQueuePub {
   public async send( topic: string, message: Object, trace_id: string ): Promise<void> {
     if ( this.ready ) {
       try {
+        // create the topic with a relevant replication factor
+        await this.client.admin().createTopics({
+          topics: [ topic ].map( ( topic ) => ({
+            topic,
+            numPartitions: 1,
+            replicationFactor: 3,
+            configEntries: [{ name: "min.insync.replicas", value: "2" }],
+          })),
+        });
+
         await this.producer.send({
           topic: topic,
           messages: [{ key: trace_id, value: JSON.stringify( message ) }],
