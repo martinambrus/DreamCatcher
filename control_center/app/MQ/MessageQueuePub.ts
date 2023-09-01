@@ -76,7 +76,10 @@ export class MessageQueuePub implements IMessageQueuePub {
 
     return this.queues[ topic ].add(
       unique_job_id ?? trace_id,
-      message,
+      {
+        msg: message,
+        trace_id: trace_id,
+      },
       opts
     );
 
