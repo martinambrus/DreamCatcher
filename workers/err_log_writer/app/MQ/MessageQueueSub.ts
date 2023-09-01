@@ -52,6 +52,13 @@ export class MessageQueueSub implements IMessageQueueSub {
   private ready: boolean = false;
 
   /**
+   * While the consumer is not connected / ready, we'll store all consume requests
+   * into this array and we'll retry them as soon as we connect.
+   * @private
+   */
+  private retry_queue: Array<{ topic: string, callback: Function }> = [];
+
+  /**
    * Passes the connection and logger instances to this class.
    *
    * @param { string }  client_id  ID of the client to be used in the Consumer.
@@ -74,6 +81,16 @@ export class MessageQueueSub implements IMessageQueueSub {
     this.consumer.connect().then( () => {
       this.ready = true;
       console.log( this.logger.format( 'Successfully connected to Kafka brokers (consumer).' ) );
+
+      // check and process retry queue
+      if ( this.retry_queue.length ) {
+        for ( let item of this.retry_queue ) {
+          this.consume( item.topic, item.callback );
+        }
+
+        // reset the retry queue
+        this.retry_queue = [];
+      }
     }).catch( (err) => {
       console.log( this.logger.format( 'Exception while trying to connect to Kafka brokers (consumer) ' + "\n" + err.message ) );
       exit( 1 );
@@ -118,6 +135,8 @@ export class MessageQueueSub implements IMessageQueueSub {
         // no await - we're returning boolean that's manually set below
         this.logger.log_msg( 'Error setting consumer callback: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING' );
       }
+    } else {
+      this.retry_queue.push( { topic: topic, callback: callback } );
     }
   }
 

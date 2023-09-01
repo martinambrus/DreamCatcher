@@ -64,6 +64,7 @@ export class MessageQueuePub implements IMessageQueuePub {
     // connect to the producer
     this.producer.connect().then( () => {
       this.ready = true;
+      console.log( this.logger.format( 'Successfully connected to Kafka brokers (producer).' ) );
 
       // check and process retry queue
       if ( this.retry_queue.length ) {
