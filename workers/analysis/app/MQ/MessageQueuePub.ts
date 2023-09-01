@@ -21,7 +21,7 @@ export class MessageQueuePub implements IMessageQueuePub {
    * @type { Object }
    * @private
    */
-  private queues: { [key: string]: Queue };
+  private queues: { [key: string]: Queue } = {};
 
   /**
    * Passes the connection and logger instances to this class.
