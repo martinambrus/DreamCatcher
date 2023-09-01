@@ -51,7 +51,6 @@ export class MessageQueuePub implements IMessageQueuePub {
     if ( !this.queues[ topic ] ) {
       this.queues[ topic ] = new Queue( topic, {
         connection: this.connection,
-        sharedConnection: true,
         defaultJobOptions: {
           attempts: parseInt( env.MQ_FAILED_JOBS_MAX_RETRIES ),
           backoff: {
