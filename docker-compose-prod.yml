@@ -352,6 +352,8 @@ services:
     environment:
       DYNAMIC_CONFIG_ENABLED: 'true'
     restart: unless-stopped
+    volumes:
+      - ./infrastructure/kafka-ui/config-prod.yml:/etc/kafkaui/dynamic_config.yaml
 networks:
   internal:
     name: internal
