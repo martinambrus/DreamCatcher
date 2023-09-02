@@ -159,6 +159,7 @@ services:
     ports:
       - 127.0.0.1:9092:9092
       - 127.0.0.1:9093:9093
+    mem_limit: "1GB"
     restart: unless-stopped
     environment:
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
@@ -178,6 +179,7 @@ services:
     ports:
       - 9092
       - 9093
+    mem_limit: "1GB"
     restart: unless-stopped
     environment:
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
@@ -197,6 +199,7 @@ services:
     ports:
       - 9092
       - 9093
+    mem_limit: "1GB"
     restart: unless-stopped
     environment:
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
@@ -209,20 +212,79 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
       - ./infrastructure/datadir/kafka_2_data:/bitnami/kafka
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
+    volumes:
+      - ./infrastructure/datadir/elastic/esdata01:/usr/share/elasticsearch/data
+    ports:
+      - ${ES_PORT}:9200
+    networks:
+      - internal
+    environment:
+      - node.name=es01
+      - cluster.name=${ES_CLUSTER_NAME}
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    mem_limit: ${ES_MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+  es02:
+    depends_on:
+      - es01
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
+    volumes:
+      - ./infrastructure/datadir/elastic/esdata02:/usr/share/elasticsearch/data
+    networks:
+      - internal
+    ports:
+      - ${ES_PORT2}:9200
+    environment:
+      - node.name=es02
+      - cluster.name=${ES_CLUSTER_NAME}
+      - discovery.seed_hosts=es01,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    mem_limit: ${ES_MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+  es03:
+    depends_on:
+      - es02
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
+    volumes:
+      - ./infrastructure/datadir/elastic/esdata03:/usr/share/elasticsearch/data
+    networks:
+      - internal
+    ports:
+      - ${ES_PORT3}:9200
+    environment:
+      - node.name=es03
+      - cluster.name=${ES_CLUSTER_NAME}
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    mem_limit: ${ES_MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
   jaeger:
     image: "jaegertracing/all-in-one"
     networks:
       - internal
     container_name: trace_logger
     hostname: trace_logger
-    environment:
-      SPAN_STORAGE_TYPE: badger
-      BADGER_EPHEMERAL: false
-      BADGER_DIRECTORY_VALUE: /badger/data
-      BADGER_DIRECTORY_KEY: /badger/key
-      COLLECTOR_OTLP_ENABLED: true
-    #      COLLECTOR_ZIPKIN_HOST_PORT: 9411
-    #      COLLECTOR_ZIPKIN_HTTP_ENABLED: true
     ports:
       - 16686:16686
       - 14268:14268
@@ -231,9 +293,56 @@ services:
       - 5775:5775/udp
       - 6831:6831/udp
       - 6832:6832/udp
+    environment:
+      SPAN_STORAGE_TYPE: elasticsearch
+      COLLECTOR_OTLP_ENABLED: true
+      ES_SERVER_URLS: http://es01:${ES_PORT},http://es02:${ES_PORT2},http://es03:${ES_PORT3}
+      #REPORTER_GRPC_HOST_PORT: trace_logger:14250
     restart: unless-stopped
-    volumes:
-      - ./infrastructure/datadir/jaeger:/badger
+#  jaeger_collector:
+#    #image: "jaegertracing/all-in-one"
+#    image: "jaegertracing/jaeger-collector:1.48"
+#    networks:
+#      - internal
+#    container_name: trace_logger
+#    hostname: trace_logger
+#    environment:
+#      SPAN_STORAGE_TYPE: elasticsearch
+#      COLLECTOR_OTLP_ENABLED: true
+#      ES_SERVER_URLS: http://es01:${ES_PORT},http://es02:${ES_PORT2},http://es03:${ES_PORT3}
+#    ports:
+#      - 14269:14269
+#      - 14268:14268
+#      - 14267:14267
+#      - 14250:14250
+#      - 9411:9411
+#    restart: unless-stopped
+#  jaeger_agent:
+#    image: "jaegertracing/jaeger-agent:1.48"
+#    networks:
+#      - internal
+#    environment:
+#      SPAN_STORAGE_TYPE: elasticsearch
+#      ES_SERVER_URLS: http://es01:${ES_PORT},http://es02:${ES_PORT2},http://es03:${ES_PORT3}
+#      REPORTER_GRPC_HOST_PORT: trace_logger:14250
+#    ports:
+#      - 5775:5775/udp
+#      - 6831:6831/udp
+#      - 6832:6832/udp
+#      - 5778:5778
+#    restart: unless-stopped
+#  jaeger_ui:
+#    image: "jaegertracing/jaeger-query:1.48"
+#    networks:
+#      - internal
+#    environment:
+#      SPAN_STORAGE_TYPE: elasticsearch
+#      ES_SERVER_URLS: http://es01:${ES_PORT},http://es02:${ES_PORT2},http://es03:${ES_PORT3}
+#    ports:
+#      - 16685:16685
+#      - 16686:16686
+#      - 16687:16687
+#    restart: unless-stopped
   kafka_ui:
     image: "provectuslabs/kafka-ui:latest"
     networks:
