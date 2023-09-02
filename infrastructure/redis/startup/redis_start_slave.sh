@@ -7,6 +7,4 @@ redis-cli save
 # stop background server
 redis-cli shutdown
 # start the server normally
-redis-server
-# mark slave server as a replica
-redis-cli < /usr/src/redis_startup/redis_slave.redis
+redis-server --replicaof redis-0 6379

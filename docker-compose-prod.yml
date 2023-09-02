@@ -85,7 +85,7 @@ services:
      - internal
    restart: unless-stopped
    ports:
-     - 127.0.0.1:6379:6379
+     - 6379
   redis-1:
     build:
       context: infrastructure/redis
@@ -133,25 +133,103 @@ services:
     depends_on:
       - redis-2
     restart: unless-stopped
-  postgres:
-    image: "postgres:15.3-alpine"
+  redis-sentinel-3:
+    build: infrastructure/redis-sentinel
     networks:
       - internal
-    container_name: db_server
-    hostname: db_server
     ports:
-      - 127.0.0.1:5432:5432
+      - 26379
+    restart: unless-stopped
+  redis-sentinel-4:
+    build: infrastructure/redis-sentinel
+    networks:
+      - internal
+    ports:
+      - 26379
+    restart: unless-stopped
+  pg-0:
+    image: "docker.io/bitnami/postgresql-repmgr:15"
+    networks:
+      - internal
+    ports:
+      - 5432
     restart: unless-stopped
     volumes:
-      - ./infrastructure/datadir/pgdata:/var/lib/postgresql/pgdata
-      - ./infrastructure/postgre/sql:/docker-entrypoint-initdb.d
-      - ./infrastructure/postgre/credentials:/credentials
+      - ./infrastructure/datadir/pgdata_0:/bitnami/postgresql
+      - ./infrastructure/postgre/init:/docker-entrypoint-initdb.d
     environment:
-      POSTGRES_DB_FILE: /credentials/db_name
-      POSTGRES_USER_FILE: /credentials/db_user
-      POSTGRES_PASSWORD_FILE: /credentials/db_password
-      POSTGRES_EXTENSIONS: pg_trgm, plpgsql, unaccent
-      PGDATA: /var/lib/postgresql/pgdata
+      POSTGRESQL_POSTGRES_PASSWORD: ${POSTGRESQL_DB_PASSWORD} # admin
+      POSTGRESQL_USERNAME: ${POSTGRESQL_DB_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRESQL_DB_PASSWORD}
+      POSTGRESQL_DATABASE: ${POSTGRESQL_DB_NAME}
+      REPMGR_PASSWORD: ${REPMGR_PASSWORD}
+      REPMGR_PRIMARY_HOST: pg-0
+      REPMGR_PRIMARY_PORT: 5432
+      REPMGR_PARTNER_NODES: pg-0,pg-1,pg-2
+      REPMGR_NODE_NAME: pg-0
+      REPMGR_NODE_NETWORK_NAME: pg-0
+      REPMGR_PORT_NUMBER: 5432
+  pg-1:
+    image: "docker.io/bitnami/postgresql-repmgr:15"
+    networks:
+      - internal
+    ports:
+      - 5432
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/datadir/pgdata_1:/bitnami/postgresql
+      - ./infrastructure/postgre/init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRESQL_POSTGRES_PASSWORD: ${POSTGRESQL_DB_PASSWORD} # admin
+      POSTGRESQL_USERNAME: ${POSTGRESQL_DB_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRESQL_DB_PASSWORD}
+      POSTGRESQL_DATABASE: ${POSTGRESQL_DB_NAME}
+      REPMGR_PASSWORD: ${REPMGR_PASSWORD}
+      REPMGR_PRIMARY_HOST: pg-0
+      REPMGR_PRIMARY_PORT: 5432
+      REPMGR_PARTNER_NODES: pg-0,pg-1,pg-2
+      REPMGR_NODE_NAME: pg-1
+      REPMGR_NODE_NETWORK_NAME: pg-1
+      REPMGR_PORT_NUMBER: 5432
+  pg-2:
+    image: "docker.io/bitnami/postgresql-repmgr:15"
+    networks:
+      - internal
+    ports:
+      - 5432
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/datadir/pgdata_2:/bitnami/postgresql
+      - ./infrastructure/postgre/init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRESQL_POSTGRES_PASSWORD: ${POSTGRESQL_DB_PASSWORD} # admin
+      POSTGRESQL_USERNAME: ${POSTGRESQL_DB_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRESQL_DB_PASSWORD}
+      POSTGRESQL_DATABASE: ${POSTGRESQL_DB_NAME}
+      REPMGR_PASSWORD: ${REPMGR_PASSWORD}
+      REPMGR_PRIMARY_HOST: pg-0
+      REPMGR_PRIMARY_PORT: 5432
+      REPMGR_PARTNER_NODES: pg-0,pg-1,pg-2
+      REPMGR_NODE_NAME: pg-2
+      REPMGR_NODE_NETWORK_NAME: pg-2
+      REPMGR_PORT_NUMBER: 5432
+  db_server:
+    build:
+      context: infrastructure/haproxy
+      dockerfile: Dockerfile
+      args:
+        - "--sysctl net.ipv4.ip_unprivileged_port_start=0"
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:3000:3000
+      - 127.0.0.1:5432:5432
+    environment:
+      POSTGRESQL_USERNAME: ${POSTGRESQL_DB_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRESQL_DB_PASSWORD}
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/haproxy:/usr/local/etc/haproxy
   kafka-0:
     image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
     networks:
