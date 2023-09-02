@@ -112,8 +112,6 @@ services:
       - internal
     ports:
       - 26379
-    depends_on:
-      - redis-0
     restart: unless-stopped
   redis-sentinel-1:
     build: infrastructure/redis-sentinel
@@ -121,8 +119,6 @@ services:
       - internal
     ports:
       - 26379
-    depends_on:
-      - redis-1
     restart: unless-stopped
   redis-sentinel-2:
     build: infrastructure/redis-sentinel
@@ -130,8 +126,6 @@ services:
       - internal
     ports:
       - 26379
-    depends_on:
-      - redis-2
     restart: unless-stopped
   redis-sentinel-3:
     build: infrastructure/redis-sentinel
@@ -312,8 +306,6 @@ services:
         soft: -1
         hard: -1
   es02:
-    depends_on:
-      - es01
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     volumes:
       - ./infrastructure/datadir/elastic/esdata02:/usr/share/elasticsearch/data
@@ -335,8 +327,6 @@ services:
         soft: -1
         hard: -1
   es03:
-    depends_on:
-      - es02
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     volumes:
       - ./infrastructure/datadir/elastic/esdata03:/usr/share/elasticsearch/data
