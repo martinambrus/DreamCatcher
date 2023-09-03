@@ -1,0 +1,72 @@
+[module "8ac38d52-10ef-327a-9258-1189e37396af"]
+	conflict = request-pull
+	path = control_center/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "87e01e06-1b6d-3fb3-89c6-d967c3e57f5d"]
+	conflict = request-pull
+	path = workers/analysis/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "295422c1-2f32-3ce8-879d-ecb3dfda6c6b"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "f8534460-10fc-31fd-bac8-19699e4fbe5d"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "300aa308-d767-361e-ace9-8316bdf14ecd"]
+	conflict = request-pull
+	path = workers/link_writer/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "16abd2c1-5a15-3d68-b7fa-c1e05e6b7190"]
+	conflict = request-pull
+	path = workers/rss_fetch/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[map "fa67f369-053b-32e5-b57b-1e2fb6f48b2f"]
+	object = 205627d713f420e13885d242a208a4ec26084af5
+	path = control_center/app/MQ
+	stage = sync
+	type = extract module
+[map "f59567e7-d4bf-34cb-92d3-ccf4b3f00f7a"]
+	object = ae102e17dff181ee47fd7c82cb97fdc3ca198192
+	path = workers/analysis/app/MQ
+	stage = sync
+	type = extract module
+[map "42246fd8-ede1-3de4-9222-e5aeda64a0cb"]
+	object = ae102e17dff181ee47fd7c82cb97fdc3ca198192
+	path = workers/err_log_writer/app/MQ
+	stage = sync
+	type = extract module
+[map "49613ed5-5d4e-3cd1-8684-d6d0fb98399c"]
+	object = ae102e17dff181ee47fd7c82cb97fdc3ca198192
+	path = workers/link_fix_detector/app/MQ
+	stage = sync
+	type = extract module
+[map "ebbc45f1-3233-3dae-98cc-11d062fb0673"]
+	object = ae102e17dff181ee47fd7c82cb97fdc3ca198192
+	path = workers/link_writer/app/MQ
+	stage = sync
+	type = extract module
+[map "9fca6db1-78df-345b-b078-5ed50d2b27aa"]
+	object = ae102e17dff181ee47fd7c82cb97fdc3ca198192
+	path = workers/rss_fetch/app/MQ
+	stage = sync
+	type = extract module
