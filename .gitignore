@@ -1,5 +1,8 @@
 env.sh.dev
 env.sh.prod
+infrastructure/postgre/credentials/db_name
+infrastructure/postgre/credentials/db_password
+infrastructure/postgre/credentials/db_user
 infrastructure/datadir
 .env
 node_modules
