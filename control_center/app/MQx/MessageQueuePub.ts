@@ -104,14 +104,14 @@ export class MessageQueuePub implements IMessageQueuePub {
     if ( this.ready ) {
       try {
         // create the topic with a relevant replication factor
-        if ( this.created_topics.indexOf( topic ) == -1 ) {
+        if ( this.created_topics.indexOf( topic ) == -1 && env.MQ_NODES.indexOf(',') > -1 ) {
           await this.client.admin().createTopics({
             waitForLeaders: true,
             topics: [ topic ].map( ( topic ) => ({
               topic,
               numPartitions: 1,
-              replicationFactor: ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length : 1 ),
-              configEntries: [{ name: "min.insync.replicas", value: '' + ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length - 1 : 1 ) }],
+              replicationFactor: env.MQ_NODES.split(',').length,
+              configEntries: [{ name: "min.insync.replicas", value: '' + ( env.MQ_NODES.split(',').length - 1 ) }],
             })),
           });
 
