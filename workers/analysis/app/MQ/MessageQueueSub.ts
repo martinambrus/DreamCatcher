@@ -151,6 +151,7 @@ export class MessageQueueSub implements IMessageQueueSub {
 
         // create the topic with a relevant replication factor
         if ( topics_new.length && env.MQ_NODES.indexOf(',') > -1 ) {
+          console.log('creating ' + topic + ' replFactor ' + env.MQ_NODES.split(',').length + ', insync: ' + '' + ( env.MQ_NODES.split(',').length - 1 ));
           await this.client.admin().createTopics({
             waitForLeaders: true,
             topics: topics_new.map( ( topic ) => ({
