@@ -110,8 +110,8 @@ export class MessageQueuePub implements IMessageQueuePub {
             topics: [ topic ].map( ( topic ) => ({
               topic,
               numPartitions: 1,
-              replicationFactor: 3,
-              configEntries: [{ name: "min.insync.replicas", value: "2" }],
+              replicationFactor: ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length : 1 ),
+              configEntries: [{ name: "min.insync.replicas", value: '' + ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length - 1 : 0 ) }],
             })),
           });
 
@@ -125,7 +125,12 @@ export class MessageQueuePub implements IMessageQueuePub {
           compression: CompressionTypes.GZIP,
         });
       } catch ( err ) {
-        await this.logger.log_msg( 'Error publishing feed fetch to Kafka cluster:\n' + JSON.stringify( message ) + '\nerr: ' + JSON.stringify( err ), 'ERR_CONTROL_CENTER_CANNOT_PUBLISH_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { trace_id: trace_id } );
+        try {
+          await this.logger.log_msg( 'Error publishing feed fetch to Kafka cluster:\n' + JSON.stringify( message ) + '\nerr: ' + JSON.stringify( err ), 'ERR_CONTROL_CENTER_CANNOT_PUBLISH_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { trace_id: trace_id } );
+        } catch ( err ) {
+          // if the message object was somehow damaged and went too long to be stringified because of some sort of
+          // infinite loop error just ignore it
+        }
       }
     } else {
       this.retry_queue.push( { topic: topic, message: message, trace_id: trace_id } );
