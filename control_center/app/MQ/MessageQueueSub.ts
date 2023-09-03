@@ -156,8 +156,8 @@ export class MessageQueueSub implements IMessageQueueSub {
             topics: topics_new.map( ( topic ) => ({
               topic,
               numPartitions: 1,
-              replicationFactor: env.MQ_NODES.split(',').length,
-              configEntries: [{ name: "min.insync.replicas", value: '' + ( env.MQ_NODES.split(',').length - 1 ) }],
+              replicationFactor: 3,
+              configEntries: [{ name: "min.insync.replicas", value: "2" }],
             })),
           });
         }
