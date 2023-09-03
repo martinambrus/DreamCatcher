@@ -88,12 +88,10 @@ services:
     hostname: redis_server
     ports:
       - 127.0.0.1:6379:6379
-  postgres:
+  db_server:
     image: "postgres:15.3-alpine"
     networks:
       - internal
-    container_name: db_server
-    hostname: db_server
     ports:
       - 127.0.0.1:5432:5432
     restart: unless-stopped
@@ -107,6 +105,7 @@ services:
       PGDATA: /var/lib/postgresql/pgdata
   kafka-0:
     image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
+    mem_limit: "1GB"
     networks:
       - internal
     ports:
