@@ -105,6 +105,7 @@ export class MessageQueuePub implements IMessageQueuePub {
       try {
         // create the topic with a relevant replication factor
         if ( this.created_topics.indexOf( topic ) == -1 && env.MQ_NODES.indexOf(',') > -1 ) {
+          console.log('creating ' + topic + ' replFactor ' + env.MQ_NODES.split(',').length + ', insync: ' + '' + ( env.MQ_NODES.split(',').length - 1 ));
           await this.client.admin().createTopics({
             waitForLeaders: true,
             topics: [ topic ].map( ( topic ) => ({
