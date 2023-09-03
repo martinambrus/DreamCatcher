@@ -1,6 +1,6 @@
 import { ILogger } from './KeyStore/Interfaces/ILogger.js';
 import { IMessageQueueSub } from './KeyStore/Interfaces/IMessageQueueSub.js';
-import { exit } from 'node:process';
+import { env, exit } from 'node:process';
 import { Consumer, Kafka } from 'kafkajs';
 
 /**
@@ -156,8 +156,8 @@ export class MessageQueueSub implements IMessageQueueSub {
             topics: topics_new.map( ( topic ) => ({
               topic,
               numPartitions: 1,
-              replicationFactor: 3,
-              configEntries: [{ name: "min.insync.replicas", value: "2" }],
+              replicationFactor: ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length : 1 ),
+              configEntries: [{ name: "min.insync.replicas", value: '' + ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length - 1 : 0 ) }],
             })),
           });
         }
