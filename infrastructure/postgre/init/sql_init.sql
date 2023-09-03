@@ -295,7 +295,7 @@ BEGIN
     inserted_feed_id := inserted_feed_id::BIGINT;
     -- create partition tables for this feed and this month
     EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links FOR VALUES IN( %L ) PARTITION BY RANGE ( date_fetched )', 'links_' || inserted_feed_id::TEXT, inserted_feed_id );
-    EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links_' || inserted_feed_id::TEXT || ' FOR VALUES FROM( %L ) TO ( %L )', 'links_' || TO_CHAR( CURRENT_DATE, 'mm_yyyy' ), EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy-mm' ) || '-01' )::DATE )::INT, EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy') || '-' || EXTRACT( MONTH FROM NOW() + '1 month'::INTERVAL )::INT || '-01' )::DATE )::INT );
+    EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links_' || inserted_feed_id::TEXT || ' FOR VALUES FROM( %L ) TO ( %L )', 'links_' || inserted_feed_id::TEXT || '_' || TO_CHAR( CURRENT_DATE, 'mm_yyyy' ), EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy-mm' ) || '-01' )::DATE )::INT, EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy') || '-' || EXTRACT( MONTH FROM NOW() + '1 month'::INTERVAL )::INT || '-01' )::DATE )::INT );
 
     RETURN inserted_feed_id;
 END;
