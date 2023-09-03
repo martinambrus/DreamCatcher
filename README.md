@@ -11,8 +11,9 @@
 - `shopt -s nullglob && shopt -s globstar && shopt -s dotglob && for fname in **/*.example.dev ; do mv -- "${fname}" "${fname%.example.dev}"; done`
 - `shopt -s nullglob && shopt -s globstar && shopt -s dotglob && for fname in **/*.example.prod ; do mv -- "${fname}" "${fname%.example.prod}"; done`
 - `mkdir -m 777 -p infrastructure/datadir/kafka_0_data && mkdir -m 777 -p infrastructure/datadir/kafka_1_data && mkdir -m 777 -p infrastructure/datadir/kafka_2_data && mkdir -m 777 -p infrastructure/datadir/pgdata_secondary`
-- `sudo chmod +x *.sh`
-- either `sudo ./start_docker-dev.sh` or `sudo ./start_docker-prod.sh`
+- `sudo chmod +x *.sh && sudo ./start_docker-dev.sh`
+
+If you're on Windows under WSL and trying to run the Elastic Search cluster, you'll need to execute the following in your PowerShell or Elastic won't be able to start: `wsl -d docker-desktop sysctl -w vm.max_map_count=262144`
 
 Just to have it here - this is an excellent `top` replacement that works via a web browser and can run on your system via Docker: https://glances.readthedocs.io/en/latest/docker.html
 Run it like this to access it via http://localhost:61208: `docker run -d --restart="always" -p 61208-61209:61208-61209 -e GLANCES_OPT="-w" -v /var/run/docker.sock:/var/run/docker.sock:ro --pid host docker.io/nicolargo/glances`

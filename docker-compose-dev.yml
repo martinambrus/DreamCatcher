@@ -99,13 +99,11 @@ services:
     restart: unless-stopped
     volumes:
       - ./infrastructure/datadir/pgdata:/var/lib/postgresql/pgdata
-      - ./infrastructure/postgre/sql:/docker-entrypoint-initdb.d
-      - ./infrastructure/postgre/credentials:/credentials
+      - ./infrastructure/postgre/init:/docker-entrypoint-initdb.d
     environment:
-      POSTGRES_DB_FILE: /credentials/db_name
-      POSTGRES_USER_FILE: /credentials/db_user
-      POSTGRES_PASSWORD_FILE: /credentials/db_password
-      POSTGRES_EXTENSIONS: pg_trgm, plpgsql, unaccent
+      POSTGRES_DB: ${POSTGRESQL_DB_NAME}
+      POSTGRES_USER: ${POSTGRESQL_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRESQL_DB_PASSWORD}
       PGDATA: /var/lib/postgresql/pgdata
   kafka-0:
     image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
