@@ -111,7 +111,7 @@ export class MessageQueuePub implements IMessageQueuePub {
               topic,
               numPartitions: 1,
               replicationFactor: ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length : 1 ),
-              configEntries: [{ name: "min.insync.replicas", value: '' + ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length - 1 : 0 ) }],
+              configEntries: [{ name: "min.insync.replicas", value: '' + ( env.MQ_NODES.indexOf(',') > -1 ? env.MQ_NODES.split(',').length - 1 : 1 ) }],
             })),
           });
 
