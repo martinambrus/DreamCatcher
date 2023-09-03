@@ -1,6 +1,6 @@
 -- create extensions
 CREATE EXTENSION pg_trgm;
-CREATE EXTENSION plpgsql;
+-- CREATE EXTENSION plpgsql; -- this one is already present
 CREATE EXTENSION unaccent;
 
 -- feeds table with URLs, subscribers and stats
