@@ -234,7 +234,7 @@ export class LinkWriter {
           await link_telemetry.add_span( link_db_write_span_name, { 'link' : message.link } );
 
           // try inserting the link into the DB
-          const text: string       = 'INSERT INTO unprocessed_links( feed_id, title, description, link, img, date_posted ) VALUES( $1, $2, $3, $4, $5, $6 ) RETURNING id';
+          const text: string       = 'INSERT INTO links( feed_id, title, description, link, img, date_posted ) VALUES( $1, $2, $3, $4, $5, $6 ) RETURNING id';
           const values: Array<any> = [ this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published ];
 
           try {
