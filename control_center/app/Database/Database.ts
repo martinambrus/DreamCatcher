@@ -150,4 +150,11 @@ export class Database implements IDatabase {
     await this.client.$queryRaw`SELECT update_old_failed_feeds()`;
   }
 
+  /**
+   * Disconnects from the database.
+   */
+  public async disconnect(): Promise<void> {
+    await this.client.$disconnect();
+  }
+
 }
