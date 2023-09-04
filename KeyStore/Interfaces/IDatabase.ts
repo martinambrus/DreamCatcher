@@ -47,20 +47,20 @@ export interface IDatabase {
    */
   get_feed_id_from_url( url: string ): Promise<bigint>;
 
-  /**
-   * Updates feed statistics and fetch times
-   * upon successfully finished RSS fetch.
-   *
-   * @param { string } feed_url                  URL for the feed to update statistical data for.
-   * @param { string } date_hour                 Current hour.
-   * @param { string } date_day_number           Number of day in week, staring at 0 for Monday.
-   * @param { string } date_days_into_year       Number of days into this year.
-   * @param { string } date_week_into_year       Number of weeks into this year.
-   * @param { string } date_month                Current month number.
-   * @param { string } date_full_year            Current full year representation.
-   * @param { bigint } links_count               Count of all links written during the RSS fetch.
-   * @param { bigint } first_link_unix_timestamp Timestamp of the first written RSS link's published date.
-   */
+    /**
+     * Updates feed statistics and fetch times
+     * upon successfully finished RSS fetch.
+     *
+     * @param { string } feed_url                  URL for the feed to update statistical data for.
+     * @param { string } date_hour                 Current hour.
+     * @param { string } date_day_number           Number of day in week, staring at 0 for Monday.
+     * @param { string } date_days_into_year       Number of days into this year.
+     * @param { string } date_week_into_year       Number of weeks into this year.
+     * @param { string } date_month                Current month number.
+     * @param { string } date_full_year            Current full year representation.
+     * @param { bigint } links_count               Count of all links written during the RSS fetch.
+     * @param { bigint } first_link_unix_timestamp Timestamp of the first written RSS link's published date.
+     */
   inc_stats_and_fetch_times(
     feed_url: string,
     date_hour: string,
@@ -117,6 +117,6 @@ export interface IDatabase {
     link: string,
     image_url: string,
     date_posted_unix_ts: number
-  ): Promise<void>;
+  ): Promise<boolean>;
 
 }
