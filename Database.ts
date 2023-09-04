@@ -50,11 +50,11 @@ export class Database implements IDatabase {
    *
    * @return { number } Returns feed ID for the feed URL given.
    */
-  public async get_feed_id_from_url( url: string ): Promise<number> {
-    return this.client.feeds.findUnique( {
+  public async get_feed_id_from_url( url: string ): Promise<bigint> {
+    return ( await this.client.feeds.findUnique( {
       select: { id: true },
       where:  { url: url },
-    } );
+    } ) ).id;
   }
 
 
