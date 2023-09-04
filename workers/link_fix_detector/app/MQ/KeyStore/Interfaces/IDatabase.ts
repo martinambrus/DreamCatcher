@@ -7,13 +7,13 @@ export interface IDatabase {
    * Updates all feeds with 10+ subsequent failures
    * where last fetch was more than 2 days ago.
    */
-  update_old_failed_feeds(): void;
+  update_old_failed_feeds(): Promise<void>;
 
   /**
    * Retrieves all feeds that can be presently fetched
    * and polled for new links.
    */
-  fetch_feeds(): { records: Array<{}> };
+  fetch_feeds(): Promise<{ records: Array<{}> }>;
 
   /**
    * Updates old (and wrong) URL for an RSS feed with a new (and valid) one.
@@ -21,7 +21,7 @@ export interface IDatabase {
    * @param { string } old_url The old (invalid) URL.
    * @param { string } new_url The new and valid URL.
    */
-  fix_feed_url( old_url: string, new_url: string ): void;
+  fix_feed_url( old_url: string, new_url: string ): Promise<void>;
 
   /**
    * Retrieves feed ID from the URL given.
@@ -30,7 +30,7 @@ export interface IDatabase {
    *
    * @return { number } Returns feed ID for the feed URL given.
    */
-  get_feed_id_from_url( url: string ): number;
+  get_feed_id_from_url( url: string ): Promise<number>;
 
   /**
    * Updates feed statistics and fetch times
@@ -56,7 +56,7 @@ export interface IDatabase {
     date_full_year: number,
     links_count: number,
     first_link_unix_timestamp: number
-  ): void;
+  ): Promise<void>;
 
   /**
    * Updates fetch times only upon unsuccessful RSS fetch.
@@ -64,7 +64,7 @@ export interface IDatabase {
    * @param { string } feed_url URL for the feed to update statistical data for.
    * @param { string } err_msg  The error message to record for the failed RSS fetch.
    */
-  inc_fetch_times_only( feed_url: string, err_msg: string ): void;
+  inc_fetch_times_only( feed_url: string, err_msg: string ): Promise<void>;
 
   /**
    * Logs error received from the message queue and reported
@@ -83,7 +83,7 @@ export interface IDatabase {
     log_time_unix_ts: number,
     message: string,
     extra_data: string
-  ): void;
+  ): Promise<void>;
 
   /**
    * Inserts new link into the database for the given feed ID.
@@ -102,6 +102,6 @@ export interface IDatabase {
     link: string,
     image_url: string,
     date_posted_unix_tx: number
-  ): void;
+  ): Promise<void>;
 
 }
