@@ -1,0 +1,19 @@
+[map "d261045c-1fcd-3019-b689-07701c00d731"]
+	object = fd9e0e636540b1b3a4dc49dbada030cb09060cc7
+	type = include + expand tree
+[map "da4886b1-3d82-38cc-a4a8-3c4dc46ed525"]
+	object = 82ae3d19174d301530ec89db119bc35ab9e71b97
+	path = workers/link_fix_detector/app/Database
+	type = expand module
+[map "c7127430-28ac-3bbd-b1f3-bc0a59e47965"]
+	object = 82ae3d19174d301530ec89db119bc35ab9e71b97
+	path = workers/analysis/app/Database
+	type = expand module
+[map "a73c67ee-ed82-35c1-b8f2-4b2368d91969"]
+	object = 82ae3d19174d301530ec89db119bc35ab9e71b97
+	path = workers/err_log_writer/app/Database
+	type = expand module
+[map "6932319d-0980-3ebb-a329-1abde534564f"]
+	object = 82ae3d19174d301530ec89db119bc35ab9e71b97
+	path = workers/link_writer/app/Database
+	type = expand module
