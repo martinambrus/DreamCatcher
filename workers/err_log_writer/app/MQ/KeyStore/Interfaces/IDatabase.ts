@@ -4,6 +4,21 @@
 export interface IDatabase {
 
   /**
+   * Connects to the database.
+   * This method is optional, since many ORM's will initiate a connection automatically upon first query.
+   *
+   * @param { string } uri_string Optional URI string to initialize the connection though.
+   *                              This is optional, since for instance Prisma will already
+   *                              create a client with a DB connection hard-coded.
+   */
+  connect?( uri_string?: string ): Promise<void>;
+
+  /**
+   * Disconnects from the database.
+   */
+  disconnect?(): Promise<void>;
+
+  /**
    * Updates all feeds with 10+ subsequent failures
    * where last fetch was more than 2 days ago.
    */
