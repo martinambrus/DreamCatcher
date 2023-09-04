@@ -1,7 +1,11 @@
 [map "4698b4e9-1bbc-3d9e-b42c-1260691a71d9"]
 	object = 5c3de3a2d50d6dd0035b10878108a9ad1839a0f9
 	type = include + expand tree
-[map "8301d649-7949-3158-8f98-b79db0529665"]
-	object = 347daade24fbfa5076210f2574cb95d32efb5102
+[map "b4af05e1-8531-3275-b6e0-6b6cf920ffe8"]
+	object = 6f33e681c938df151bf4fe20ff84c27308dde865
+	path = workers/control_center/app/Database
+	type = expand module
+[map "7abc59f0-67b2-33f7-b195-560c2dc04417"]
+	object = 4926400eb639f8995512d0110b8025c06636e204
 	path = workers/control_center/app/Database
 	type = expand module

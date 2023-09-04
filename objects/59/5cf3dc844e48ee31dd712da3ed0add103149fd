@@ -1,0 +1,15 @@
+[map "0af9633a-b2e9-3c8c-a1f4-4d877cd5b4d3"]
+	object = f01fdaff8097f2abd8b3c2903b34b8b5d63de384
+	type = include + expand tree
+[map "e18879fc-ac7b-370e-9d4c-5b59da5c83cd"]
+	object = 4926400eb639f8995512d0110b8025c06636e204
+	path = workers/rss_fetch/app/MQ
+	type = expand module
+[map "bd6c0b4e-ae85-3bf2-a76f-19b9d553c431"]
+	object = 4926400eb639f8995512d0110b8025c06636e204
+	path = workers/link_fix_detector/app/MQ
+	type = expand module
+[map "dc4d18ec-671f-3962-8c4d-2a8f1c94e67d"]
+	object = 4926400eb639f8995512d0110b8025c06636e204
+	path = control_center/app/MQ
+	type = expand module

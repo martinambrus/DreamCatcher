@@ -9,15 +9,15 @@
 	object = 347daade24fbfa5076210f2574cb95d32efb5102
 	path = workers/link_fix_detector/app/MQ
 	type = expand module
-[map "29bb011b-5bde-31cb-b0f9-5b834e19d67d"]
-	object = 347daade24fbfa5076210f2574cb95d32efb5102
+[map "08e8d642-f6a1-38aa-abd3-feb593a87c55"]
+	object = 4926400eb639f8995512d0110b8025c06636e204
 	path = workers/analysis/app/MQ
 	type = expand module
-[map "8c590919-706e-363a-8d58-69f802c44ef5"]
-	object = 347daade24fbfa5076210f2574cb95d32efb5102
+[map "de8fe71d-3ad0-3faa-ba52-64a0de076f10"]
+	object = 4926400eb639f8995512d0110b8025c06636e204
 	path = workers/err_log_writer/app/MQ
 	type = expand module
-[map "308950a1-bfd9-3c61-874e-2a170c5c226a"]
-	object = 347daade24fbfa5076210f2574cb95d32efb5102
+[map "c39e6a37-4630-3356-8890-f2f98c1fce21"]
+	object = 4926400eb639f8995512d0110b8025c06636e204
 	path = workers/link_writer/app/MQ
 	type = expand module
