@@ -1,0 +1,84 @@
+[map "77111b2b-964e-3d69-8896-5bab13f4ca61"]
+	object = ad24f57e08e8817335a216335a694ff0921174b7
+	path = workers/rss_fetch/app/MQ
+	stage = sync
+	type = extract module
+[map "8b83c8d8-5b37-33da-9cbc-aa6b5edf8aea"]
+	object = ad24f57e08e8817335a216335a694ff0921174b7
+	path = workers/link_fix_detector/app/MQ
+	stage = sync
+	type = extract module
+[map "c1845b94-18bc-368f-be59-8b8c891e987c"]
+	object = ad24f57e08e8817335a216335a694ff0921174b7
+	path = control_center/app/MQ
+	stage = sync
+	type = extract module
+[map "2b989f9f-9a2b-360f-8df1-d585fe3a6d9c"]
+	object = ad24f57e08e8817335a216335a694ff0921174b7
+	path = workers/analysis/app/MQ
+	stage = sync
+	type = extract module
+[map "f32ddbaa-999f-380b-abcc-c26fa96c277f"]
+	object = ad24f57e08e8817335a216335a694ff0921174b7
+	path = workers/err_log_writer/app/MQ
+	stage = sync
+	type = extract module
+[map "fb92fa15-9920-3a4a-934b-2c95875a7194"]
+	object = ad24f57e08e8817335a216335a694ff0921174b7
+	path = workers/link_writer/app/MQ
+	stage = sync
+	type = extract module
+[module "c9b83a8b-c88f-32a6-96e7-c01d079caac6"]
+	conflict = request-pull
+	path = control_center/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "8ac38d52-10ef-327a-9258-1189e37396af"]
+	conflict = request-pull
+	path = control_center/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "87e01e06-1b6d-3fb3-89c6-d967c3e57f5d"]
+	conflict = request-pull
+	path = workers/analysis/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "295422c1-2f32-3ce8-879d-ecb3dfda6c6b"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "f8534460-10fc-31fd-bac8-19699e4fbe5d"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "300aa308-d767-361e-ace9-8316bdf14ecd"]
+	conflict = request-pull
+	path = workers/link_writer/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "16abd2c1-5a15-3d68-b7fa-c1e05e6b7190"]
+	conflict = request-pull
+	path = workers/rss_fetch/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[map "34cb9a0d-a627-35d4-bdcc-f64895bd68a2"]
+	object = 6cba5ffdd309bfe899548f3c06381b0bcbd5babf
+	path = control_center/app/Database
+	stage = sync
+	type = extract module

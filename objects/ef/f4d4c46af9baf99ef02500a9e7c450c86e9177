@@ -1,3 +1,6 @@
 [map "b0dff9d8-ec44-3128-966d-682486a09fda"]
 	object = 5a07bf69465073f9d82f832e8597b48200779024
 	type = extract tree + exclude
+[map "4ce7f087-6c6f-3503-a386-bee9c95063e6"]
+	object = 6cba5ffdd309bfe899548f3c06381b0bcbd5babf
+	type = extract tree + exclude
