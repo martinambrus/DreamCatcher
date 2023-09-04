@@ -93,7 +93,7 @@ export interface IDatabase {
    * @param { string } description         Description for this RSS link, received from RSS. Can be empty.
    * @param { string } link                Full URL to the article itself.
    * @param { string } image_url           Full URL to the image representing this link. Can be empty.
-   * @param { number } date_posted_unix_tx Unix timestamp of the date when this link was posted.
+   * @param { number } date_posted_unix_ts Unix timestamp of the date when this link was posted.
    */
   insert_link(
     feed_id: number,
@@ -101,7 +101,7 @@ export interface IDatabase {
     description: string,
     link: string,
     image_url: string,
-    date_posted_unix_tx: number
+    date_posted_unix_ts: number
   ): Promise<void>;
 
 }
