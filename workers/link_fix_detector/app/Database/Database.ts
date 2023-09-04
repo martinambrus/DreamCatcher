@@ -106,17 +106,24 @@ export class Database implements IDatabase {
    * @param { string } image_url           Full URL to the image representing this link. Can be empty.
    * @param { number } date_posted_unix_ts Unix timestamp of the date when this link was posted.
    */
-  public async insert_link( feed_id: number, title: string, description: string, link: string, image_url: string, date_posted_unix_ts: number ): Promise<void> {
-    await this.client.links.create({
-      data: {
-        feed_id:     feed_id,
-        title:       title,
-        description: description,
-        link:        link,
-        img:         image_url,
-        date_posted: date_posted_unix_ts,
-      }
-    });
+  public async insert_link( feed_id: number, title: string, description: string, link: string, image_url: string, date_posted_unix_ts: number ): Promise<boolean> {
+    if ( !title ) {
+      title = '';
+    }
+
+    if ( !description ) {
+      description = '';
+    }
+
+    if ( !image_url ) {
+      image_url = '';
+    }
+
+    if ( (await this.client.$queryRaw`SELECT insert_new_link( ${feed_id}, ${title}, ${description}, ${link}, ${image_url}, ${date_posted_unix_ts} )`)[0]['insert_new_link'] ) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   /**
