@@ -13,7 +13,7 @@ export interface IDatabase {
    * Retrieves all feeds that can be presently fetched
    * and polled for new links.
    */
-  fetch_feeds(): Promise<{ records: Array<{}> }>;
+  fetch_feeds(): Promise<{ records: Array<{ url: string }> }>;
 
   /**
    * Updates old (and wrong) URL for an RSS feed with a new (and valid) one.
