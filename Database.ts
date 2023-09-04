@@ -25,7 +25,7 @@ export class Database implements IDatabase {
    * Retrieves all feeds that can be presently fetched
    * and polled for new links.
    */
-  public async fetch_feeds(): Promise<{ records: Array<{}> }> {
+  public async fetch_feeds(): Promise<{ records: Array<{ url: string }> }> {
     let feeds = await this.client.fetchable_feeds.findMany();
     return { records: feeds };
   }
