@@ -52,25 +52,25 @@ export interface IDatabase {
    * upon successfully finished RSS fetch.
    *
    * @param { string } feed_url                  URL for the feed to update statistical data for.
-   * @param { number } date_hour                 Current hour.
-   * @param { number } date_day_number           Number of day in week, staring at 0 for Monday.
-   * @param { number } date_days_into_year       Number of days into this year.
-   * @param { number } date_week_into_year       Number of weeks into this year.
-   * @param { number } date_month                Current month number.
-   * @param { number } date_full_year            Current full year representation.
-   * @param { number } links_count               Count of all links written during the RSS fetch.
-   * @param { number } first_link_unix_timestamp Timestamp of the first written RSS link's published date.
+   * @param { string } date_hour                 Current hour.
+   * @param { string } date_day_number           Number of day in week, staring at 0 for Monday.
+   * @param { string } date_days_into_year       Number of days into this year.
+   * @param { string } date_week_into_year       Number of weeks into this year.
+   * @param { string } date_month                Current month number.
+   * @param { string } date_full_year            Current full year representation.
+   * @param { bigint } links_count               Count of all links written during the RSS fetch.
+   * @param { bigint } first_link_unix_timestamp Timestamp of the first written RSS link's published date.
    */
   inc_stats_and_fetch_times(
     feed_url: string,
-    date_hour: number,
-    date_day_number: number,
-    date_days_into_year: number,
-    date_week_into_year: number,
-    date_month: number,
-    date_full_year: number,
-    links_count: number,
-    first_link_unix_timestamp: number
+    date_hour: string,
+    date_day_number: string,
+    date_days_into_year: string,
+    date_week_into_year: string,
+    date_month: string,
+    date_full_year: string,
+    links_count: bigint,
+    first_link_unix_timestamp: bigint
   ): Promise<void>;
 
   /**
