@@ -28,9 +28,9 @@ export interface IDatabase {
    *
    * @param { string } url The URL to look up feed ID for.
    *
-   * @return { number } Returns feed ID for the feed URL given.
+   * @return { bigint } Returns feed ID for the feed URL given.
    */
-  get_feed_id_from_url( url: string ): Promise<number>;
+  get_feed_id_from_url( url: string ): Promise<bigint>;
 
   /**
    * Updates feed statistics and fetch times
