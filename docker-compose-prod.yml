@@ -8,9 +8,8 @@ services:
     build:
       context: control_center
       dockerfile: Dockerfile
-      target: prod
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env.prod
     networks:
       - internal
     depends_on:
@@ -20,9 +19,8 @@ services:
     build:
       context: workers/rss_fetch
       dockerfile: Dockerfile
-      target: prod
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env.prod
     networks:
       - internal
     depends_on:
@@ -32,9 +30,8 @@ services:
     build:
       context: workers/analysis
       dockerfile: Dockerfile
-      target: prod
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env.prod
     networks:
       - internal
     depends_on:
@@ -44,9 +41,8 @@ services:
     build:
       context: workers/link_writer
       dockerfile: Dockerfile
-      target: prod
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env.prod
     networks:
       - internal
     depends_on:
@@ -56,9 +52,8 @@ services:
     build:
       context: workers/err_log_writer
       dockerfile: Dockerfile
-      target: prod
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env.prod
     networks:
       - internal
     depends_on:
@@ -68,9 +63,8 @@ services:
     build:
       context: workers/link_fix_detector
       dockerfile: Dockerfile
-      target: prod
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env.prod
     networks:
       - internal
     depends_on:
@@ -143,6 +137,8 @@ services:
     restart: unless-stopped
   pg-0:
     image: "docker.io/bitnami/postgresql-repmgr:15"
+    env_file:
+      - .env.prod
     networks:
       - internal
     ports:
@@ -165,6 +161,8 @@ services:
       REPMGR_PORT_NUMBER: 5432
   pg-1:
     image: "docker.io/bitnami/postgresql-repmgr:15"
+    env_file:
+      - .env.prod
     networks:
       - internal
     ports:
@@ -187,6 +185,8 @@ services:
       REPMGR_PORT_NUMBER: 5432
   pg-2:
     image: "docker.io/bitnami/postgresql-repmgr:15"
+    env_file:
+      - .env.prod
     networks:
       - internal
     ports:
@@ -213,6 +213,8 @@ services:
       dockerfile: Dockerfile
       args:
         - "--sysctl net.ipv4.ip_unprivileged_port_start=0"
+    env_file:
+      - .env.prod
     networks:
       - internal
     ports:
@@ -286,6 +288,8 @@ services:
       - ./infrastructure/datadir/kafka_2_data:/bitnami/kafka
   es01:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
+    env_file:
+      - .env.prod
     volumes:
       - ./infrastructure/datadir/elastic/esdata01:/usr/share/elasticsearch/data
     ports:
@@ -307,6 +311,8 @@ services:
         hard: -1
   es02:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
+    env_file:
+      - .env.prod
     volumes:
       - ./infrastructure/datadir/elastic/esdata02:/usr/share/elasticsearch/data
     networks:
@@ -328,6 +334,8 @@ services:
         hard: -1
   es03:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
+    env_file:
+      - .env.prod
     volumes:
       - ./infrastructure/datadir/elastic/esdata03:/usr/share/elasticsearch/data
     networks:
@@ -347,12 +355,12 @@ services:
       memlock:
         soft: -1
         hard: -1
-  jaeger:
+  trace_logger:
     image: "jaegertracing/all-in-one"
+    env_file:
+      - .env.prod
     networks:
       - internal
-    container_name: trace_logger
-    hostname: trace_logger
     ports:
       - 16686:16686
       - 14268:14268

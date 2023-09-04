@@ -1,10 +1,10 @@
 import { env, exit } from "node:process";
-import pkg from "pg";
 import { Telemetry } from './Telemetry.js';
 import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
 import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
 import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
 import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { IDatabase } from './Database/Interfaces/IDatabase.js';
 
 export class ControlCenter {
 
@@ -48,11 +48,11 @@ export class ControlCenter {
   private readonly key_store_pub: IKeyStorePub;
 
   /**
-   * PostgreSQL client class instance.
+   * Database client.
    * @private
-   * @type { pkg.Client }
+   * @type { IDatabase }
    */
-  private readonly dbconn: pkg.Client;
+  private readonly dbconn: IDatabase;
 
   /**
    * List of all known services that need to send activation message
@@ -125,11 +125,11 @@ export class ControlCenter {
    * @param { string }           service_name  Name of the service. Used for Jaeger tracing identification.
    * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
    * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IDatabase }        dbconn        A Database class instance.
    * @param { IKeyStoreSub }     key_store_sub A Key Store Sub client to subscribe to channels.
    * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, mq_producer: IMessageQueuePub, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
+  constructor( service_name: string, mq_producer: IMessageQueuePub, logger: ILogger, dbconn: IDatabase, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
     this.service_name = service_name;
     this.mq_producer = mq_producer;
     this.logger = logger;
@@ -258,19 +258,19 @@ export class ControlCenter {
     if ( this.active ) {
       // first, update all feeds with 10+ subsequent failures
       // where last fetch was more than 2 days ago
-      await this.dbconn.query('SELECT update_old_failed_feeds()');
+      await this.dbconn.update_old_failed_feeds();
 
       // assemble all feeds with the following parameters:
       // -> at least 1 normal/premium user subscribed
       // -> next_fetch_ts >= current time
       // -> subsequent errors counter less than 10
       try {
-        let res = await this.dbconn.query( 'SELECT * FROM fetchable_feeds' );
+        let res = await this.dbconn.fetch_feeds();
 
-        for ( let i in res.rows ) {
+        for ( let record of res.records ) {
           // send RSS feed URLs to the rss_fetch service for processing
           // note: we don't use await here, so we can fire up MQ messages fast
-          const lifecycle_telemetry: Telemetry = await new Telemetry( this.service_name, this.version, res.rows[ i ].url ).start();
+          const lifecycle_telemetry: Telemetry = await new Telemetry( this.service_name, this.version, record.url ).start();
           const pub_feed_span_name: string = 'mq_pub_feed';
 
           await lifecycle_telemetry.add_span( pub_feed_span_name );
@@ -286,13 +286,13 @@ export class ControlCenter {
             this.telemetry_services_completions[ trace_id.traceparent ][ service_name ] = false;
           }
 
-          await this.mq_producer.send( env.FEED_FETCH_CHANNEL_NAME, { url: res.rows[ i ].url }, JSON.stringify( trace_id ), res.rows[ i ].url );
+          await this.mq_producer.send( env.FEED_FETCH_CHANNEL_NAME, { url: record.url }, JSON.stringify( trace_id ), record.url );
           lifecycle_telemetry.close_active_span( pub_feed_span_name );
         }
       } catch ( err ) {
         let exit_code: number = parseInt( await this.key_store_pub.get( 'ERR_CONTROL_CENTER_DB_ERROR' ) );
         await this.logger.log_msg( 'Exception while trying to retrieve rss feeds to fetch\n' + JSON.stringify( err ), exit_code );
-        await this.dbconn.end();
+        await this.dbconn.disconnect();
         exit( exit_code ); // docker will restart the container, so we'll start clean
       }
     } else {

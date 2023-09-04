@@ -1,11 +1,11 @@
 import { env, exit } from 'node:process';
-import pkg from "pg";
 import { Telemetry } from './Telemetry.js';
 import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
 import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
 import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
 import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { IDatabase } from './Database/Interfaces/IDatabase.js';
 
 export class LinkWriter {
 
@@ -66,9 +66,9 @@ export class LinkWriter {
   /**
    * PostgreSQL client class instance.
    * @private
-   * @type { pkg.Client }
+   * @type { IDatabase }
    */
-  private readonly dbconn: pkg.Client;
+  private readonly dbconn: IDatabase;
 
   /**
    * A setTimeout() ID for the last of the feed links published
@@ -145,11 +145,11 @@ export class LinkWriter {
    * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
    * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for RSS feeds to parse.
    * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IDatabase }        dbconn        A Database class instance.
    * @param { IKeyStoreSub }     key_store_sub A Key Store Sub client to subscribe to channels.
    * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_id: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
+  constructor( service_id: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: IDatabase, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
     // MQ
     this.mq_producer = mq_producer;
     this.mq_consumer = mq_consumer;
@@ -234,33 +234,23 @@ export class LinkWriter {
           await link_telemetry.add_span( link_db_write_span_name, { 'link' : message.link } );
 
           // try inserting the link into the DB
-          const text: string       = 'INSERT INTO links( feed_id, title, description, link, img, date_posted ) VALUES( $1, $2, $3, $4, $5, $6 ) RETURNING id';
-          const values: Array<any> = [ this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published ];
-
           try {
-            const res = await this.dbconn.query( text, values );
-            if ( res.rows.length ) {
-              // check and store first item's timestamp for this batch and this feed
-              if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
-                this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
-              }
+            await this.dbconn.insert_link( this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published );
 
-              // increment count of the messages inserted for this feed in this batch
-              if ( !this.feed_messages_inserted_counter[ message.feed_url ] ) {
-                this.feed_messages_inserted_counter[ message.feed_url ] = 1;
-              } else {
-                this.feed_messages_inserted_counter[ message.feed_url ]++;
-              }
-
-              // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
-              //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-            } else {
-              // we couldn't insert this record into the DB for some reason, publish an error into the log
-              this.logger.log_msg( 'Could not insert link into db: ' + message.link + '\n' + res.toString() + '\ndata: ' + JSON.stringify( message ), 'ERR_LINK_WRITER_NO_RECORD_WRITTEN' );
-              this.update_internals_when_link_fails_to_insert( message );
-              await link_telemetry.add_span( error_log_span_name, { 'link_url' : message.link }, 'Could not insert link into db: ' + message.link + '\n' + res.toString() + '\ndata: ' + JSON.stringify( message ), 1 );
-              link_telemetry.close_active_span( error_log_span_name );
+            // check and store first item's timestamp for this batch and this feed
+            if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
+              this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
             }
+
+            // increment count of the messages inserted for this feed in this batch
+            if ( !this.feed_messages_inserted_counter[ message.feed_url ] ) {
+              this.feed_messages_inserted_counter[ message.feed_url ] = 1;
+            } else {
+              this.feed_messages_inserted_counter[ message.feed_url ]++;
+            }
+
+            // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
+            //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
           } catch ( err ) {
             // ignore duplicate errors, since we have unique url field in the DB
             // which ensures a certain level of de-duplication
@@ -353,9 +343,9 @@ export class LinkWriter {
 
     if ( !this.feed_url_to_id[ feed_url ] ) {
       try {
-        const res_feeds = await this.dbconn.query( 'SELECT id FROM feeds WHERE url = $1', [ feed_url ] );
-        if ( res_feeds.rows.length ) {
-          this.feed_url_to_id[ feed_url ] = res_feeds.rows[ 0 ].id;
+        const res_id: bigint = await this.dbconn.get_feed_id_from_url( feed_url );
+        if ( res_id ) {
+          this.feed_url_to_id[ feed_url ] = res_id;
         } else {
           this.feed_url_to_id[ feed_url ] = 0;
 

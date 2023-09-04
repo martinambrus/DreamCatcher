@@ -8,9 +8,8 @@ services:
     build:
       context: control_center
       dockerfile: Dockerfile
-      target: dev
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env
     networks:
       - internal
     depends_on:
@@ -20,9 +19,8 @@ services:
     build:
       context: workers/rss_fetch
       dockerfile: Dockerfile
-      target: dev
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env
     networks:
       - internal
     depends_on:
@@ -32,9 +30,8 @@ services:
     build:
       context: workers/analysis
       dockerfile: Dockerfile
-      target: dev
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env
     networks:
       - internal
     depends_on:
@@ -44,9 +41,8 @@ services:
     build:
       context: workers/link_writer
       dockerfile: Dockerfile
-      target: dev
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env
     networks:
       - internal
     depends_on:
@@ -56,9 +52,8 @@ services:
     build:
       context: workers/err_log_writer
       dockerfile: Dockerfile
-      target: dev
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env
     networks:
       - internal
     depends_on:
@@ -68,9 +63,8 @@ services:
     build:
       context: workers/link_fix_detector
       dockerfile: Dockerfile
-      target: dev
-    environment:
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    env_file:
+      - .env
     networks:
       - internal
     depends_on:
@@ -88,21 +82,30 @@ services:
     hostname: redis_server
     ports:
       - 127.0.0.1:6379:6379
-  db_server:
-    image: "postgres:15.3-alpine"
+  pg-0:
+    image: "docker.io/bitnami/postgresql-repmgr:15"
+    env_file:
+      - .env
     networks:
       - internal
     ports:
       - 127.0.0.1:5432:5432
     restart: unless-stopped
     volumes:
-      - ./infrastructure/datadir/pgdata:/var/lib/postgresql/pgdata
+      - ./infrastructure/datadir/pgdata_dev:/bitnami/postgresql
       - ./infrastructure/postgre/init:/docker-entrypoint-initdb.d
     environment:
-      POSTGRES_DB: ${POSTGRESQL_DB_NAME}
-      POSTGRES_USER: ${POSTGRESQL_DB_USER}
-      POSTGRES_PASSWORD: ${POSTGRESQL_DB_PASSWORD}
-      PGDATA: /var/lib/postgresql/pgdata
+      POSTGRESQL_POSTGRES_PASSWORD: ${POSTGRESQL_DB_PASSWORD} # admin
+      POSTGRESQL_USERNAME: ${POSTGRESQL_DB_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRESQL_DB_PASSWORD}
+      POSTGRESQL_DATABASE: ${POSTGRESQL_DB_NAME}
+      REPMGR_PASSWORD: ${REPMGR_PASSWORD}
+      REPMGR_PRIMARY_HOST: pg-0
+      REPMGR_PRIMARY_PORT: 5432
+      REPMGR_PARTNER_NODES: pg-0
+      REPMGR_NODE_NAME: pg-0
+      REPMGR_NODE_NETWORK_NAME: pg-0
+      REPMGR_PORT_NUMBER: 5432
   kafka-0:
     image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
     mem_limit: "1GB"
@@ -122,13 +125,11 @@ services:
       - KAFKA_KRAFT_CLUSTER_ID=abcdefghijklmnopqrstuv
       - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
-      - ./infrastructure/datadir/kafka_0_dev_data:/bitnami/kafka
-  jaeger:
+      - ./infrastructure/datadir/kafka_dev_data:/bitnami/kafka
+  trace_logger:
     image: "jaegertracing/all-in-one"
     networks:
       - internal
-    container_name: trace_logger
-    hostname: trace_logger
     environment:
       SPAN_STORAGE_TYPE: badger
       BADGER_EPHEMERAL: false

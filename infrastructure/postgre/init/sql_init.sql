@@ -54,7 +54,7 @@ RETURNS jsonb LANGUAGE SQL AS $$
 $$;
 
 -- update statistical information and fetch intervals after a successful RSS fetch result
-CREATE OR REPLACE FUNCTION update_feed_after_fetch_success( feed_url TEXT, hour_num TEXT, day_of_week TEXT, day_of_year TEXT, week_of_year TEXT, month_num TEXT, year_num TEXT, inc_by INTEGER, first_item_ts INTEGER ) RETURNS bool AS $$
+CREATE OR REPLACE FUNCTION update_feed_after_fetch_success( feed_url TEXT, hour_num TEXT, day_of_week TEXT, day_of_year TEXT, week_of_year TEXT, month_num TEXT, year_num TEXT, inc_by BIGINT, first_item_ts BIGINT ) RETURNS bool AS $$
 DECLARE
     feed_data feeds%rowtype;
     unix_timestamp INTEGER := ROUND( EXTRACT( epoch FROM now() ) );
@@ -275,7 +275,7 @@ CREATE TABLE links (
    date_fetched INT NOT NULL DEFAULT ROUND( EXTRACT( epoch FROM now() ) ),
    date_processed INT NOT NULL DEFAULT 0,
    is_processed SMALLINT NOT NULL DEFAULT 0,
-   PRIMARY KEY ( id, feed_id )
+   PRIMARY KEY ( id, feed_id, date_fetched )
 ) PARTITION BY LIST ( feed_id ); -- partition table by feed ID, so we can have more smaller indexes in multiple tables
                                  -- rather than one huge for all links of all feeds
 

@@ -1,5 +1,4 @@
 {
-  "version": "0.1a",
   "dependencies": {
     "@opentelemetry/api": "^1.4.1",
     "@opentelemetry/exporter-jaeger": "^1.15.0",
@@ -8,16 +7,16 @@
     "@opentelemetry/sdk-trace-base": "^1.15.0",
     "@opentelemetry/sdk-trace-node": "^1.15.0",
     "@opentelemetry/semantic-conventions": "^1.15.0",
+    "@prisma/client": "^5.2.0",
     "@types/node": "^20.4.5",
     "@types/node-fetch": "^2.6.4",
-    "@types/pg": "^8.10.2",
     "cacheable-lookup": "^7.0.0",
     "html-entities": "^2.4.0",
     "ioredis": "^5.3.2",
     "kafkajs": "^2.2.4",
     "luxon": "^3.3.0",
     "node-fetch": "^3.3.2",
-    "pg": "^8.11.1",
+    "prisma": "^5.2.0",
     "rss-parser": "github:martinambrus/rss-parser",
     "striptags": "^3.2.0",
     "typescript": "^5.1.6"

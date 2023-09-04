@@ -2,5 +2,6 @@ env.sh.dev
 env.sh.prod
 infrastructure/datadir
 .env
+.env.prod
 node_modules
 package-lock.json

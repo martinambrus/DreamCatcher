@@ -1,11 +1,11 @@
 import { env, exit } from 'node:process';
-import pkg from "pg";
 import { Telemetry } from './Telemetry.js';
 import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
 import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
 import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
 import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { IDatabase } from './Database/Interfaces/IDatabase.js';
 
 export class ErrLogWriter {
 
@@ -73,9 +73,9 @@ export class ErrLogWriter {
   /**
    * PostgreSQL client class instance.
    * @private
-   * @type { pkg.Client }
+   * @type { IDatabase }
    */
-  private readonly dbconn: pkg.Client;
+  private readonly dbconn: IDatabase;
 
   /**
    * Stores references to key store, PGSQL and Logger classes
@@ -85,11 +85,11 @@ export class ErrLogWriter {
    * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
    * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for links data to parse.
    * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IDatabase }        dbconn        A Database class instance.
    * @param { IKeyStoreSub }     key_store_sub A Key Store Sub client to subscribe to channels.
    * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: pkg.Client, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
+  constructor( service_name: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: IDatabase, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
     // MQ
     this.mq_producer = mq_producer;
     this.mq_consumer = mq_consumer;
@@ -135,10 +135,6 @@ export class ErrLogWriter {
    */
   private async log_error( { topic, message, trace_id } ): Promise<void> {
     if ( message.severity == LOG_SEVERITIES.LOG_SEVERITY_ERROR ) {
-      // try inserting the log data into the DB
-      const text: string     = 'INSERT INTO err_log( service_id, code, log_time, msg, extra ) VALUES( $1, $2, $3, $4, $5 ) RETURNING id';
-      let values: Array<any> = [ message.service, ( message.code ? message.code : 0 ), message.time, message.msg.replace( /\[[^\]]+\] /gm, '' ) ]; // remove timedate prefix from message
-
       // check for any extra data in the message and add it to the extra column
       let extra: Object = {};
       for ( let i in message ) {
@@ -147,15 +143,9 @@ export class ErrLogWriter {
         }
       }
 
-      values.push( JSON.stringify( extra ) );
-
       try {
         console.log( this.logger.format( 'logging: ' + JSON.stringify( message ) ) );
-        const res = await this.dbconn.query( text, values );
-
-        if ( !res.rows.length ) {
-          console.log( this.logger.format( 'Could not insert log into db' ) );
-        }
+        await this.dbconn.log_error( message.service, ( message.code ? message.code : 0 ), message.time, message.msg.replace( /\[[^\]]+\] /gm, '' ), JSON.stringify( extra ) );
       } catch ( err ) {
         console.log( this.logger.format( 'DB error while trying to insert log data:\n' + JSON.stringify( err ) ) );
 

@@ -1,9 +1,9 @@
 import { env, exit } from 'node:process';
-import pkg from "pg";
 import { Telemetry } from './Telemetry.js';
 import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
 import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
 import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { IDatabase } from './Database/Interfaces/IDatabase.js';
 
 export class LinkFixDetector {
 
@@ -48,9 +48,9 @@ export class LinkFixDetector {
   /**
    * PostgreSQL client class instance.
    * @private
-   * @type { pkg.Client }
+   * @type { IDatabase }
    */
-  private readonly dbconn: pkg.Client;
+  private readonly dbconn: IDatabase;
 
   /**
    * Error code to check for when receiving message queue broker log messages,
@@ -68,10 +68,10 @@ export class LinkFixDetector {
    * @param { string }           service_name  ID of the service from main application for key store publishing purposes
    * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for links data to parse.
    * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IDatabase }        dbconn        A Database class instance.
    * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: pkg.Client, key_store_pub: IKeyStorePub ) {
+  constructor( service_name: string, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: IDatabase, key_store_pub: IKeyStorePub ) {
     // MQ
     this.mq_consumer = mq_consumer;
 
@@ -132,7 +132,7 @@ export class LinkFixDetector {
       }
 
       console.log( this.logger.format( 'updating feed URL for feed ' + message.old_feed_url + ' to ' + message.feed_url ) );
-      this.dbconn.query( 'UPDATE feeds SET url = $1 WHERE url = $2', [ message.feed_url, message.old_feed_url ] );
+      await this.dbconn.fix_feed_url( message.old_feed_url, message.feed_url );
 
       if ( url_fix_telemetry !== null ) {
         url_fix_telemetry.close_active_span( telemetry_name );

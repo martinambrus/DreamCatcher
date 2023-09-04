@@ -1,10 +1,10 @@
 import { env, exit } from 'node:process';
-import pkg from "pg";
 import { Telemetry } from './Telemetry.js';
 import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
 import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
 import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { IDatabase } from './Database/Interfaces/IDatabase.js';
 
 export class Analysis {
 
@@ -45,14 +45,6 @@ export class Analysis {
   private links_channel_name: string;
 
   /**
-   * Instance of the MQ used for message publishing
-   * sections of the code.
-   * @private
-   * @type { IMessageQueuePub }
-   */
-  private readonly mq_producer: IMessageQueuePub;
-
-  /**
    * Instance of the MQ used to listen
    * for RSS feeds and links to parse.
    * @private
@@ -71,31 +63,9 @@ export class Analysis {
   /**
    * PostgreSQL client class instance.
    * @private
-   * @type { pkg.Client }
+   * @type { IDatabase }
    */
-  private readonly dbconn: pkg.Client;
-
-  /**
-   * Statistical object for PGSQL prepared statements updating feed stats and fetch times
-   * upon successfully finished RSS fetch.
-   * @private
-   * @type { object }
-   */
-  private inc_stats_and_fetch_times: { name: string, text: string } = {
-    name: 'update_feed_data',
-    text: 'SELECT update_feed_after_fetch_success( $1, $2, $3, $4, $5, $6, $7, $8, $9 )',
-  };
-
-  /**
-   * Statistical object for PGSQL prepared statements updating fetch times only
-   * upon unsuccessful RSS fetch.
-   * @private
-   * @type { object }
-   */
-  private inc_fetch_times_only: { name: string, text: string } = {
-    name: 'update_feed_fetch_times',
-    text: 'SELECT update_feed_after_fetch_failed( $1, $2 )',
-  };
+  private readonly dbconn: IDatabase;
 
   /**
    * An array of error codes loaded from key store
@@ -113,15 +83,13 @@ export class Analysis {
    * that were created outside of this main class.
    *
    * @param { string }           service_name  ID of the service from main application for key store publishing purposes
-   * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
    * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for RSS feeds and links to parse.
    * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
-   * @param { pkg.Client }       dbconn        A PGSQL client instance.
+   * @param { IDatabase }        dbconn        A Database class instance.
    * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_name: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: pkg.Client, key_store_pub: IKeyStorePub ) {
+  constructor( service_name: string, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: IDatabase, key_store_pub: IKeyStorePub ) {
     // MQ
-    this.mq_producer = mq_producer;
     this.mq_consumer = mq_consumer;
 
     // Logger
@@ -225,8 +193,7 @@ export class Analysis {
 
       // no need to await for this log message, since we only debug-log it
       //this.logger.log_msg( 'writing stats data and updating fetch times for ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-      this.inc_stats_and_fetch_times[ 'values' ] = [ message.extra_data.feed_url, dt.getHours(), dt.getDay(), this.daysIntoYear(dt), this.weekIntoYear( dt ), ( dt.getMonth() + 1 ), dt.getFullYear(), message.extra_data.links_count, message.extra_data.first_item_ts ];
-      this.dbconn.query( this.inc_stats_and_fetch_times );
+      await this.dbconn.inc_stats_and_fetch_times( message.extra_data.feed_url, '' + dt.getHours(), '' + dt.getDay(), '' + this.daysIntoYear(dt), '' + this.weekIntoYear( dt ), '' + ( dt.getMonth() + 1 ), '' + dt.getFullYear(), message.extra_data.links_count, message.extra_data.first_item_ts );
 
       if ( analysis_telemetry !== null ) {
         analysis_telemetry.close_active_span( telemetry_name );
@@ -272,8 +239,7 @@ export class Analysis {
 
       // no need to wait for this log
       //this.logger.log_msg( 'updating fetch times for failed fetch of ' + message.extra_data.feed_url, 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-      this.inc_fetch_times_only[ 'values' ] = [ message.extra_data.feed_url, message.msg ];
-      this.dbconn.query( this.inc_fetch_times_only );
+      await this.dbconn.inc_fetch_times_only( message.extra_data.feed_url, message.msg );
 
       if ( analysis_telemetry !== null ) {
         analysis_telemetry.close_active_span( telemetry_name );
