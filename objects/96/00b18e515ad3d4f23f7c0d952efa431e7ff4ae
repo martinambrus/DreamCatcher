@@ -1,0 +1,23 @@
+[map "498e349e-bdc7-37ba-a677-31b4305849b2"]
+	object = 3dedc42e6a95c4d2679a736aca89c34fe99416ea
+	type = include + expand tree
+[map "37336f27-cb1f-3b4e-8eaf-196812d7fd93"]
+	object = 9b58a4e00d41f943b107bcf473451b8fca6cac47
+	path = workers/analysis/app/MQ
+	type = expand module
+[map "f45385a3-c0cd-3c12-bcf1-3e53c6bb5b15"]
+	object = 9b58a4e00d41f943b107bcf473451b8fca6cac47
+	path = workers/err_log_writer/app/MQ
+	type = expand module
+[map "17a58e2e-dc7a-390b-be4d-d5fbc16e1c67"]
+	object = 9b58a4e00d41f943b107bcf473451b8fca6cac47
+	path = workers/link_fix_detector/app/MQ
+	type = expand module
+[map "15a3ea06-831f-3223-b343-82b083505440"]
+	object = 9b58a4e00d41f943b107bcf473451b8fca6cac47
+	path = workers/link_writer/app/MQ
+	type = expand module
+[map "0a5f3522-802a-330f-9437-2abf7bee09e1"]
+	object = 9b58a4e00d41f943b107bcf473451b8fca6cac47
+	path = workers/rss_fetch/app/MQ
+	type = expand module
