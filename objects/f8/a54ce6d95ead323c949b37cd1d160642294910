@@ -1,0 +1,132 @@
+[map "83a2954e-91df-3189-a545-c43b6a89166b"]
+	object = 368ef3ff51c637891da80cf2fbf836e7d22880bd
+	path = workers/rss_fetch/app/MQ
+	stage = sync
+	type = extract module
+[map "c90b0a42-9b3e-3f9e-8fbc-7c3a48333344"]
+	object = 368ef3ff51c637891da80cf2fbf836e7d22880bd
+	path = workers/link_fix_detector/app/MQ
+	stage = sync
+	type = extract module
+[map "ff023a17-2db7-3abd-b02d-ac568980d917"]
+	object = 368ef3ff51c637891da80cf2fbf836e7d22880bd
+	path = control_center/app/MQ
+	stage = sync
+	type = extract module
+[map "25f515b1-7e73-3446-ac5f-141d14b56689"]
+	object = 6aea0f488646b127c4ec41c75cc086d4a264ffc4
+	path = workers/analysis/app/Database
+	stage = sync
+	type = extract module
+[map "41b2faab-9e60-3a12-9cd9-590d1866717b"]
+	object = 368ef3ff51c637891da80cf2fbf836e7d22880bd
+	path = workers/analysis/app/MQ
+	stage = sync
+	type = extract module
+[map "e5eb3fd2-df04-3083-95f9-a4b5b329ac2a"]
+	object = 368ef3ff51c637891da80cf2fbf836e7d22880bd
+	path = workers/err_log_writer/app/MQ
+	stage = sync
+	type = extract module
+[map "71cd5b4a-229f-371f-9049-be7ebea7f380"]
+	object = 368ef3ff51c637891da80cf2fbf836e7d22880bd
+	path = workers/link_writer/app/MQ
+	stage = sync
+	type = extract module
+[map "3f813fcb-496e-32e6-ac5e-c424092b106b"]
+	object = 625ad5b56f242702c71f31d99d0e359fc32b9a35
+	path = control_center/app/Database
+	stage = sync
+	type = extract module
+[module "c9b83a8b-c88f-32a6-96e7-c01d079caac6"]
+	conflict = request-pull
+	path = control_center/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "8ac38d52-10ef-327a-9258-1189e37396af"]
+	conflict = request-pull
+	path = control_center/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "d9e1750a-752a-3a61-92fb-eec4864cc430"]
+	conflict = request-pull
+	path = workers/analysis/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "87e01e06-1b6d-3fb3-89c6-d967c3e57f5d"]
+	conflict = request-pull
+	path = workers/analysis/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "3043e4aa-ebe8-380e-8c77-e2f2204e6435"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "295422c1-2f32-3ce8-879d-ecb3dfda6c6b"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "8465aabf-dee5-3d49-b980-71c08c435a53"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "f8534460-10fc-31fd-bac8-19699e4fbe5d"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "0732cb98-c235-35c4-8a1c-b791ae9db8ef"]
+	conflict = request-pull
+	path = workers/link_writer/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "300aa308-d767-361e-ace9-8316bdf14ecd"]
+	conflict = request-pull
+	path = workers/link_writer/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "16abd2c1-5a15-3d68-b7fa-c1e05e6b7190"]
+	conflict = request-pull
+	path = workers/rss_fetch/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[map "44afa76b-fe13-31be-867f-aa565fcf37b5"]
+	object = 6aea0f488646b127c4ec41c75cc086d4a264ffc4
+	path = workers/err_log_writer/app/Database
+	stage = sync
+	type = extract module
+[map "1b779b2c-30c5-3116-9cda-b7fe3514daee"]
+	object = 6aea0f488646b127c4ec41c75cc086d4a264ffc4
+	path = workers/link_fix_detector/app/Database
+	stage = sync
+	type = extract module
+[map "94aa8b2b-cb8f-37c0-ac23-4bda9f922c8e"]
+	object = 6aea0f488646b127c4ec41c75cc086d4a264ffc4
+	path = workers/link_writer/app/Database
+	stage = sync
+	type = extract module
