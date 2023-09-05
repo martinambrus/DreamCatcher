@@ -51,7 +51,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-
 -- functions to update stats on the given feed
 -- recursive JSON merge
 CREATE OR REPLACE FUNCTION jsonb_merge_recurse(orig jsonb, delta jsonb)
@@ -311,6 +310,11 @@ BEGIN
     -- check that the link doesn't exist
     existing_links_count := ( SELECT Count( * ) as Total FROM links WHERE feed_id = id_feed AND links.link = link_url );
     IF ( existing_links_count = 0 ) THEN
+        -- make sure that our partitions exist
+        EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links FOR VALUES IN( %L ) PARTITION BY RANGE ( date_fetched )', 'links_' || id_feed::TEXT, id_feed );
+        EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links_' || id_feed::TEXT || ' FOR VALUES FROM( %L ) TO ( %L )', 'links_' || id_feed::TEXT || '_' || TO_CHAR( CURRENT_DATE, 'mm_yyyy' ), EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy-mm' ) || '-01' )::DATE )::INT, EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy') || '-' || EXTRACT( MONTH FROM NOW() + '1 month'::INTERVAL )::INT || '-01' )::DATE )::INT );
+
+        -- insert the link
         INSERT INTO links( feed_id, title, description, link, img, date_posted ) VALUES ( id_feed, title_text, description_text, link_url, img_url, date_posted_ts ) RETURNING id INTO inserted_link_id;
     END IF;
 
