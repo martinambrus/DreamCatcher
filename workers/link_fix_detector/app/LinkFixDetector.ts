@@ -98,9 +98,6 @@ export class LinkFixDetector {
       self.key_store_pub.set( self.service_name + '_active', 1 );
     }, 60000 );
 
-    // mark ourselves as active
-    this.key_store_pub.set( this.service_name + '_active', 1 );
-
     // subscribe to RSS invalid links channel, so we can update wrong feed links when they are found
     this.mq_consumer.consume( env.RSS_INVALID_URLS_CHANEL_NAME, self.db_update_wrong_feed_url.bind( this ) );
   }

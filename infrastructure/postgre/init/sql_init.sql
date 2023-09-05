@@ -32,6 +32,23 @@ CREATE INDEX next_fetch_ts ON feeds( next_fetch_ts ASC );
 CREATE INDEX rss_fetch_conditions ON feeds ( active ASC, next_fetch_ts ASC, subsequent_errors_counter DESC, subscribers );
 CREATE INDEX errors_check ON feeds ( subsequent_errors_counter DESC, last_error_ts ASC );
 
+-- inserts new feed into the database, while simultaneously creating a new partition link tables
+-- for the feed for this month
+CREATE OR REPLACE FUNCTION insert_new_feed( feed_url VARCHAR( 500 ), feed_title VARCHAR( 500 ), subscriber_tier INT = 50 ) RETURNS BIGINT AS $$
+DECLARE
+    inserted_feed_id BIGINT;
+BEGIN
+    -- insert feed info
+    INSERT INTO feeds( url, title, subscribers ) VALUES ( feed_url, feed_title, ( '{"' || subscriber_tier::TEXT || '" : "1"}' )::JSONB ) RETURNING id INTO inserted_feed_id;
+
+    inserted_feed_id := inserted_feed_id::BIGINT;
+    -- create partition tables for this feed and this month
+    EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links FOR VALUES IN( %L ) PARTITION BY RANGE ( date_fetched )', 'links_' || inserted_feed_id::TEXT, inserted_feed_id );
+    EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links_' || inserted_feed_id::TEXT || ' FOR VALUES FROM( %L ) TO ( %L )', 'links_' || inserted_feed_id::TEXT || '_' || TO_CHAR( CURRENT_DATE, 'mm_yyyy' ), EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy-mm' ) || '-01' )::DATE )::INT, EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy') || '-' || EXTRACT( MONTH FROM NOW() + '1 month'::INTERVAL )::INT || '-01' )::DATE )::INT );
+
+    RETURN inserted_feed_id;
+END;
+$$ LANGUAGE plpgsql;
 
 
 
@@ -279,28 +296,27 @@ CREATE TABLE links (
 ) PARTITION BY LIST ( feed_id ); -- partition table by feed ID, so we can have more smaller indexes in multiple tables
                                  -- rather than one huge for all links of all feeds
 
-CREATE INDEX feed_link ON links (feed_id ASC, link ASC );
+CREATE INDEX feed_link ON links ( feed_id ASC, link ASC );
 CREATE INDEX feed_processed ON links (feed_id ASC, is_processed ASC );
 CREATE INDEX processed_fetched ON links (is_processed DESC, date_fetched DESC );
 
--- inserts new feed into the database, while simultaneously creating a new partition link tables
--- for the feed for this month
-CREATE OR REPLACE FUNCTION insert_new_feed( feed_url VARCHAR( 500 ), feed_title VARCHAR( 500 ), subscriber_tier INT = 50 ) RETURNS BIGINT AS $$
+-- inserts a link into the database, if such a link doesn't exist there already
+-- note that we cannot use unique index on the link, since we're partitioning tables
+-- and all links are unique, so that wouldn't work (we'd need to include link into a unique index)
+CREATE OR REPLACE FUNCTION insert_new_link( id_feed BIGINT, title_text TEXT, description_text TEXT, link_url TEXT, img_url TEXT, date_posted_ts BIGINT ) RETURNS BIGINT AS $$
 DECLARE
-    inserted_feed_id BIGINT;
+    inserted_link_id BIGINT := 0;
+    existing_links_count SMALLINT;
 BEGIN
-    -- insert feed info
-    INSERT INTO feeds( url, title, subscribers ) VALUES ( feed_url, feed_title, ( '{"' || subscriber_tier::TEXT || '" : "1"}' )::JSONB ) RETURNING id INTO inserted_feed_id;
+    -- check that the link doesn't exist
+    existing_links_count := ( SELECT Count( * ) as Total FROM links WHERE feed_id = id_feed AND links.link = link_url );
+    IF ( existing_links_count = 0 ) THEN
+        INSERT INTO links( feed_id, title, description, link, img, date_posted ) VALUES ( id_feed, title_text, description_text, link_url, img_url, date_posted_ts ) RETURNING id INTO inserted_link_id;
+    END IF;
 
-    inserted_feed_id := inserted_feed_id::BIGINT;
-    -- create partition tables for this feed and this month
-    EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links FOR VALUES IN( %L ) PARTITION BY RANGE ( date_fetched )', 'links_' || inserted_feed_id::TEXT, inserted_feed_id );
-    EXECUTE format( 'CREATE TABLE IF NOT EXISTS %I PARTITION OF links_' || inserted_feed_id::TEXT || ' FOR VALUES FROM( %L ) TO ( %L )', 'links_' || inserted_feed_id::TEXT || '_' || TO_CHAR( CURRENT_DATE, 'mm_yyyy' ), EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy-mm' ) || '-01' )::DATE )::INT, EXTRACT( epoch FROM ( TO_CHAR( CURRENT_DATE, 'yyyy') || '-' || EXTRACT( MONTH FROM NOW() + '1 month'::INTERVAL )::INT || '-01' )::DATE )::INT );
-
-    RETURN inserted_feed_id;
+    RETURN inserted_link_id;
 END;
 $$ LANGUAGE plpgsql;
-
 
 
 -- table err_log

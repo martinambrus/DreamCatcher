@@ -179,9 +179,6 @@ export class LinkWriter {
       self.key_store_pub.set( self.service_id + '_active', 1 );
     }, 60000 );
 
-    // mark ourselves as active
-    this.key_store_pub.set( this.service_id + '_active', 1 );
-
     // subscribe to RSS new links channel, so we can write their data out to the database
     this.mq_consumer.consume( this.links_channel_name, self.parse_link.bind( this ) );
 
@@ -235,35 +232,31 @@ export class LinkWriter {
 
           // try inserting the link into the DB
           try {
-            await this.dbconn.insert_link( this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published );
+            let inserted_link_id = await this.dbconn.insert_link( this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published );
+            if ( inserted_link_id ) {
+              // check and store first item's timestamp for this batch and this feed
+              if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
+                this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
+              }
 
-            // check and store first item's timestamp for this batch and this feed
-            if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
-              this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
-            }
+              // increment count of the messages inserted for this feed in this batch
+              if ( !this.feed_messages_inserted_counter[ message.feed_url ] ) {
+                this.feed_messages_inserted_counter[ message.feed_url ] = 1;
+              } else {
+                this.feed_messages_inserted_counter[ message.feed_url ]++;
+              }
 
-            // increment count of the messages inserted for this feed in this batch
-            if ( !this.feed_messages_inserted_counter[ message.feed_url ] ) {
-              this.feed_messages_inserted_counter[ message.feed_url ] = 1;
-            } else {
-              this.feed_messages_inserted_counter[ message.feed_url ]++;
-            }
-
-            // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
-            //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
-          } catch ( err ) {
-            // ignore duplicate errors, since we have unique url field in the DB
-            // which ensures a certain level of de-duplication
-            if ( ( err.detail && err.detail.indexOf( 'already exists' ) == -1 ) || !err.detail ) {
-              // this is a non-duplication error, log it
-              this.logger.log_msg( 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 'ERR_LINK_WRITER_DB_WRITE_ERROR' );
-              await link_telemetry.add_span( error_log_span_name, { 'link_url' : message.link }, 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 1 );
-              link_telemetry.close_active_span( error_log_span_name );
+              // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
+              //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
             } else {
               // since this is a valid duplicate link, update data
               // to be sent to fetch interval updating service
               this.update_internals_when_link_fails_to_insert( message );
             }
+          } catch ( err ) {
+            this.logger.log_msg( 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 'ERR_LINK_WRITER_DB_WRITE_ERROR' );
+            await link_telemetry.add_span( error_log_span_name, { 'link_url' : message.link }, 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 1 );
+            link_telemetry.close_active_span( error_log_span_name );
           }
 
           link_telemetry.close_active_span( link_db_write_span_name );

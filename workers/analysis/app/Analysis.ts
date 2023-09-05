@@ -38,13 +38,6 @@ export class Analysis {
   private readonly logs_channel_name: string;
 
   /**
-   * New ilnks channel name.
-   * @private
-   * @type { string }
-   */
-  private links_channel_name: string;
-
-  /**
    * Instance of the MQ used to listen
    * for RSS feeds and links to parse.
    * @private
@@ -104,24 +97,25 @@ export class Analysis {
     // strings
     this.service_name = service_name;
     this.logs_channel_name = env.LOGS_CHANNEL_NAME;
-    this.links_channel_name = env.NEW_LINKS_CHANNEL_NAME;
 
     // publish info about our instance going live
     this.logger.log_msg( 'analysis up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
 
     let self = this;
 
-    // load all error codes for which we want to increment number of errors per feed
-    ( async (): Promise<void> => {
-      for (let err_code_string of ['ERR_RSS_FETCH_INVALID_JSON_FEED', 'ERR_RSS_FETCH_PROCESSING', 'ERR_RSS_FETCH_TIMEOUT', 'ERR_RSS_FETCH_WRONG_URL_CANNOT_FIX']) {
-        self.important_rss_fetch_error_codes.push( parseInt( await self.key_store_pub.get( err_code_string ) ) );
-      }
-    })();
-
     // create a task that will update this service active status every minute
     // ... this is here in case Redis goes down, so we can show that we are alive again
     setInterval( (): void => {
       self.key_store_pub.set( self.service_name + '_active', 1 );
+
+      // also load all error codes for which we want to increment number of errors per feed - if they are not loaded yet
+      if ( !self.important_rss_fetch_error_codes.length ) {
+        ( async (): Promise<void> => {
+          for ( let err_code_string of [ 'ERR_RSS_FETCH_INVALID_JSON_FEED', 'ERR_RSS_FETCH_PROCESSING', 'ERR_RSS_FETCH_TIMEOUT', 'ERR_RSS_FETCH_WRONG_URL_CANNOT_FIX' ] ) {
+            self.important_rss_fetch_error_codes.push( parseInt( await self.key_store_pub.get( err_code_string ) ) );
+          }
+        } )();
+      }
     }, 60000 );
 
     // mark ourselves as active in the key store
@@ -130,7 +124,7 @@ export class Analysis {
     // subscribe to RSS new links channel, so we can update statistics for links amount per day, month and year
     // once the link writer publishes its new links counter
     // ... also, subscribe to RSS fetch errors, so we can update DB stats with error data
-    this.mq_consumer.consume( [ this.links_channel_name, this.logs_channel_name ], self.update_stats.bind( this ) );
+    this.mq_consumer.consume( this.logs_channel_name, self.update_stats.bind( this ) );
   }
 
   /**
@@ -144,14 +138,10 @@ export class Analysis {
    * @private
    */
   private async update_stats( { topic, message, trace_id } ): Promise<any> {
-    if ( topic == this.logs_channel_name ) {
-      if ( message.service == 'link_writer' && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE ) {
-        await this.update_ok_stats( { topic: topic, message: message, trace_id: trace_id } );
-      }
-    } else if ( topic == this.links_channel_name ) {
-      if ( message.service == 'rss_fetch' && this.important_rss_fetch_error_codes.includes( parseInt( message.code ) ) ) {
-        await this.update_error_stats( { topic: topic, message: message, trace_id: trace_id } );
-      }
+    if ( message.service == 'link_writer' && message.severity == LOG_SEVERITIES.LOG_SEVERITY_NOTICE ) {
+      await this.update_ok_stats( { topic: topic, message: message, trace_id: trace_id } );
+    } else if ( message.service == 'rss_fetch' && this.important_rss_fetch_error_codes.includes( parseInt( message.code ) ) ) {
+      await this.update_error_stats( { topic: topic, message: message, trace_id: trace_id } );
     }
   }
 

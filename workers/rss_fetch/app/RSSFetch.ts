@@ -149,9 +149,6 @@ export class RSSFetch {
       self.key_store_pub.set( self.service_name + '_active', 1 );
     }, 60000 );
 
-    // mark ourselves as active
-    this.key_store_pub.set( this.service_name + '_active', 1 );
-
     // subscribe to receive RSS feed links to be parsed
     this.mq_consumer.consume( env.FEED_FETCH_CHANNEL_NAME, self.parse_feed_url.bind( this ) );
   }

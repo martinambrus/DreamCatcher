@@ -119,9 +119,6 @@ export class ErrLogWriter {
       self.key_store_pub.set( self.service_name + '_active', 1 );
     }, 60000 );
 
-    // mark ourselves as active from the start
-    this.key_store_pub.set( this.service_name + '_active', 1 );
-
     // subscribe to logs channel, so we can store error logs into the DB
     this.mq_consumer.consume( this.logs_channel_name, self.log_error.bind( this ) );
   }
