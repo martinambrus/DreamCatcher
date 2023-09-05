@@ -108,7 +108,7 @@ services:
       REPMGR_PORT_NUMBER: 5432
   kafka-0:
     image: "docker.io/bitnami/kafka:3.5.1-debian-11-r7"
-    mem_limit: "1GB"
+    mem_limit: "2GB"
     networks:
       - internal
     ports:

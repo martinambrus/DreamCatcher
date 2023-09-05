@@ -233,7 +233,7 @@ services:
     ports:
       - 127.0.0.1:9092:9092
       - 127.0.0.1:9093:9093
-    mem_limit: "1GB"
+    mem_limit: "2GB"
     restart: unless-stopped
     environment:
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
@@ -253,7 +253,7 @@ services:
     ports:
       - 9092
       - 9093
-    mem_limit: "1GB"
+    mem_limit: "2GB"
     restart: unless-stopped
     environment:
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
@@ -273,7 +273,7 @@ services:
     ports:
       - 9092
       - 9093
-    mem_limit: "1GB"
+    mem_limit: "2GB"
     restart: unless-stopped
     environment:
       - KAFKA_CFG_PROCESS_ROLES=controller,broker
