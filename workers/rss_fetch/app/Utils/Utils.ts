@@ -58,7 +58,7 @@ export class Utils {
    * @public
    * @type { Object }
    */
-  public feed_url_to_id: Object = {};
+  public static feed_url_to_id: Object = {};
 
   /**
    * Retrieves first image from the HTML string given.
@@ -192,13 +192,13 @@ export class Utils {
   public async checkAndCacheFeedURL( feed_url: string ): Promise<boolean> {
     let ret: boolean = true;
 
-    if ( !this.feed_url_to_id[ feed_url ] ) {
+    if ( !Utils.feed_url_to_id[ feed_url ] ) {
       try {
         const res_id: bigint = await Utils.dbconn.get_feed_id_from_url( feed_url );
         if ( res_id ) {
-          this.feed_url_to_id[ feed_url ] = res_id;
+          Utils.feed_url_to_id[ feed_url ] = res_id;
         } else {
-          this.feed_url_to_id[ feed_url ] = 0;
+          Utils.feed_url_to_id[ feed_url ] = 0;
 
           // we couldn't get link ID for this feed, log error
           // no await - we're returning boolean that's manually set below
@@ -209,7 +209,7 @@ export class Utils {
         // clean up this feed's ID cache after 45 minutes, so we clear up some memory
         // if the feed is not being updated that frequently
         setTimeout( () => {
-          delete this.feed_url_to_id[ feed_url ];
+          delete Utils.feed_url_to_id[ feed_url ];
         }, 1000 * 60 * 45 );
       } catch ( err ) {
         // no await - we're returning boolean that's manually set below
