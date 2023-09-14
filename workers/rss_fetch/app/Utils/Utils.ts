@@ -147,16 +147,17 @@ export class Utils {
       txt = txt.replace( /[\t]/g, ' ' ).replace( / {2,}/g, ' ' );
     }
 
-    // strip the string of all 2-and-more spaces
-    txt = txt.replace( / {2,}/g, ' ' );
-
     // decode any HTML entities back into their respective characters
     txt = decode( txt );
 
     // manually remove <style> and <script> tags, since their content doesn't get removed by striptags() below
     txt = txt
       .replace(/<style[^>]*>.*<\/style>/g, '')
-      .replace(/<script[^>]*>.*<\/script>/g, '');
+      .replace(/<script[^>]*>.*<\/script>/g, '')
+      .replace(/<[^>]+>/g, ' ');
+
+    // strip the string of all 2-and-more spaces
+    txt = txt.replace( / {2,}/g, ' ' );
 
     // strip all HTML tags
     txt = striptags( txt );
