@@ -153,6 +153,11 @@ export class Utils {
     // decode any HTML entities back into their respective characters
     txt = decode( txt );
 
+    // manually remove <style> and <script> tags, since their content doesn't get removed by striptags() below
+    txt = txt
+      .replace(/<style[^>]*>.*<\/style>/g, '')
+      .replace(/<script[^>]*>.*<\/script>/g, '');
+
     // strip all HTML tags
     txt = striptags( txt );
 
