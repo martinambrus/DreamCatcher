@@ -13,15 +13,15 @@
 	object = dba5ab590bb044d21ad518f944bbfe920f69d017
 	path = workers/rss_links_fetch/Utils
 	type = expand module
-[map "7432046e-3b5a-329c-b67c-eab46f027ca9"]
-	object = e82019e2a9c748bcb481748f7ba1516228ec811c
+[map "8b325e78-2a9b-3a26-a8eb-09fa97c1ecfa"]
+	object = 6d75b8b8c4b15f6ad23a7ff180e0c6641182ad03
 	path = workers/link_writer/app/Utils
 	type = expand module
-[map "3008fc16-6e5c-3bbe-83a8-3ca9a365e648"]
-	object = e82019e2a9c748bcb481748f7ba1516228ec811c
+[map "0c07b584-0585-3de2-a81c-3d312653e3bd"]
+	object = 6d75b8b8c4b15f6ad23a7ff180e0c6641182ad03
 	path = workers/rss_fetch/app/Utils
 	type = expand module
-[map "a92f5d4e-6977-3b87-a0c5-8d03163a4b5b"]
-	object = e82019e2a9c748bcb481748f7ba1516228ec811c
+[map "4627dac4-f133-3d4a-9959-c5ec5f4413d1"]
+	object = 6d75b8b8c4b15f6ad23a7ff180e0c6641182ad03
 	path = workers/rss_links_fetch/app/Utils
 	type = expand module
