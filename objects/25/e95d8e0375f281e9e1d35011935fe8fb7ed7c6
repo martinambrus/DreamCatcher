@@ -13,19 +13,19 @@
 	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/rss_fetch/app/MQ
 	type = expand module
-[map "cf57dfd3-5336-3944-b00c-0d177cf87dc4"]
-	object = 6d75b8b8c4b15f6ad23a7ff180e0c6641182ad03
+[map "c3389855-48a0-3848-ade1-385c69a69901"]
+	object = 29c4c56713175166b8999ba65afc671b72550c05
 	path = workers/link_fix_detector/app/MQ
 	type = expand module
-[map "1fda09da-4f05-3859-8e24-cc198a5b43b5"]
-	object = 6d75b8b8c4b15f6ad23a7ff180e0c6641182ad03
+[map "ce055fa4-b62a-3063-b99f-7caf2f767197"]
+	object = 29c4c56713175166b8999ba65afc671b72550c05
 	path = control_center/app/MQ
 	type = expand module
-[map "49ffc9d8-7fed-39ad-a0d5-c8180b82a7a1"]
-	object = 6d75b8b8c4b15f6ad23a7ff180e0c6641182ad03
+[map "b016f985-92cf-3b22-9c46-26f319768a5b"]
+	object = 29c4c56713175166b8999ba65afc671b72550c05
 	path = workers/analysis/app/MQ
 	type = expand module
-[map "462a9765-9547-3481-8156-cfbf3630f19f"]
-	object = 6d75b8b8c4b15f6ad23a7ff180e0c6641182ad03
+[map "fe8c3836-c196-33e4-b2df-c21c36812fd0"]
+	object = 29c4c56713175166b8999ba65afc671b72550c05
 	path = workers/err_log_writer/app/MQ
 	type = expand module
