@@ -119,4 +119,15 @@ export interface IDatabase {
     date_posted_unix_ts: number
   ): Promise<boolean>;
 
+  /**
+   * Updates link data with relevant HTML from which relevant words
+   * for AI-training are extracted.
+   *
+   * @param { number } feed_id ID of the feed to which this link belongs.
+   *                           Used to speed up updated due to indexing present on the feed_id field.
+   * @param { string } link    The link URL for which we want to update the original HTML.
+   *                           Used to speed up updated due to indexing present on the link field.
+   * @param { string } html    The actual HTML to update the link record with.
+   */
+  update_link_html( feed_id: number, link: string, html: string ): Promise<void>;
 }
