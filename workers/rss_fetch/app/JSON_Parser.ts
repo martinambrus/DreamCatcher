@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { Utils } from './Utils.js';
+import { Utils } from './Utils/Utils.js';
 
 export class JSON_Parser {
 

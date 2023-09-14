@@ -1,7 +1,7 @@
-import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
-import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { ILogger, LOG_SEVERITIES } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
+import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { env } from 'node:process';
-import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
 
 /**
  * A logging class that formats log messages and logs them

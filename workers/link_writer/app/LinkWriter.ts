@@ -1,11 +1,11 @@
 import { env, exit } from 'node:process';
 import { Telemetry } from './Telemetry.js';
-import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
-import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
-import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
-import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
-import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
-import { IDatabase } from './Database/Interfaces/IDatabase.js';
+import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
+import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { IDatabase } from './Utils/Database/Interfaces/IDatabase.js';
+import { Utils } from './Utils/Utils.js';
 
 export class LinkWriter {
 
@@ -46,14 +46,6 @@ export class LinkWriter {
    * @type { IMessageQueueSub }
    */
   private readonly mq_consumer: IMessageQueueSub;
-
-  /**
-   * Key store subscriber client instance,
-   * used to subscribe to channels.
-   * @type { IKeyStoreSub }
-   * @private
-   */
-  private readonly key_store_sub: IKeyStoreSub;
 
   /**
    * Key store publisher and getter client instance,
@@ -104,14 +96,6 @@ export class LinkWriter {
   private feed_first_batch_item_ts: Object = [];
 
   /**
-   * Temporary cached feed urls to IDs.
-   *
-   * @private
-   * @type { Object }
-   */
-  private feed_url_to_id: Object = {};
-
-  /**
    * New ilnks channel name.
    * @private
    * @type { string }
@@ -146,10 +130,15 @@ export class LinkWriter {
    * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for RSS feeds to parse.
    * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
    * @param { IDatabase }        dbconn        A Database class instance.
-   * @param { IKeyStoreSub }     key_store_sub A Key Store Sub client to subscribe to channels.
    * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
-  constructor( service_id: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: IDatabase, key_store_sub: IKeyStoreSub, key_store_pub: IKeyStorePub ) {
+  constructor( service_id: string, mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, dbconn: IDatabase, key_store_pub: IKeyStorePub ) {
+    // Utilities class init
+    Utils.service_name = service_id;
+    Utils.dbconn = dbconn;
+    Utils.logger = logger;
+    Utils.mq_producer = mq_producer;
+
     // MQ
     this.mq_producer = mq_producer;
     this.mq_consumer = mq_consumer;
@@ -161,7 +150,6 @@ export class LinkWriter {
     this.dbconn = dbconn;
 
     // key store
-    this.key_store_sub = key_store_sub;
     this.key_store_pub = key_store_pub;
 
     // strings
@@ -224,7 +212,7 @@ export class LinkWriter {
       await link_telemetry.add_span( link_check_span_name, { 'link' : message.link } );
 
       // see if we have cached feed ID for this URL
-      this.checkAndCacheFeedURL( message.feed_url ).then( async ( result: boolean ) => {
+      Utils.checkAndCacheFeedURL( message.feed_url ).then( async ( result: boolean ) => {
         link_telemetry.close_active_span( link_check_span_name );
 
         if ( result ) {
@@ -232,7 +220,7 @@ export class LinkWriter {
 
           // try inserting the link into the DB
           try {
-            let inserted_link_id = await this.dbconn.insert_link( this.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published );
+            let inserted_link_id = await this.dbconn.insert_link( Utils.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published );
             if ( inserted_link_id ) {
               // check and store first item's timestamp for this batch and this feed
               if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
@@ -319,49 +307,5 @@ export class LinkWriter {
     if ( !this.feed_first_batch_item_ts[ msg['feed_url'] ] ) {
       this.feed_first_batch_item_ts[ msg['feed_url'] ] = ( msg && msg['date'] ? msg['date'] : Math.round( Date.now() / 1000 ) );
     }
-  }
-
-  /**
-   * Checks whether we have feed_id -> feed_url mapping present
-   * for the given feed and caches it if we don't. Also creates
-   * a cleanup task to remove the cached value after 45 minutes
-   * of feed inactivity.
-   *
-   * @param { string } feed_url The feed URL to check for ID mapping existance.
-   * @private
-   *
-   * @return { Promise<boolean> } Returns true if the feed was successfully cached,
-   *                              false otherwise.
-   */
-  private async checkAndCacheFeedURL( feed_url: string ): Promise<boolean> {
-    let ret: boolean = true;
-
-    if ( !this.feed_url_to_id[ feed_url ] ) {
-      try {
-        const res_id: bigint = await this.dbconn.get_feed_id_from_url( feed_url );
-        if ( res_id ) {
-          this.feed_url_to_id[ feed_url ] = res_id;
-        } else {
-          this.feed_url_to_id[ feed_url ] = 0;
-
-          // we couldn't get link ID for this feed, log error
-          // no await - we're returning boolean that's manually set below
-          this.logger.log_msg( 'Could not find feed in database: ' + feed_url, 'ERR_LINK_WRITER_NO_RSS_FEED_RECORD' );
-          ret = false;
-        }
-
-        // clean up this feed's ID cache after 45 minutes, so we clear up some memory
-        // if the feed is not being updated that frequently
-        setTimeout( () => {
-          delete this.feed_url_to_id[ feed_url ];
-        }, 1000 * 60 * 45 );
-      } catch ( err ) {
-        // no await - we're returning boolean that's manually set below
-        this.logger.log_msg( 'Database error trying to get feed info from DB: ' + JSON.stringify( err ), 'ERR_LINK_WRITER_DB_READ_ERROR' );
-        ret = false;
-      }
-    }
-
-    return ret;
   }
 }

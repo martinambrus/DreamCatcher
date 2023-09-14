@@ -1,15 +1,15 @@
 import {env, exit} from 'node:process';
 import { RSSFetch } from "./RSSFetch.js";
 import { Logger } from "./Logger.js";
-import { ILogger } from './MQ/KeyStore/Interfaces/ILogger.js';
-import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
-import { KeyStoreSubClient } from './MQ/KeyStore/KeyStoreSubClient.js';
-import { KeyStorePubClient } from './MQ/KeyStore/KeyStorePubClient.js';
-import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
-import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
-import { MessageQueuePub } from './MQ/MessageQueuePub.js';
-import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
-import { MessageQueueSub } from './MQ/MessageQueueSub.js';
+import { ILogger } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
+import { IKeyStoreSub } from './Utils/MQ/KeyStore/Interfaces/IKeyStoreSub.js';
+import { KeyStoreSubClient } from './Utils/MQ/KeyStore/KeyStoreSubClient.js';
+import { KeyStorePubClient } from './Utils/MQ/KeyStore/KeyStorePubClient.js';
+import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { MessageQueuePub } from './Utils/MQ/MessageQueuePub.js';
+import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { MessageQueueSub } from './Utils/MQ/MessageQueueSub.js';
 import { Kafka } from 'kafkajs';
 
 // APP settings

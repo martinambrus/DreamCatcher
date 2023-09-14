@@ -2,15 +2,15 @@ import { env, exit } from "node:process";
 import * as http from 'node:http';
 import * as https from 'node:https';
 import CacheableLookup from 'cacheable-lookup';
-import { Utils } from './Utils.js';
+import { Utils } from './Utils/Utils.js';
 import { XML_Parser } from './XML_Parser.js';
 import { JSON_Parser } from './JSON_Parser.js';
 import fetch from 'node-fetch';
 import { Telemetry } from './Telemetry.js';
-import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
-import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
-import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
-import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
+import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
 const cacheable: CacheableLookup = new CacheableLookup();
 
 export class RSSFetch {
@@ -101,9 +101,10 @@ export class RSSFetch {
    * @param { IKeyStorePub }     key_store_pub A Key Store Pub client to fetch error codes.
    */
   constructor( mq_producer: IMessageQueuePub, mq_consumer: IMessageQueueSub, logger: ILogger, service_name: string, key_store_pub: IKeyStorePub ) {
-    // initialize Utils static class with default values
-    Utils.mq_producer  = mq_producer;
+    // Utilities class init
     Utils.service_name = service_name;
+    Utils.logger = logger;
+    Utils.mq_producer = mq_producer;
 
     // initialize http+s agents
     this.http_agent = new http.Agent({

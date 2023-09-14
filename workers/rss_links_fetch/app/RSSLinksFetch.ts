@@ -4,15 +4,18 @@ import * as https from 'node:https';
 import CacheableLookup from 'cacheable-lookup';
 import fetch from 'node-fetch';
 import { Telemetry } from './Telemetry.js';
-import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
-import { ILogger, LOG_SEVERITIES } from './MQ/KeyStore/Interfaces/ILogger.js';
-import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
-import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
-import { IDatabase } from './MQ/KeyStore/Interfaces/IDatabase.js';
+import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { ILogger, LOG_SEVERITIES } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
+import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { IDatabase } from './Utils/MQ/KeyStore/Interfaces/IDatabase.js';
 import { queue } from 'async';
-import $ from 'jquery';
-import { Utils } from './Utils.js';
+import { JSDOM } from 'jsdom';
+import { Utils } from './Utils/Utils.js';
+import { IMessageQueuePub } from './Utils/Database/Interfaces/IMessageQueuePub.js';
+import jquery from 'jquery';
 const cacheable: CacheableLookup = new CacheableLookup();
+const dom = new JSDOM('');
+const $ = jquery( dom.window );
 
 export class RSSLinksFetch {
 
@@ -30,14 +33,6 @@ export class RSSLinksFetch {
    * @type { ILogger }
    */
   private readonly logger: ILogger;
-
-  /**
-   * Instance of the MQ Producer used to listen
-   * for RSS feeds to parse.
-   * @private
-   * @type { IMessageQueuePub }
-   */
-  private readonly mq_producer: IMessageQueuePub;
 
   /**
    * Instance of the MQ Consumer used to listen
@@ -112,7 +107,7 @@ export class RSSLinksFetch {
    * that were created outside of this main class.
    * Also creates instances of XML and JSON parser internal classes.
    *
-   * @param { IMessageQueuePub } mq_producer   MQ Producer used to publish messages.
+   * @param { IMessageQueuePub } mq_producer   MQ Producer, used to initialize the Utils class.
    * @param { IMessageQueueSub } mq_consumer   MQ Consumer used to listen for RSS feeds to parse.
    * @param { ILogger }          logger        A Logger class instanced used for logging purposes.
    * @param { string }           service_name  ID of the service from main application for key store publishing purposes
@@ -134,8 +129,13 @@ export class RSSLinksFetch {
     cacheable.install( this.http_agent );
     cacheable.install( this.https_agent );
 
+    // Utilities class init
+    Utils.service_name = service_name;
+    Utils.dbconn = dbconn;
+    Utils.logger = logger;
+    Utils.mq_producer = mq_producer;
+
     // MQ
-    this.mq_producer = mq_producer;
     this.mq_consumer = mq_consumer;
 
     // Logger
@@ -153,7 +153,6 @@ export class RSSLinksFetch {
 
     // create a new async queue to process links in parallel
     this.queue = new queue( ( task, callback ) => {
-      console.log('adding task ' + task + ' to queue');
       callback();
     }, ( env.RSS_MAX_FETCH_LINKS_IN_PARALLEL ? env.RSS_MAX_FETCH_LINKS_IN_PARALLEL : 25 ) );
 
@@ -174,6 +173,18 @@ export class RSSLinksFetch {
 
     // subscribe to receive RSS feed links to be parsed
     this.mq_consumer.consume( env.SAVED_LINKS_CHANNEL_NAME, self.enqueue_link_html_getting.bind( this ) );
+
+    // start a retry queue timed task
+    setInterval( async () => {
+      for ( let item in self.retries ) {
+        if ( self.retries[ item ].retries < self.max_retries ) {
+          await self.retries[ item ].callback;
+        } else {
+          await self.logger.log_msg( 'Exhausted number of retries for link: ' + item );
+          delete self.retries[ item ];
+        }
+      }
+    }, 60000 );
   }
 
   /**
@@ -197,6 +208,8 @@ export class RSSLinksFetch {
       this.queue.push( { name: mq_message_data.link }, async () => {
         this.parse_link_url( mq_message_data, analysis_telemetry, mq_key_data );
       });
+
+      //this.queue.drain();
     }
   }
 
@@ -231,6 +244,11 @@ export class RSSLinksFetch {
         const final_html = this.detect_article_text( mq_message_data.title, link_data.data );
 
         // save the resulting HTML into the database
+        Utils.checkAndCacheFeedURL( mq_message_data.feed_url ).then( async ( result: boolean ) => {
+          if ( result ) {
+            await this.dbconn.update_link_html( Utils.feed_url_to_id[ mq_message_data.feed_url ], mq_message_data.link, final_html );
+          }
+        });
       }
 
       analysis_telemetry.close_active_span( url_status_span_name );
@@ -242,7 +260,7 @@ export class RSSLinksFetch {
     }
 
     // publish to key store that we're done with tracing
-    this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
+    await this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
   }
 
   /**
@@ -260,54 +278,48 @@ export class RSSLinksFetch {
       query = $( html );
 
     // try searching for the most obvious H1 tag and its container
-    for ( let element of query.find( 'h1' ) ) {
-      blog_article_text = this.find_article_text( element, link_title );
-    }
+    query.find( 'h1' ).each(( index, element ) => {
+      blog_article_text = this.find_article_text( $( element ), link_title );
+    });
 
     // H1 tag search not fruitful, try H2
     if ( !blog_article_text ) {
-      for ( let element of query.find( 'h2' ) ) {
-        blog_article_text = this.find_article_text( element, link_title );
-      }
+      query.find( 'h2' ).each(( index, element ) => {
+        blog_article_text = this.find_article_text( $( element ), link_title );
+      });
     }
 
     // H2 tag search not fruitful, try H3
     if ( !blog_article_text ) {
-      for ( let element of query.find( 'h3' ) ) {
-        blog_article_text = this.find_article_text( element, link_title );
-      }
+      query.find( 'h3' ).each(( index, element ) => {
+        blog_article_text = this.find_article_text( $( element ), link_title );
+      });
     }
 
     // H3 tag search not fruitful, try H4
     if ( !blog_article_text ) {
-      for ( let element of query.find( 'h4' ) ) {
-        blog_article_text = this.find_article_text( element, link_title );
-      }
+      query.find( 'h4' ).each(( index, element ) => {
+        blog_article_text = this.find_article_text( $( element ), link_title );
+      });
     }
 
     // try to find the title text on the page inside of any element,
     // since bad and old pages wouldn't adhere to any SEO standards
     // and will put title inside <font> tags
     if ( !blog_article_text ) {
-      let node = query.find( "body *:contains('" + Utils.untagize( link_title ).replace( '"', '' ) + "'):last" );
-      if ( node.text() ) {
-        const cleared_up_text = node
-          .text()
-          .trim()
-          .replace( /[\n\r\t]/g, ' ' ) // new lines, carriage returns and tabs into spaces
-          .replace( / {2,}/g, ' ' ); // double-or-more spaces into single space
-
-        while ( cleared_up_text.length < ( link_title.length + 500 ) ) {
+      let node = query.find( "body *:contains('" + Utils.untagize( link_title, false ).replace( '"', '' ) + "'):last" );
+      if ( node.length ) {
+        while ( Utils.untagize( node.html(), false ).length < ( link_title.length + 500 ) ) {
           node = node.parent();
         }
 
-        blog_article_text = node.text();
+        blog_article_text = Utils.untagize( node.html(), false );
       }
     }
 
     // the article title was not found in the page - use whole page HTML
     if ( !blog_article_text ) {
-      blog_article_text = $( html ).text();
+      blog_article_text = Utils.untagize( html.substring( html.indexOf( '<body' ) ), false );
     }
 
     return blog_article_text;
@@ -319,32 +331,28 @@ export class RSSLinksFetch {
    * container element, or empty string if the container element
    * cannot be found.
    *
-   * @param { $ }      html_element The HTML element selected by jQuery.
+   * @param { any }      html_element The HTML element selected by jQuery.
    * @param { string } link_title   Title of the link from which the HTML originates.
    * @private
    */
-  private find_article_text( html_element: $, link_title: string ): string {
+  private find_article_text( html_element: any, link_title: string ): string {
     // if we found our link title inside of this element, let's try to find the article container
-    if ( html_element.text().trim() == link_title ) {
+    const cleared_up_text = Utils.untagize( html_element.html(), false );
+
+    if ( cleared_up_text == link_title ) {
       // go up until we have at least the title + 500 other characters
       // which would signify some sort of an article element
       // ... this does not need to be precise - even if we select words
       //     from ads and other links on page, the content will remain relevant
       //     to this source's theme
-      const cleared_up_text = html_element
-        .text()
-        .trim()
-        .replace( /[\n\r\t]/g, ' ' ) // new lines, carriage returns and tabs into spaces
-        .replace( / {2,}/g, ' ' ); // double-or-more spaces into single space
-
-      while ( cleared_up_text.length < ( link_title.length + 500 ) ) {
+      while ( Utils.untagize( html_element.html(), false ).length < ( link_title.length + 500 ) ) {
         html_element = html_element.parent();
-        if ( !html_element.text() ) {
+        if ( !html_element.length ) {
           break;
         }
       }
 
-      return html_element.text();
+      return Utils.untagize( html_element.html(), false );
     }
 
     // title not found inside the given HTML element

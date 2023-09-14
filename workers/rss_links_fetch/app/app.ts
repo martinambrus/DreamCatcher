@@ -1,16 +1,17 @@
 import {env, exit} from 'node:process';
 import { RSSLinksFetch } from "./RSSLinksFetch.js";
 import { Logger } from "./Logger.js";
-import { ILogger } from './MQ/KeyStore/Interfaces/ILogger.js';
-import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
-import { KeyStoreSubClient } from './MQ/KeyStore/KeyStoreSubClient.js';
-import { KeyStorePubClient } from './MQ/KeyStore/KeyStorePubClient.js';
-import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
-import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
-import { MessageQueuePub } from './MQ/MessageQueuePub.js';
-import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
-import { MessageQueueSub } from './MQ/MessageQueueSub.js';
+import { ILogger } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
+import { IKeyStoreSub } from './Utils/MQ/KeyStore/Interfaces/IKeyStoreSub.js';
+import { KeyStoreSubClient } from './Utils/MQ/KeyStore/KeyStoreSubClient.js';
+import { KeyStorePubClient } from './Utils/MQ/KeyStore/KeyStorePubClient.js';
+import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { MessageQueuePub } from './Utils/MQ/MessageQueuePub.js';
+import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { MessageQueueSub } from './Utils/MQ/MessageQueueSub.js';
 import { Kafka } from 'kafkajs';
+import { Database } from './Utils/Database/Database.js';
 
 // APP settings
 const CLIENT_ID: string = ( env.HOSTNAME ? 'rss_links_fetch_' + env.HOSTNAME : 'rss_links_fetch_undefined_host' );
@@ -52,5 +53,5 @@ const SERVICE_ID: string = 'rss_links_fetch';
   const mq_consumer: IMessageQueueSub = new MessageQueueSub( SERVICE_ID, connection, logger );
 
   // create the RSSFetch class instance and run program
-  new RSSLinksFetch( mq_producer, mq_consumer, logger, SERVICE_ID, redis_pub );
+  new RSSLinksFetch( mq_producer, mq_consumer, logger, SERVICE_ID, redis_pub, new Database() );
 })();

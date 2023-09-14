@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import Parser from "rss-parser";
-import { Utils } from './Utils.js';
+import { Utils } from './Utils/Utils.js';
 
 export class XML_Parser {
 

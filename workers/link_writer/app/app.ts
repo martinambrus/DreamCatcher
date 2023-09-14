@@ -1,17 +1,15 @@
 import {env, exit} from 'node:process';
 import { Logger } from "./Logger.js";
 import { LinkWriter } from "./LinkWriter.js";
-import { ILogger } from './MQ/KeyStore/Interfaces/ILogger.js';
-import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
-import { KeyStoreSubClient } from './MQ/KeyStore/KeyStoreSubClient.js';
-import { KeyStorePubClient } from './MQ/KeyStore/KeyStorePubClient.js';
-import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
-import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
-import { MessageQueuePub } from './MQ/MessageQueuePub.js';
-import { MessageQueueSub } from './MQ/MessageQueueSub.js';
-import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { ILogger } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
+import { KeyStorePubClient } from './Utils/MQ/KeyStore/KeyStorePubClient.js';
+import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
+import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePub.js';
+import { MessageQueuePub } from './Utils/MQ/MessageQueuePub.js';
+import { MessageQueueSub } from './Utils/MQ/MessageQueueSub.js';
+import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
 import { Kafka } from 'kafkajs';
-import { Database } from './Database/Database.js';
+import { Database } from './Utils/Database/Database.js';
 
 // APP settings
 const CLIENT_ID: string = ( env.HOSTNAME ? 'link_writer_' + env.HOSTNAME : 'link_writer_undefined_host' );
@@ -21,10 +19,6 @@ const SERVICE_ID: string = 'link_writer';
 
   // Global logger
   const logger: ILogger = new Logger( CLIENT_ID, SERVICE_ID );
-
-  // Redis Sub client
-  let redis_sub: IKeyStoreSub = new KeyStoreSubClient( logger );
-  await redis_sub.connect( env.KEY_STORE_NODES, env.KEY_STORE_PORT );
 
   // Redis Pub client
   let redis_pub: IKeyStorePub = new KeyStorePubClient( logger );
@@ -54,5 +48,5 @@ const SERVICE_ID: string = 'link_writer';
   const mq_consumer: IMessageQueueSub = new MessageQueueSub( SERVICE_ID, connection, logger );
 
   // create the LinkWriter class instance and run program
-  new LinkWriter( SERVICE_ID, mq_producer, mq_consumer, logger, new Database(), redis_sub, redis_pub);
+  new LinkWriter( SERVICE_ID, mq_producer, mq_consumer, logger, new Database(), redis_pub);
 })();
