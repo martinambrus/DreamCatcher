@@ -1,0 +1,11 @@
+[map "65a0db35-b32e-33f9-84b3-b2e4332b63d0"]
+	object = 488c3c946f4ed91452108f4555246a906cc89bc0
+	type = include + expand tree
+[map "74532480-b7ea-3b68-9bfc-044fa1a3c2f7"]
+	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
+	path = workers/rss_fetch/app/MQ
+	type = expand module
+[map "20c303af-9fe8-3339-b8d8-a56f3dd24de4"]
+	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
+	path = workers/rss_links_fetch/app/MQ
+	type = expand module

@@ -5,23 +5,23 @@
 	object = 15e6bf6b23d0c8d64992a22436fb2a85b9192976
 	path = workers/rss_fetch/app/MQ
 	type = expand module
-[map "aa1f49d9-dba8-3387-9aa6-d391429c2e58"]
-	object = 15e6bf6b23d0c8d64992a22436fb2a85b9192976
+[map "01c5d29e-f1d2-33eb-917d-a5b3c61699f2"]
+	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
 	path = workers/link_fix_detector/app/MQ
 	type = expand module
-[map "7a356e15-2d76-3880-949d-2f6bf5a95b23"]
-	object = 15e6bf6b23d0c8d64992a22436fb2a85b9192976
+[map "de671c57-bb0f-39c4-a156-e8170f64781e"]
+	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
 	path = control_center/app/MQ
 	type = expand module
-[map "265d626f-d488-3b59-a6df-3473c50c6afa"]
-	object = 15e6bf6b23d0c8d64992a22436fb2a85b9192976
+[map "3f277847-0a50-30a7-ac29-508387d9ffab"]
+	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
 	path = workers/analysis/app/MQ
 	type = expand module
-[map "4eaba1f6-615c-3b81-bccf-04e73b5d22ad"]
-	object = 15e6bf6b23d0c8d64992a22436fb2a85b9192976
+[map "cff2244f-952a-3221-a7b6-bda229bd8ce5"]
+	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
 	path = workers/err_log_writer/app/MQ
 	type = expand module
-[map "e6c63d4c-80a4-3c6d-9e82-6a15573e383b"]
-	object = 15e6bf6b23d0c8d64992a22436fb2a85b9192976
+[map "a82e82ff-beb0-3a77-84fd-c9cf98b2a930"]
+	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
 	path = workers/link_writer/app/MQ
 	type = expand module
