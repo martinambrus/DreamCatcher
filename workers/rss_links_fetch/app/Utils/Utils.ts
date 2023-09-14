@@ -151,7 +151,7 @@ export class Utils {
     txt = decode( txt );
 
     // strip all HTML tags
-    txt = sanitizeHtml( txt );
+    txt = sanitizeHtml( txt, { allowedTags: [] } );
 
     // strip the string of all 2-and-more spaces
     txt = txt.replace( / {2,}/g, ' ' );
