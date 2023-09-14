@@ -1,4 +1,4 @@
-import striptags from "striptags";
+import sanitizeHtml from 'sanitize-html';
 import { decode } from 'html-entities';
 import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { env } from 'node:process';
@@ -150,17 +150,11 @@ export class Utils {
     // decode any HTML entities back into their respective characters
     txt = decode( txt );
 
-    // manually remove <style> and <script> tags, since their content doesn't get removed by striptags() below
-    txt = txt
-      .replace(/<style[^>]*>.*<\/style>/g, '')
-      .replace(/<script[^>]*>.*<\/script>/g, '')
-      .replace(/<[^>]+>/g, ' ');
+    // strip all HTML tags
+    txt = sanitizeHtml( txt );
 
     // strip the string of all 2-and-more spaces
     txt = txt.replace( / {2,}/g, ' ' );
-
-    // strip all HTML tags
-    txt = striptags( txt );
 
     // if we're keeping BR tags, convert new lines to BR tags here
     if ( keep_br_tags ) {
