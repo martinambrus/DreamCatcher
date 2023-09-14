@@ -1,7 +1,7 @@
 [map "96ea8b36-1ef1-3352-8635-67b14e8d9703"]
 	object = 317d0b9511e26384a964e04b854a033614c57ee8
 	type = include + expand tree
-[map "a9fa1253-ba0e-3992-8c97-774dbc36b532"]
+[map "edd0b917-79b2-302a-8db4-f8080f331f91"]
 	object = 3862735aedf37ea6952ae1d4244d958a9ad1ce8f
-	path = control_center/app/Database
+	path = workers/rss_links_fetch/app/Database
 	type = expand module

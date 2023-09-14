@@ -4,3 +4,6 @@
 [map "20fd6ec8-2cd5-3e5e-9938-8cb315420287"]
 	object = 3513599e4b2084cd9793ff9f04d9a49034ec7e2e
 	type = extract tree + exclude
+[map "0b2184ff-bdd1-3471-b32d-6684a9997a9a"]
+	object = d374040f8e17c53ff9ebc807c84794bf4a0aae70
+	type = extract tree + exclude
