@@ -1,0 +1,15 @@
+[map "6ff9285c-aa8f-31ec-8f82-a1cfe25b6b36"]
+	object = fe3dc0718b12dd91bac3f9ed1daf580d4a85bc9d
+	type = include + expand tree
+[map "234b50c5-ec89-3556-9f4c-3bdfcba5d7f8"]
+	object = dac29f6f87db84894bfdfd47f7eabee67b7f9d3e
+	path = workers/link_writer/app/Utils
+	type = expand module
+[map "629b6f2b-3c36-330a-bd3a-f995135753f1"]
+	object = dac29f6f87db84894bfdfd47f7eabee67b7f9d3e
+	path = workers/rss_fetch/app/Utils
+	type = expand module
+[map "9b0adc65-dd09-3bfe-87e5-035278d7d242"]
+	object = dac29f6f87db84894bfdfd47f7eabee67b7f9d3e
+	path = workers/rss_links_fetch/app/Utils
+	type = expand module
