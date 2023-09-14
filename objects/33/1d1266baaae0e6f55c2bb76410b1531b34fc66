@@ -1,0 +1,7 @@
+[map "f434183b-c2b0-31ed-83fb-c03d0887f8a1"]
+	object = dd0aaf8bbaa97f8b8c03ed293e80be09a8919ea0
+	type = include + expand tree
+[map "928982e8-0989-3f75-9d70-01d845552169"]
+	object = 15e6bf6b23d0c8d64992a22436fb2a85b9192976
+	path = workers/rss_links_fetch/app/Database
+	type = expand module
