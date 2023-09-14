@@ -189,7 +189,7 @@ export class Utils {
    * @return { Promise<boolean> } Returns true if the feed was successfully cached,
    *                              false otherwise.
    */
-  public async checkAndCacheFeedURL( feed_url: string ): Promise<boolean> {
+  public static async checkAndCacheFeedURL( feed_url: string ): Promise<boolean> {
     let ret: boolean = true;
 
     if ( !Utils.feed_url_to_id[ feed_url ] ) {
