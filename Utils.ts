@@ -58,7 +58,7 @@ export class Utils {
    * @public
    * @type { Object }
    */
-  private feed_url_to_id: Object = {};
+  public feed_url_to_id: Object = {};
 
   /**
    * Retrieves first image from the HTML string given.
