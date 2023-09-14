@@ -1,0 +1,192 @@
+[map "37b15017-7b8b-3d29-825b-cff9959157b4"]
+	object = 25e95d8e0375f281e9e1d35011935fe8fb7ed7c6
+	path = workers/rss_links_fetch/app/MQ
+	stage = sync
+	type = extract module
+[map "a02b36ca-8782-380a-9848-632a62d01efb"]
+	object = 25e95d8e0375f281e9e1d35011935fe8fb7ed7c6
+	path = workers/link_fix_detector/app/MQ
+	stage = sync
+	type = extract module
+[map "3cb7aa21-0256-3859-b22a-459e24ce3507"]
+	object = 25e95d8e0375f281e9e1d35011935fe8fb7ed7c6
+	path = control_center/app/MQ
+	stage = sync
+	type = extract module
+[map "a13d0fb9-bc1d-39e1-935d-e5e540d9f0b5"]
+	object = 909fc6d70db2848c3fdd3930ec34abb80e823513
+	path = workers/analysis/app/Database
+	stage = sync
+	type = extract module
+[map "dd315733-73f4-31f9-8d55-b369a63d9f69"]
+	object = 25e95d8e0375f281e9e1d35011935fe8fb7ed7c6
+	path = workers/analysis/app/MQ
+	stage = sync
+	type = extract module
+[map "b1eea8c6-2ca8-3266-bfdc-10fd8c009ffa"]
+	object = 909fc6d70db2848c3fdd3930ec34abb80e823513
+	path = workers/link_writer/app/Database
+	stage = sync
+	type = extract module
+[map "354480d8-a378-3714-bf2a-63b1ab440755"]
+	object = 331d1266baaae0e6f55c2bb76410b1531b34fc66
+	path = workers/rss_links_fetch/app/Database
+	stage = sync
+	type = extract module
+[map "39343d82-b427-33e1-a8c4-da4d4c1be91d"]
+	object = 25e95d8e0375f281e9e1d35011935fe8fb7ed7c6
+	path = workers/link_writer/app/MQ
+	stage = sync
+	type = extract module
+[map "e76d3208-3d28-3b78-ab38-1fde9ddd91f6"]
+	object = ac18c289bd46f5e885b0105b90871f8ec17a5d95
+	path = control_center/app/Database
+	stage = sync
+	type = extract module
+[map "5161941a-3587-3b86-aa13-ce4b2e472839"]
+	object = 25e95d8e0375f281e9e1d35011935fe8fb7ed7c6
+	path = workers/rss_fetch/app/MQ
+	stage = sync
+	type = extract module
+[map "c794b619-b19d-385c-9dc2-1a7a73cb3188"]
+	object = 909fc6d70db2848c3fdd3930ec34abb80e823513
+	path = workers/link_fix_detector/app/Database
+	stage = sync
+	type = extract module
+[map "61419ff8-efa6-325a-abc6-0bef52c5dd70"]
+	object = 909fc6d70db2848c3fdd3930ec34abb80e823513
+	path = workers/err_log_writer/app/Database
+	stage = sync
+	type = extract module
+[map "bdadb30a-36bc-3eda-a220-d5d67d8954f6"]
+	object = 25e95d8e0375f281e9e1d35011935fe8fb7ed7c6
+	path = workers/err_log_writer/app/MQ
+	stage = sync
+	type = extract module
+[module "c9b83a8b-c88f-32a6-96e7-c01d079caac6"]
+	conflict = request-pull
+	path = control_center/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "8ac38d52-10ef-327a-9258-1189e37396af"]
+	conflict = request-pull
+	path = control_center/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "d9e1750a-752a-3a61-92fb-eec4864cc430"]
+	conflict = request-pull
+	path = workers/analysis/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "87e01e06-1b6d-3fb3-89c6-d967c3e57f5d"]
+	conflict = request-pull
+	path = workers/analysis/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "3043e4aa-ebe8-380e-8c77-e2f2204e6435"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "295422c1-2f32-3ce8-879d-ecb3dfda6c6b"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "8465aabf-dee5-3d49-b980-71c08c435a53"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "f8534460-10fc-31fd-bac8-19699e4fbe5d"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "0732cb98-c235-35c4-8a1c-b791ae9db8ef"]
+	conflict = request-pull
+	path = workers/link_writer/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "300aa308-d767-361e-ace9-8316bdf14ecd"]
+	conflict = request-pull
+	path = workers/link_writer/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "2d22a918-52fa-3efe-8ff2-b65f5756f82e"]
+	conflict = request-pull
+	path = workers/link_writer/Utils
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/691692647
+[module "16abd2c1-5a15-3d68-b7fa-c1e05e6b7190"]
+	conflict = request-pull
+	path = workers/rss_fetch/app/MQ
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "bc577a98-9560-3fe7-b88a-7b91fe68d3dc"]
+	conflict = request-pull
+	path = workers/rss_fetch/Utils
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/691692647
+[module "2b045009-2a65-3329-9631-f9567b532719"]
+	conflict = request-pull
+	path = workers/rss_links_fetch/app/Database
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "608009a5-bb39-3484-b1a3-28092cc5005a"]
+	conflict = request-pull
+	path = workers/rss_links_fetch/app/MQ
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "b866583e-93f8-302b-9c0b-cbf8f56ec188"]
+	conflict = request-pull
+	path = workers/rss_links_fetch/Utils
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/691692647
+[map "633886de-4444-335b-8452-e2d9cae65bbd"]
+	object = d4558eec010d8f23bc3439bc7b2dfaf35db5152a
+	path = workers/link_writer/Utils
+	stage = sync
+	type = extract module
+[map "d643e5d3-40f6-3b7f-882f-14e933f9c001"]
+	object = d4558eec010d8f23bc3439bc7b2dfaf35db5152a
+	path = workers/rss_fetch/Utils
+	stage = sync
+	type = extract module
+[map "f03f4779-638a-3696-a42b-3eb591bd99cc"]
+	object = d4558eec010d8f23bc3439bc7b2dfaf35db5152a
+	path = workers/rss_links_fetch/Utils
+	stage = sync
+	type = extract module
