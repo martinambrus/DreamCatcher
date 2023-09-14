@@ -26,6 +26,17 @@ services:
     depends_on:
       - npm_cache
     restart: unless-stopped
+  rss_links_fetch:
+    build:
+      context: workers/rss_links_fetch
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    networks:
+      - internal
+    depends_on:
+      - npm_cache
+    restart: unless-stopped
   analysis:
     build:
       context: workers/analysis

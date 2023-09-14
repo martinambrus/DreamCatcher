@@ -246,6 +246,8 @@ export class LinkWriter {
                 this.feed_messages_inserted_counter[ message.feed_url ]++;
               }
 
+              this.mq_producer.send( env.SAVED_LINKS_CHANNEL_NAME, message, trace_id, message.link );
+
               // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
               //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
             } else {
@@ -255,7 +257,7 @@ export class LinkWriter {
             }
           } catch ( err ) {
             this.logger.log_msg( 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 'ERR_LINK_WRITER_DB_WRITE_ERROR' );
-            await link_telemetry.add_span( error_log_span_name, { 'link_url' : message.link }, 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 1 );
+            await link_telemetry.add_span( error_log_span_name, { 'link_url' : message.link }, 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), parseInt( await this.key_store_pub.get( 'ERR_LINK_WRITER_DB_WRITE_ERROR' ) ) );
             link_telemetry.close_active_span( error_log_span_name );
           }
 
