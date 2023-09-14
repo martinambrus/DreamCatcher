@@ -5,7 +5,7 @@
 	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
 	path = workers/rss_links_fetch/app/Database
 	type = expand module
-[map "b5f3da91-c9a5-3c29-958a-fc9fd43289d3"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "453095e6-44a6-3075-8a3a-6b93da61a8fb"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/rss_links_fetch/app/Database
 	type = expand module

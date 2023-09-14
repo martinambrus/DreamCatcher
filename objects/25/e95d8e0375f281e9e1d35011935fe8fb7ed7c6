@@ -1,31 +1,31 @@
 [map "65a0db35-b32e-33f9-84b3-b2e4332b63d0"]
 	object = 488c3c946f4ed91452108f4555246a906cc89bc0
 	type = include + expand tree
-[map "f782d413-bd07-3375-a169-2c0563dba27d"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "3a3a3bf3-0144-3915-a455-b50e318802eb"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/rss_links_fetch/app/MQ
 	type = expand module
-[map "646b1936-4a68-327e-9dc9-bc689438c251"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "ac81e469-1907-3dfe-b1de-490534ad75c1"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/link_fix_detector/app/MQ
 	type = expand module
-[map "7de18934-7d2a-3fc9-a533-8cb38e33e044"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "1f4863ce-4c4e-31c3-9fb3-e02b26f5f44b"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = control_center/app/MQ
 	type = expand module
-[map "e9ec881d-a95c-3972-88df-eb96acfce4c5"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "1a0d8f1f-0121-3f11-90a9-3a43594155ec"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/analysis/app/MQ
 	type = expand module
-[map "79d9e479-ac21-3cde-b59e-2a30a2084c9f"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "2a4aa189-17a7-36c0-b564-67a3ed13862d"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/link_writer/app/MQ
 	type = expand module
-[map "b6304bd2-44c0-3da2-ab90-57170de9287d"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "7476a5d1-7bcf-345b-874f-bdb0bc3f9930"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/rss_fetch/app/MQ
 	type = expand module
-[map "467b374e-a69c-322d-8486-60a938020fe6"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "a2a9ef8f-f1ca-37ba-8254-e02aff554010"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/err_log_writer/app/MQ
 	type = expand module

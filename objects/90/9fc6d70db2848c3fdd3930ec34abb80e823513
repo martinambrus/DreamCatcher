@@ -17,19 +17,19 @@
 	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
 	path = workers/link_writer/app/Database
 	type = expand module
-[map "1d02057a-2527-397e-b7dc-d260d6e539fd"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "3a1d83b1-189c-3ef0-aeb4-28a170d44fc4"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/analysis/app/Database
 	type = expand module
-[map "22f50eb3-5165-33fa-b1c8-cde1986bf504"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "2e97e077-5bcc-3068-8d3c-41d0c3f2b902"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/link_writer/app/Database
 	type = expand module
-[map "833f7d58-f142-3e44-a963-6c26c1999e8d"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "72354cf0-fe86-37d8-99d7-47f701125cfe"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/link_fix_detector/app/Database
 	type = expand module
-[map "71aa917c-cd51-3d73-ad86-51825d7dcb4c"]
-	object = dba5ab590bb044d21ad518f944bbfe920f69d017
+[map "92e45dbe-4919-3a3c-8837-199eea8561ea"]
+	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/err_log_writer/app/Database
 	type = expand module
