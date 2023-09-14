@@ -124,16 +124,44 @@ export class Utils {
   /**
    * Removes all HTML tags, extra spaces, new lines, tabs
    * and carriage-return characters from the input string.
-   * @param { string }txt
+   *
+   * @param { string }  txt          The text to remove HTML tags from.
+   * @param { boolean } keep_br_tags If true, new lines will be replaced by <br> tags which will be kept.
+   *                                 Otherwise, all tags will be stripped.
    * @public
    * @return { string } Returns the cleared up string without tags and special characters.
    */
-  public static untagize( txt: string ): string {
+  public static untagize( txt: string, keep_br_tags: boolean = true ): string {
     if ( typeof( txt ) === 'undefined' ) {
       return '';
     }
 
-    return Utils.nl2br( decode( striptags( txt.trim() ) ), true );
+    // trim the string
+    txt = txt.trim();
+
+    // if we're not keeping BR tags, let's replace all tabs and new line characters by a space
+    if ( !keep_br_tags ) {
+      txt = txt.replace( /[\n\r\t]/g, ' ' );
+    } else {
+      // we're keeping BR tags, just remove tab characters
+      txt = txt.replace( /[\t]/g, ' ' ).replace( / {2,}/g, ' ' );
+    }
+
+    // strip the string of all 2-and-more spaces
+    txt = txt.replace( / {2,}/g, ' ' );
+
+    // decode any HTML entities back into their respective characters
+    txt = decode( txt );
+
+    // strip all HTML tags
+    txt = striptags( txt );
+
+    // if we're keeping BR tags, convert new lines to BR tags here
+    if ( keep_br_tags ) {
+      txt = Utils.nl2br( txt, true );
+    }
+
+    return txt;
   }
 
   /**
