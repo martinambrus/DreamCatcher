@@ -40,6 +40,22 @@ export interface IKeyStorePub {
   delete( key: string ): Promise<number>;
 
   /**
+   * A proxy for KeyStoreClass->sadd().
+   *
+   * @param { string } set_name The set name where we want to add data to.
+   * @param { string } value    The value we want to add to a set.
+   */
+  set_add( set_name: string, value: any ): Promise<string>;
+
+  /**
+   * A proxy for KeyStore->srem().
+   *
+   * @param { string } set_name The set name from where we want to remove data.
+   * @param { string } value    The value we want to remove from the set.
+   */
+  set_delete( set_name: string, value: any ): Promise<number>;
+
+  /**
    * A proxy for KeyStoreClass->publish()
    *
    * @param { string } channel Channel into which we want to publish a message.
