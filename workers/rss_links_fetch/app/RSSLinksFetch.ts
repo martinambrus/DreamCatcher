@@ -268,10 +268,36 @@ export class RSSLinksFetch {
         // we've got the HTML, let's try to find the correct part of it
         const final_html = this.detect_article_text( mq_message_data.title, link_data.data );
 
+        // check that this is not a redirect page (such as one from Google News)
+        if ( final_html.trim().split(' ').length < 5 && ( final_html.indexOf( 'http://' ) > -1 || final_html.indexOf( 'https://' ) > -1 ) ) {
+          // try to find a HTTP or HTTPS redirect address
+          const regex = /(https?:\/\/[^ \n\r\t]+)/gm;
+          let m;
+          while ( ( m = regex.exec( final_html ) ) !== null ) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if ( m.index === regex.lastIndex ) {
+              regex.lastIndex++;
+            }
+
+            // The result can be accessed through the `m`-variable.
+            if ( m.length == 2 ) {
+              // this is very likely a redirect URL, let's follow that redirect
+              // ... remove the original cached queue item first, since we're changing the message object and otherwise
+              //     we wouldn't be able to find it anymore
+              await this.key_store_pub.sdelete( this.key_value_queue_backup_set_name, JSON.stringify( { message: mq_message_data, trace_id: trace_id } ) );
+              mq_message_data.original_link = mq_message_data.link;
+              mq_message_data.link = m[ 1 ];
+              this.parse_link_url( mq_message_data, analysis_telemetry, trace_id );
+
+              return;
+            }
+          }
+        }
+
         // save the resulting HTML into the database
         Utils.checkAndCacheFeedURL( mq_message_data.feed_url ).then( async ( result: boolean ) => {
           if ( result ) {
-            await this.dbconn.update_link_html( Utils.feed_url_to_id[ mq_message_data.feed_url ], mq_message_data.link, final_html );
+            await this.dbconn.update_link_html( Utils.feed_url_to_id[ mq_message_data.feed_url ], ( mq_message_data.original_link ? mq_message_data.original_link : mq_message_data.link ), final_html );
             await this.key_store_pub.sdelete( this.key_value_queue_backup_set_name, JSON.stringify( { message: mq_message_data, trace_id: trace_id } ) );
           }
         });
