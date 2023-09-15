@@ -6,7 +6,6 @@ import { IKeyStoreSub } from './MQ/KeyStore/Interfaces/IKeyStoreSub.js';
 import { KeyStoreSubClient } from './MQ/KeyStore/KeyStoreSubClient.js';
 import { IKeyStorePub } from './MQ/KeyStore/Interfaces/IKeyStorePub.js';
 import { KeyStorePubClient } from './MQ/KeyStore/KeyStorePubClient.js';
-import { IMessageQueuePub } from './MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { MessageQueuePub } from './MQ/MessageQueuePub.js';
 import { IMessageQueueSub } from './MQ/KeyStore/Interfaces/IMessageQueueSub.js';
 import { MessageQueueSub } from './MQ/MessageQueueSub.js';
@@ -44,6 +43,8 @@ const SERVICE_ID: string = 'analysis';
   const connection = new Kafka({
     clientId: SERVICE_ID,
     brokers: brokers,
+    connectionTimeout: 30000,
+    authenticationTimeout: 30000,
   });
 
   // MQ producer - only for logging purposes in this app

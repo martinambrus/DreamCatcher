@@ -43,6 +43,8 @@ const SERVICE_ID: string = 'rss_links_fetch';
   const connection = new Kafka({
     clientId: SERVICE_ID,
     brokers: brokers,
+    connectionTimeout: 30000,
+    authenticationTimeout: 30000,
   });
 
   // MQ producer

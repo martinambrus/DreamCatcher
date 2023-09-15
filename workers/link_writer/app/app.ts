@@ -38,6 +38,8 @@ const SERVICE_ID: string = 'link_writer';
   const connection = new Kafka({
     clientId: SERVICE_ID,
     brokers: brokers,
+    connectionTimeout: 30000,
+    authenticationTimeout: 30000,
   });
 
   // MQ producer
