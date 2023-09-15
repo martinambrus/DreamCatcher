@@ -51,7 +51,7 @@ export class XML_Parser {
       for ( let item of feed.items ) {
         let
           url: string = item.link,
-          summary: string = item.summary,
+          summary: string = ( item.summary ? item.summary : item.description ),
           link_img: string = '',
           categories: Array<string> = [],
           authors: Array<string> = [],
