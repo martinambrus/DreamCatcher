@@ -33,6 +33,13 @@ export interface IKeyStorePub {
   set( key: string, value: any ): Promise<string>;
 
   /**
+   * A proxy for KeyStore->del().
+   *
+   * @param { string } key The key we want to remove.
+   */
+  delete( key: string ): Promise<number>;
+
+  /**
    * A proxy for KeyStoreClass->publish()
    *
    * @param { string } channel Channel into which we want to publish a message.
