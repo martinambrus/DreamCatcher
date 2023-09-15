@@ -229,7 +229,7 @@ export class RSSLinksFetch {
     } else {
       // check that this is not a YouTube link, in which case we'll skip it, since YT is heavily JS-based
       // and will have the same footer fixed text for each YT link
-      if ( mq_message_data.link.indexOf('youtube.com/') == -1 && mq_message_data.link.indexOf('youtu.be/') == -1 ) {
+      if ( mq_message_data.link.indexOf('youtube.com/') == -1 && mq_message_data.link.indexOf('youtu.be/') == -1 && mq_message_data.link.substring( 0, 1 ) != '#' ) {
         // save this job in case we need to retry the queue later
         await this.key_store_pub.sadd( this.key_value_queue_backup_set_name, JSON.stringify( { message: message, trace_id: trace_id } ) );
 
