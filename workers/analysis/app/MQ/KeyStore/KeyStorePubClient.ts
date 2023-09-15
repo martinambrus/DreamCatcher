@@ -46,6 +46,26 @@ export class KeyStorePubClient extends KeyStoreClientBase implements IKeyStorePu
   }
 
   /**
+   * A proxy for KeyStoreClass->sadd().
+   *
+   * @param { string } set_name The key for a set we want to add data to.
+   * @param { string } value    The value we want to add to a set.
+   */
+  public async set_add( set_name: string, value: any ): Promise<number> {
+    return this.client.sadd( set_name, value );
+  }
+
+  /**
+   * A proxy for KeyStore->srem().
+   *
+   * @param { string } set_name The set name from where we want to remove data.
+   * @param { string } value    The value we want to remove from the set.
+   */
+  public async set_delete( set_name: string, value: any ): Promise<number> {
+    return this.client.srem( set_name, value );
+  }
+
+  /**
    * A proxy for KeyStore->publish()
    *
    * @param { string } channel Channel into which we want to publish a message.
