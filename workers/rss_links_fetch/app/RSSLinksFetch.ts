@@ -103,6 +103,14 @@ export class RSSLinksFetch {
   private max_retries: number = 5;
 
   /**
+   * Name of a set that holds backup of queued links,
+   * so we can retry then in case of an app crash.
+   * @private
+   * @type { string }
+   */
+  private key_value_queue_backup_set_name: string = 'rss_links_queue_backup';
+
+  /**
    * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    * Also creates instances of XML and JSON parser internal classes.
@@ -185,6 +193,18 @@ export class RSSLinksFetch {
         }
       }
     }, 60000 );
+
+    // retry failed DB saves if the app previously crashed
+    this.key_store_pub.smembers( this.key_value_queue_backup_set_name ).then( ( jobs ) => {
+      if ( jobs.length ) {
+        console.log( this.logger.format('resuming ' + jobs.length + ' redis-saved jobs from the previous queue') );
+      }
+
+      for ( let job of jobs ) {
+        const job_data = JSON.parse( job );
+        this.enqueue_link_html_getting( { topic: env.SAVED_LINKS_CHANNEL_NAME, message: job_data.message, trace_id: job_data.trace_id } );
+      }
+    });
   }
 
   /**
@@ -205,11 +225,12 @@ export class RSSLinksFetch {
       // invalid message from the link writer
       await this.logger.log_msg( 'Error parsing link writer link data:  ' + JSON.stringify( mq_message_data ), 'ERR_RSS_LINK_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
     } else {
+      // save this job in case we need to retry the queue later
+      await this.key_store_pub.sadd( this.key_value_queue_backup_set_name, JSON.stringify( { message: message, trace_id: trace_id } ) );
+
       this.queue.push( { name: mq_message_data.link }, async () => {
         this.parse_link_url( mq_message_data, analysis_telemetry, mq_key_data );
       });
-
-      //this.queue.drain();
     }
   }
 
@@ -247,6 +268,7 @@ export class RSSLinksFetch {
         Utils.checkAndCacheFeedURL( mq_message_data.feed_url ).then( async ( result: boolean ) => {
           if ( result ) {
             await this.dbconn.update_link_html( Utils.feed_url_to_id[ mq_message_data.feed_url ], mq_message_data.link, final_html );
+            await this.key_store_pub.sdelete( this.key_value_queue_backup_set_name, JSON.stringify( { message: mq_message_data, trace_id: trace_id } ) );
           }
         });
       }

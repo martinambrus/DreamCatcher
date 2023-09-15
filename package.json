@@ -10,6 +10,7 @@
     "@prisma/client": "^5.2.0",
     "@types/node": "^20.4.5",
     "@types/node-fetch": "^2.6.4",
+    "@types/sanitize-html": "^2.9.0",
     "async": "^3.2.4",
     "cacheable-lookup": "^7.0.0",
     "html-entities": "^2.4.0",
@@ -21,7 +22,7 @@
     "node-fetch": "^3.3.2",
     "prisma": "^5.2.0",
     "rss-parser": "github:martinambrus/rss-parser",
-    "striptags": "^3.2.0",
+    "sanitize-html": "^2.11.0",
     "typescript": "^5.1.6"
   },
   "type": "module"
