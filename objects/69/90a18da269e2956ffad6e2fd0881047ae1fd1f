@@ -1,19 +1,19 @@
 [map "173ef2ca-485b-3eaf-ad61-6fd77aad0e03"]
 	object = 32bf1a983654583b025a877f51f843156975e42d
 	type = include + expand tree
-[map "ef4d3c38-2c02-39a9-ae9a-af16a9ade495"]
-	object = 92965e18c3ebbd98dd3b85548efe00c0e0758ada
+[map "f738c33a-c56f-379b-82ad-a46884407e45"]
+	object = bdc629c680fba4643c1fbcfb5225601d6b1aa71e
 	path = control_center/app/MQ
 	type = expand module
-[map "527361d4-5699-319d-b093-af190b0bdd76"]
-	object = 92965e18c3ebbd98dd3b85548efe00c0e0758ada
+[map "b3fd5344-5ec6-3dab-8cb2-45b50f96d74d"]
+	object = bdc629c680fba4643c1fbcfb5225601d6b1aa71e
 	path = workers/analysis/app/MQ
 	type = expand module
-[map "5554aebe-5e69-3c8c-a082-3912f28bb197"]
-	object = 92965e18c3ebbd98dd3b85548efe00c0e0758ada
+[map "b0137dc1-b2df-3334-9b1b-480c79a8d6e7"]
+	object = bdc629c680fba4643c1fbcfb5225601d6b1aa71e
 	path = workers/err_log_writer/app/MQ
 	type = expand module
-[map "554ffc6b-177a-3bf9-93af-cff075730c5e"]
-	object = 92965e18c3ebbd98dd3b85548efe00c0e0758ada
+[map "e5c731e9-8cb6-35a1-9f54-ab75652b402f"]
+	object = bdc629c680fba4643c1fbcfb5225601d6b1aa71e
 	path = workers/link_fix_detector/app/MQ
 	type = expand module
