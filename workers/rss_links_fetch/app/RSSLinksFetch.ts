@@ -161,6 +161,11 @@ export class RSSLinksFetch {
     this.service_name = service_name;
     this.max_retries = ( env.RSS_MAX_FETCH_LINK_FAIL_RETRIES ? parseInt( env.RSS_MAX_FETCH_LINK_FAIL_RETRIES ) : this.max_retries );
 
+    // prefix redis queue backup set name with current app's hostname, which is unique
+    // ... this is so multiple link fetchers will not store their queue backups into the same queue
+    //     and potentially start working on same tasks if they both go down at the same time
+    this.key_value_queue_backup_set_name = ( env.HOSTNAME ? 'rss_links_fetch_' + env.HOSTNAME : 'rss_links_fetch_undefined_host' ) + this.key_value_queue_backup_set_name;
+
     // create a new async queue to process links in parallel
     this.queue = new queue( ( task, callback ) => {
       callback();

@@ -34,6 +34,7 @@ services:
       - .env
     networks:
       - internal
+    hostname: rss_links_fetch_01
     depends_on:
       - npm_cache
     restart: unless-stopped
