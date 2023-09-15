@@ -4252,14 +4252,18 @@ export class Utils {
 
     // if we're not keeping BR tags, let's replace all tabs and new line characters by a space
     if ( !keep_br_tags ) {
-      txt = txt.replace( /[\n\r\t]/g, ' ' );
+      txt = txt.replace( /[\n\r\t]/gm, ' ' );
     } else {
       // we're keeping BR tags, just remove tab characters
-      txt = txt.replace( /[\t]/g, ' ' ).replace( / {2,}/g, ' ' );
+      txt = txt.replace( /[\t]/gm, ' ' ).replace( / {2,}/gm, ' ' );
     }
 
     // decode any HTML entities back into their respective characters
     txt = decode( txt );
+
+    // ensure that each closing tag has a space next to it, so we won't be merging multiple words into one
+    // when some close tags without spaces between them are removed
+    txt = txt.replace( />/gm, '> ' );
 
     // strip all HTML tags
     txt = sanitizeHtml( txt, { allowedTags: [] } );
@@ -4268,7 +4272,7 @@ export class Utils {
     txt = decode( txt );
 
     // strip the string of all 2-and-more spaces
-    txt = txt.replace( / {2,}/g, ' ' );
+    txt = txt.replace( / {2,}/gm, ' ' );
 
     // transliterate
     for ( let orig_char in Utils.transliteration_table ) {
