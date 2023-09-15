@@ -11,6 +11,8 @@ import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
 import { ILogger, LOG_SEVERITIES } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
 import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import * as dfel from 'detect-file-encoding-and-language';
+const languageEncoding = dfel.default;
 const cacheable: CacheableLookup = new CacheableLookup();
 
 export class RSSFetch {
@@ -336,7 +338,26 @@ export class RSSFetch {
           follow: 10,
         } );
 
-      return { status: res.status, data: await res.text(), feed_url: url };
+      // check that we don't have a messed-up encoding after using UTF-8
+      const buff = await res.arrayBuffer();
+      let txt = ( new TextDecoder('utf-8') ).decode( buff );
+
+      // UTF-8 didn't work for this link, let's try to guess one
+      if ( txt.indexOf('��') > -1 ) {
+        try {
+          // @ts-ignore
+          const guessed_encoding = await languageEncoding( Buffer.from( new Uint8Array( buff ) ) );
+          if ( guessed_encoding && guessed_encoding.encoding ) {
+            txt = ( new TextDecoder( guessed_encoding.encoding ) ).decode( buff );
+          }
+        } catch ( err ) {
+          // if we couldn't guess an encoding of the link, just return an empty string
+          self.logger.log_msg( 'Error while trying to fix encoding for RSS feed ' + url + ': ' + JSON.stringify( err ), 'ERR_RSS_FEED_FETCH_ENCODING_ERROR' );
+          txt = '';
+        }
+      }
+
+      return { status: res.status, data: txt, feed_url: url };
     } catch ( err ) {
       return { status: -1, data: JSON.stringify( err ), feed_url: '' };
     }

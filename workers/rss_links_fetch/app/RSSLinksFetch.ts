@@ -13,6 +13,8 @@ import { JSDOM } from 'jsdom';
 import { Utils } from './Utils/Utils.js';
 import { IMessageQueuePub } from './Utils/Database/Interfaces/IMessageQueuePub.js';
 import jquery from 'jquery';
+import * as dfel from 'detect-file-encoding-and-language';
+const languageEncoding = dfel.default;
 const cacheable: CacheableLookup = new CacheableLookup();
 const dom = new JSDOM('');
 const $ = jquery( dom.window );
@@ -186,7 +188,7 @@ export class RSSLinksFetch {
     setInterval( async () => {
       for ( let item in self.retries ) {
         if ( self.retries[ item ].retries < self.max_retries ) {
-          await self.retries[ item ].callback;
+          await self.retries[ item ].callback();
         } else {
           await self.logger.log_msg( 'Exhausted number of retries for link: ' + item );
           delete self.retries[ item ];
@@ -231,6 +233,8 @@ export class RSSLinksFetch {
         // save this job in case we need to retry the queue later
         await this.key_store_pub.sadd( this.key_value_queue_backup_set_name, JSON.stringify( { message: message, trace_id: trace_id } ) );
 
+        //console.log( 'adding to queue: ' + mq_message_data.link );
+
         this.queue.push( { name: mq_message_data.link }, async () => {
           this.parse_link_url( mq_message_data, analysis_telemetry, mq_key_data );
         });
@@ -248,15 +252,17 @@ export class RSSLinksFetch {
    * @private
    */
   private async parse_link_url( mq_message_data: any, analysis_telemetry: Telemetry, trace_id: string ): Promise<void> {
+    //console.log( 'starting to process:' + mq_message_data.link );
     // get full link HTML
     try {
       const url_status_span_name: string = 'rss_link_fetch_get_html';
 
       await analysis_telemetry.add_span( url_status_span_name, { 'feed_url' : mq_message_data.url } );
-      let link_data: { status: number, data: string, feed_url: string } = await this.get_url_data( mq_message_data.link );
+      let link_data: { status: number, data: string, link_url: string } = await this.get_url_data( mq_message_data.link );
 
       // add to retry queue if this link's fetch has failed
       if ( link_data.status != 200 ) {
+        //console.log( 'non-200 code (' + link_data.status + ') for: ' + mq_message_data.link + ', retrying later' );
         if ( !this.retries[ mq_message_data.link ] || this.retries[ mq_message_data.link ].retries < this.max_retries ) {
           if ( !this.retries[ mq_message_data.link ] ) {
             this.retries[ mq_message_data.link ] = { retries: 1, callback: async () => await this.parse_link_url( mq_message_data, analysis_telemetry, trace_id ) };
@@ -281,6 +287,7 @@ export class RSSLinksFetch {
 
             // The result can be accessed through the `m`-variable.
             if ( m.length == 2 ) {
+              //console.log( 'following redirect of ' + mq_message_data.link + ' to ' + m[ 1 ] );
               // this is very likely a redirect URL, let's follow that redirect
               // ... remove the original cached queue item first, since we're changing the message object and otherwise
               //     we wouldn't be able to find it anymore
@@ -299,6 +306,9 @@ export class RSSLinksFetch {
           if ( result ) {
             await this.dbconn.update_link_html( Utils.feed_url_to_id[ mq_message_data.feed_url ], ( mq_message_data.original_link ? mq_message_data.original_link : mq_message_data.link ), final_html );
             await this.key_store_pub.sdelete( this.key_value_queue_backup_set_name, JSON.stringify( { message: mq_message_data, trace_id: trace_id } ) );
+            //console.log( 'finished processing of ' + mq_message_data.link );
+          } else {
+            console.log( this.logger.format( 'could not retrieve feed ID for ' + mq_message_data.feed_url ) );
           }
         });
       }
@@ -419,7 +429,7 @@ export class RSSLinksFetch {
    * @private
    * @return { Object } Returns an object with "status" and "data" keys.
    */
-  private async get_url_data( url: string ): Promise<{ status: number, data: string, feed_url: string }> {
+  private async get_url_data( url: string ): Promise<{ status: number, data: string, link_url: string }> {
     try {
       let
         self = this,
@@ -438,9 +448,28 @@ export class RSSLinksFetch {
           follow: 10,
         } );
 
-      return { status: res.status, data: await res.text(), feed_url: url };
+      // check that we don't have a messed-up encoding after using UTF-8
+      const buff = await res.arrayBuffer();
+      let txt = ( new TextDecoder('utf-8') ).decode( buff );
+
+      // UTF-8 didn't work for this link, let's try to guess one
+      if ( txt.indexOf('��') > -1 ) {
+        try {
+          // @ts-ignore
+          const guessed_encoding = await languageEncoding( Buffer.from( new Uint8Array( buff ) ) );
+          if ( guessed_encoding && guessed_encoding.encoding ) {
+            txt = ( new TextDecoder( guessed_encoding.encoding ) ).decode( buff );
+          }
+        } catch ( err ) {
+          // if we couldn't guess an encoding of the link, just return an empty string
+          self.logger.log_msg( 'Error while trying to fix encoding for link ' + url + ': ' + JSON.stringify( err ), 'ERR_RSS_LINK_FETCH_ENCODING_ERROR' );
+          txt = '';
+        }
+      }
+
+      return { status: res.status, data: txt, link_url: url };
     } catch ( err ) {
-      return { status: -1, data: JSON.stringify( err ), feed_url: '' };
+      return { status: -1, data: JSON.stringify( err ), link_url: '' };
     }
   }
 
