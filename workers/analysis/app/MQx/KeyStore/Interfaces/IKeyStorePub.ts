@@ -45,7 +45,7 @@ export interface IKeyStorePub {
    * @param { string } set_name The set name where we want to add data to.
    * @param { string } value    The value we want to add to a set.
    */
-  set_add( set_name: string, value: any ): Promise<string>;
+  set_add( set_name: string, value: any ): Promise<number>;
 
   /**
    * A proxy for KeyStore->srem().
