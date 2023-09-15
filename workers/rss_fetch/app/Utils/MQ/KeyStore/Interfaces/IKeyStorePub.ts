@@ -45,7 +45,7 @@ export interface IKeyStorePub {
    * @param { string } set_name The set name where we want to add data to.
    * @param { string } value    The value we want to add to a set.
    */
-  set_add( set_name: string, value: any ): Promise<number>;
+  sadd( set_name: string, value: any ): Promise<number>;
 
   /**
    * A proxy for KeyStore->srem().
@@ -53,7 +53,14 @@ export interface IKeyStorePub {
    * @param { string } set_name The set name from where we want to remove data.
    * @param { string } value    The value we want to remove from the set.
    */
-  set_delete( set_name: string, value: any ): Promise<number>;
+  sdelete( set_name: string, value: any ): Promise<number>;
+
+  /**
+   * A proxy for KeyStore->smembers().
+   *
+   * @param { string } set_name The set name for which we want to retrieve members.
+   */
+  smembers( set_name: string ): Promise<string[]>;
 
   /**
    * A proxy for KeyStoreClass->publish()
