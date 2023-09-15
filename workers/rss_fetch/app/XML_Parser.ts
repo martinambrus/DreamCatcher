@@ -51,11 +51,20 @@ export class XML_Parser {
       for ( let item of feed.items ) {
         let
           url: string = item.link,
-          summary: string = ( item.summary ? item.summary : item.description ),
+          summary: string = item.summary,
           link_img: string = '',
           categories: Array<string> = [],
           authors: Array<string> = [],
           date_published: number = Math.round( Date.now() / 1000 );
+
+        // if summary is empty, try to look for it in other known fields
+        if ( !summary ) {
+          if ( item.description ) {
+            summary = item.description;
+          } else if ( item.contentSnippet ) {
+            summary = item.contentSnippet;
+          }
+        }
 
         // try looking inside of links array, if it exists
         if ( ( !url || typeof( url ) == 'undefined' ) && item.links && item.links instanceof Array && item.links.length ) {
