@@ -189,7 +189,7 @@ export class RSSFetch {
           mq_message_data.url = feed_data.feed_url;
         }
 
-        if ( feed_data !== null ) {
+        if ( feed_data !== null && feed_data.data != '' ) {
           // check that this is not a JSON feed
           let json = null;
 
@@ -349,6 +349,12 @@ export class RSSFetch {
           const guessed_encoding = await languageEncoding( Buffer.from( new Uint8Array( buff ) ) );
           if ( guessed_encoding && guessed_encoding.encoding ) {
             txt = ( new TextDecoder( guessed_encoding.encoding ) ).decode( buff );
+
+            // we still have the encoding wrong - nothing to do here now
+            if ( txt.indexOf('��') > -1 ) {
+              self.logger.log_msg( 'Error while trying to fix encoding for RSS feed ' + url + ': encoding guess incorrect, data unreadable', 'ERR_RSS_FEED_FETCH_ENCODING_ERROR' );
+              txt = '';
+            }
           }
         } catch ( err ) {
           // if we couldn't guess an encoding of the link, just return an empty string

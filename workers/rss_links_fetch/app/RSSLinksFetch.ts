@@ -270,7 +270,7 @@ export class RSSLinksFetch {
             this.retries[ mq_message_data.link ].retries++;
           }
         }
-      } else {
+      } else if ( link_data.data != '' ) {
         // we've got the HTML, let's try to find the correct part of it
         const final_html = this.detect_article_text( mq_message_data.title, link_data.data );
 
@@ -459,6 +459,12 @@ export class RSSLinksFetch {
           const guessed_encoding = await languageEncoding( Buffer.from( new Uint8Array( buff ) ) );
           if ( guessed_encoding && guessed_encoding.encoding ) {
             txt = ( new TextDecoder( guessed_encoding.encoding ) ).decode( buff );
+
+            // we still have the encoding wrong - nothing to do here now
+            if ( txt.indexOf('��') > -1 ) {
+              self.logger.log_msg( 'Error while trying to fix encoding for link ' + url + ': encoding guess incorrect, data unreadable', 'ERR_RSS_LINK_FETCH_ENCODING_ERROR' );
+              txt = '';
+            }
           }
         } catch ( err ) {
           // if we couldn't guess an encoding of the link, just return an empty string
