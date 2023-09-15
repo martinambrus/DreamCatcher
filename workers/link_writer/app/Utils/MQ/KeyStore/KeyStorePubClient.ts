@@ -51,7 +51,7 @@ export class KeyStorePubClient extends KeyStoreClientBase implements IKeyStorePu
    * @param { string } set_name The key for a set we want to add data to.
    * @param { string } value    The value we want to add to a set.
    */
-  public async set_add( set_name: string, value: any ): Promise<number> {
+  public async sadd( set_name: string, value: any ): Promise<number> {
     return this.client.sadd( set_name, value );
   }
 
@@ -61,8 +61,29 @@ export class KeyStorePubClient extends KeyStoreClientBase implements IKeyStorePu
    * @param { string } set_name The set name from where we want to remove data.
    * @param { string } value    The value we want to remove from the set.
    */
-  public async set_delete( set_name: string, value: any ): Promise<number> {
+  public async sdelete( set_name: string, value: any ): Promise<number> {
     return this.client.srem( set_name, value );
+  }
+
+  /**
+   * A proxy for KeyStore->smembers().
+   *
+   * @param { string } set_name The set name for which we want to retrieve members.
+   */
+  public async smembers( set_name: string ): Promise<string[]> {
+    return await new Promise((resolve, reject) => {
+      try {
+        this.client.smembers( set_name, ( err, members ) => {
+          if ( err ) {
+            reject( err );
+          } else {
+            resolve( members );
+          }
+        } );
+      } catch ( err ) {
+        reject( err );
+      }
+    });
   }
 
   /**
