@@ -5,7 +5,7 @@
 	object = 9fc9fe91aa92586fb03d4177c7eefaff0ccc8f58
 	path = control_center/app/Database
 	type = expand module
-[map "2e61b830-c075-37e8-a608-95c900fc24bd"]
-	object = 11e756ae78d46683d6f8978f82013703775cfd2d
+[map "76c77e52-70a7-3cca-87e1-dbc6ddcde5bb"]
+	object = 51c07068d675c07e31f786d1dea848e7c625ca1c
 	path = control_center/app/Database
 	type = expand module
