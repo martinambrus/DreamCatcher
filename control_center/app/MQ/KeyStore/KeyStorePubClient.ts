@@ -37,6 +37,15 @@ export class KeyStorePubClient extends KeyStoreClientBase implements IKeyStorePu
   }
 
   /**
+   * A proxy for KeyStore->del().
+   *
+   * @param { string } key The key we want to remove.
+   */
+  public async delete( key: string ): Promise<number> {
+    return this.client.del( key );
+  }
+
+  /**
    * A proxy for KeyStore->publish()
    *
    * @param { string } channel Channel into which we want to publish a message.
