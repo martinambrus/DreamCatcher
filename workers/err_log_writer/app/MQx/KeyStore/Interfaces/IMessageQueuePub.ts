@@ -17,4 +17,29 @@ export interface IMessageQueuePub {
    */
   send( topic: string, message: Object, trace_id: string, unique_job_id?: string ): Promise<any>;
 
+  /**
+   * Returns TRUE if the publisher is in a batch mode, FALSE otherwise.
+   */
+  is_batch_mode(): boolean;
+
+  /**
+   * Sets whether this publisher should be in batch mode or not.
+   *
+   * @param { boolean } in_batch_mode If true, the publisher will be set to batch mode.
+   *                                  If false, the publisher will exit the batch (if it was in one)
+   *                                  and will immediately send out all queued messages.
+   */
+  set_batch_mode( in_batch_mode: boolean ): void;
+
+  /**
+   * Returns the maximum number of items to be sent at once in a single batch.
+   */
+  get_batch_max_items(): number;
+
+  /**
+   * Sets the maximum number of items to be sent at once in a single batch.
+   *
+   * @param { number } max_items Maximum number of items to be sent at once in a single batch.
+   */
+  set_batch_max_items( max_items: number ): void;
 }
