@@ -13,3 +13,15 @@
 	object = 2a40131de02d87349f9a89ecea6dace2f4b2e527
 	path = workers/rss_links_fetch/app/Utilsx
 	type = expand module
+[map "e872e39f-b8bd-3be8-8f22-55b76eeb3643"]
+	object = e1b3110b712333ed9a44cf1f9420b33921cb2e67
+	path = workers/rss_links_fetch/app/Utils
+	type = expand module
+[map "09c186af-eebf-38bc-a563-f8b4f77636c7"]
+	object = e1b3110b712333ed9a44cf1f9420b33921cb2e67
+	path = workers/rss_fetch/app/Utils
+	type = expand module
+[map "90c3e426-280d-3393-99ca-c0b2adfff483"]
+	object = e1b3110b712333ed9a44cf1f9420b33921cb2e67
+	path = workers/link_writer/app/Utils
+	type = expand module

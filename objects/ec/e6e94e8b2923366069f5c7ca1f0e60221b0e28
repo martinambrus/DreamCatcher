@@ -17,3 +17,19 @@
 	object = 2a40131de02d87349f9a89ecea6dace2f4b2e527
 	path = workers/analysis/app/Databasex
 	type = expand module
+[map "3f5ea5a6-7a07-3eef-880e-bee1cdaa8543"]
+	object = e1b3110b712333ed9a44cf1f9420b33921cb2e67
+	path = workers/link_fix_detector/app/Database
+	type = expand module
+[map "d6b090bf-c4fd-3f17-9a24-36b36aaa332e"]
+	object = e1b3110b712333ed9a44cf1f9420b33921cb2e67
+	path = workers/analysis/app/Database
+	type = expand module
+[map "bad936c8-4d3e-39e9-943f-e7f5d4955dfd"]
+	object = e1b3110b712333ed9a44cf1f9420b33921cb2e67
+	path = workers/err_log_writer/app/Database
+	type = expand module
+[map "5a70ae14-18a2-3652-bfd9-ab604f3a21c1"]
+	object = e1b3110b712333ed9a44cf1f9420b33921cb2e67
+	path = control_center/app/Database
+	type = expand module

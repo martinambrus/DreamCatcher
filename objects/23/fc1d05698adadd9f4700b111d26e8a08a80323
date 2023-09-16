@@ -20,3 +20,19 @@
 	object = 174cd6b697b01325619470e31f33c6149925686f
 	path = workers/link_fix_detector/app/MQx
 	type = expand module
+[map "1c623f62-527c-358d-98f8-74c745e14b52"]
+	object = 156145e3db99984770cde5d0dfbaa6e05c31be34
+	path = control_center/app/MQ
+	type = expand module
+[map "45cc417c-4659-3fbb-922f-ee94fbe3acd0"]
+	object = 156145e3db99984770cde5d0dfbaa6e05c31be34
+	path = workers/analysis/app/MQ
+	type = expand module
+[map "723b691b-4840-3256-8b73-a16b29e961c8"]
+	object = 156145e3db99984770cde5d0dfbaa6e05c31be34
+	path = workers/err_log_writer/app/MQ
+	type = expand module
+[map "994b9345-b33d-35d4-a7e3-43f6df922782"]
+	object = 156145e3db99984770cde5d0dfbaa6e05c31be34
+	path = workers/link_fix_detector/app/MQ
+	type = expand module
