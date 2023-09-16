@@ -21,15 +21,15 @@
 	object = e82019e2a9c748bcb481748f7ba1516228ec811c
 	path = workers/link_writer/app/Database
 	type = expand module
-[map "0446fea2-00fc-39b8-92cc-005550013e2d"]
-	object = b147d3241186fbed2cd16f286592fdfecf5ea22f
+[map "aa5edfc2-9069-3fc3-b0f5-8f29380f5ef8"]
+	object = 6972e20aa43e7dfcf8b40063bc21b19f9182180b
 	path = workers/analysis/app/Database
 	type = expand module
-[map "ae3666fe-66a1-3a64-b8a8-788c38c1a3a6"]
-	object = b147d3241186fbed2cd16f286592fdfecf5ea22f
+[map "6c764b7a-59ae-3dcc-9dac-3c3470eed9ba"]
+	object = 6972e20aa43e7dfcf8b40063bc21b19f9182180b
 	path = workers/err_log_writer/app/Database
 	type = expand module
-[map "bbcea683-e894-3efb-a271-dcfeb4d7d1c4"]
-	object = b147d3241186fbed2cd16f286592fdfecf5ea22f
+[map "dba6ee1d-b50a-385f-83a1-cdafe8182a64"]
+	object = 6972e20aa43e7dfcf8b40063bc21b19f9182180b
 	path = workers/link_fix_detector/app/Database
 	type = expand module
