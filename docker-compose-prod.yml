@@ -314,6 +314,7 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     env_file:
       - .env.prod
+    privileged: true
     volumes:
       - ./infrastructure/datadir/elastic/esdata01:/usr/share/elasticsearch/data
     ports:
@@ -337,6 +338,7 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     env_file:
       - .env.prod
+    privileged: true
     volumes:
       - ./infrastructure/datadir/elastic/esdata02:/usr/share/elasticsearch/data
     networks:
@@ -360,6 +362,7 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     env_file:
       - .env.prod
+    privileged: true
     volumes:
       - ./infrastructure/datadir/elastic/esdata03:/usr/share/elasticsearch/data
     networks:
