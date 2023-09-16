@@ -314,7 +314,6 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     env_file:
       - .env.prod
-    privileged: true
     volumes:
       - ./infrastructure/datadir/elastic/esdata01:/usr/share/elasticsearch/data
     ports:
@@ -330,15 +329,10 @@ services:
       - cluster.routing.allocation.disk.threshold_enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     mem_limit: ${ES_MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
   es02:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     env_file:
       - .env.prod
-    privileged: true
     volumes:
       - ./infrastructure/datadir/elastic/esdata02:/usr/share/elasticsearch/data
     networks:
@@ -354,15 +348,10 @@ services:
       - cluster.routing.allocation.disk.threshold_enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     mem_limit: ${ES_MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
   es03:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     env_file:
       - .env.prod
-    privileged: true
     volumes:
       - ./infrastructure/datadir/elastic/esdata03:/usr/share/elasticsearch/data
     networks:
@@ -378,10 +367,6 @@ services:
       - cluster.routing.allocation.disk.threshold_enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     mem_limit: ${ES_MEM_LIMIT}
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
   trace_logger:
     image: "jaegertracing/all-in-one"
     env_file:
