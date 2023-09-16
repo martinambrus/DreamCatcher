@@ -41,8 +41,9 @@ const SERVICE_ID: string = 'control_center';
   const connection = new Kafka({
     clientId: SERVICE_ID,
     brokers: brokers,
-    connectionTimeout: 30000,
-    authenticationTimeout: 30000,
+    connectionTimeout: 60000,
+    authenticationTimeout: 60000,
+    requestTimeout: 60000,
   });
 
   // MQ producer
