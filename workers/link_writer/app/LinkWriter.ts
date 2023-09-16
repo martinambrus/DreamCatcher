@@ -220,7 +220,7 @@ export class LinkWriter {
 
           // try inserting the link into the DB
           try {
-            let inserted_link_id = await this.dbconn.insert_link( Utils.feed_url_to_id[ message.feed_url ], message.title, message.description, message.link, message.img, message.published );
+            let inserted_link_id = await this.dbconn.insert_link( Utils.feed_url_to_id[ message.feed_url ], message.title, message.summary, message.link, message.img, message.published );
             if ( inserted_link_id ) {
               // check and store first item's timestamp for this batch and this feed
               if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
