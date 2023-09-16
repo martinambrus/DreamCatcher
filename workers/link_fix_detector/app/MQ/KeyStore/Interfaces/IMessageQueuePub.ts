@@ -42,4 +42,13 @@ export interface IMessageQueuePub {
    * @param { number } max_items Maximum number of items to be sent at once in a single batch.
    */
   set_batch_max_items( max_items: number ): void;
+
+  /**
+   * Sends all messages, either for the provided topic
+   * or for all topics, if no topic was provided.
+   *
+   * @param { string } topic An optional topic for which to send all messages for.
+   *                         All messages will be sent if this parameter is empty or missing.
+   */
+  drain_batch( topic?: string ): void;
 }
