@@ -83,13 +83,16 @@ RUN set -eux; \
 STOPSIGNAL SIGUSR1
 
 COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod 777 /usr/local/bin/docker-entrypoint.sh
+COPY primary-check.sh /usr/local/bin/
+COPY standby-check.sh /usr/local/bin/
+RUN chmod 777 /usr/local/bin/docker-entrypoint.sh && chmod 777 /usr/local/bin/primary-check.sh && chmod 777 /usr/local/bin/standby-check.sh
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 USER haproxy
 
 # https://github.com/docker-library/haproxy/issues/200
 WORKDIR /var/lib/haproxy
+RUN chmod 777 /usr/local/bin/docker-entrypoint.sh
 
 #CMD ["haproxy", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
 CMD ["/bin/sh", "-c", "echo $POSTGRESQL_USERNAME > /tmp/haproxy_user && echo $POSTGRESQL_PASSWORD > /tmp/haproxy_pw && haproxy -f /usr/local/etc/haproxy/haproxy.cfg"]
