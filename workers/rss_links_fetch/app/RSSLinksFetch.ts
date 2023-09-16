@@ -110,7 +110,7 @@ export class RSSLinksFetch {
    * @private
    * @type { string }
    */
-  private key_value_queue_backup_set_name: string = 'rss_links_queue_backup';
+  private key_value_queue_backup_set_name: string;
 
   /**
    * Stores references to key store, PGSQL and Logger classes
@@ -159,6 +159,7 @@ export class RSSLinksFetch {
 
     // strings
     this.service_name = service_name;
+    this.key_value_queue_backup_set_name = ( env.RSS_LINKS_FETCH_QUEUE_SET_NAME ? env.RSS_LINKS_FETCH_QUEUE_SET_NAME : 'rss_links_queue_backup' );
     this.max_retries = ( env.RSS_MAX_FETCH_LINK_FAIL_RETRIES ? parseInt( env.RSS_MAX_FETCH_LINK_FAIL_RETRIES ) : this.max_retries );
 
     // prefix redis queue backup set name with current app's hostname, which is unique
@@ -254,6 +255,7 @@ export class RSSLinksFetch {
    *
    * @param { any }       mq_message_data    The original message as received from MQ and parsed into an object.
    * @param { Telemetry } analysis_telemetry Telemetry object to use for tracing purposes.
+   * @param { string }    trace_id           Trace ID for the Telemetry request chain.
    * @private
    */
   private async parse_link_url( mq_message_data: any, analysis_telemetry: Telemetry, trace_id: string ): Promise<void> {
@@ -320,7 +322,7 @@ export class RSSLinksFetch {
 
       analysis_telemetry.close_active_span( url_status_span_name );
     } catch ( err ) {
-      const telemetry_name: string = 'rss_fetch';
+      const telemetry_name: string = 'rss_links_fetch';
       await this.logger.log_msg( 'Error processing link data for ' + mq_message_data.link + ' with error: ' + JSON.stringify( err ), 'ERR_RSS_LINK_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
       await analysis_telemetry.add_span( telemetry_name, {}, 'Error processing link data for ' + mq_message_data.link + ' with error: ' + JSON.stringify( err ), parseInt( await this.key_store_pub.get( 'ERR_RSS_LINK_FETCH_PROCESSING' ) ) );
       analysis_telemetry.close_active_span( telemetry_name );

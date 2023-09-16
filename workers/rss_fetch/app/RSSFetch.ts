@@ -11,6 +11,7 @@ import { IKeyStorePub } from './Utils/MQ/KeyStore/Interfaces/IKeyStorePub.js';
 import { ILogger, LOG_SEVERITIES } from './Utils/MQ/KeyStore/Interfaces/ILogger.js';
 import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePub.js';
 import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
+import { queue } from 'async';
 import * as dfel from 'detect-file-encoding-and-language';
 const languageEncoding = dfel.default;
 const cacheable: CacheableLookup = new CacheableLookup();
@@ -31,6 +32,8 @@ export class RSSFetch {
    * @type { ILogger }
    */
   private readonly logger: ILogger;
+
+
 
   /**
    * Instance of the MQ Producer used to listen
@@ -92,6 +95,23 @@ export class RSSFetch {
   private readonly https_agent: https.Agent;
 
   /**
+   * Queue object from the async library.
+   * Used for parallel job processing.
+   *
+   * @private
+   * @type { queue }
+   */
+  private readonly queue: queue;
+
+  /**
+   * Name of a set that holds backup of queued RSS feeds to parse,
+   * so we can retry then in case of an app crash.
+   * @private
+   * @type { string }
+   */
+  private key_value_queue_backup_set_name: string;
+
+  /**
    * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    * Also creates instances of XML and JSON parser internal classes.
@@ -140,6 +160,21 @@ export class RSSFetch {
 
     // strings
     this.service_name = service_name;
+    this.key_value_queue_backup_set_name = ( env.RSS_FETCH_QUEUE_SET_NAME ? env.RSS_FETCH_QUEUE_SET_NAME : 'rss_queue_backup' );
+
+    // prefix redis queue backup set name with current app's hostname, which is unique
+    // ... this is so multiple RSS fetchers will not store their queue backups into the same queue
+    //     and potentially start working on same tasks if they both go down at the same time
+    this.key_value_queue_backup_set_name = ( env.HOSTNAME ? 'rss_fetch_' + env.HOSTNAME : 'rss_fetch_undefined_host' ) + this.key_value_queue_backup_set_name;
+
+    // create a new async queue to parse feeds in parallel
+    this.queue = new queue( ( task, callback ) => {
+      callback();
+    }, ( env.RSS_MAX_FETCH_FEEDS_IN_PARALLEL ? env.RSS_MAX_FETCH_FEEDS_IN_PARALLEL : 25 ) );
+
+    this.queue.error( ( err, task ) => {
+      this.logger.log_msg( 'Error while trying to run task ' + task + ': ' + JSON.stringify( err ), 'ERR_RSS_FEED_PARSE_TASK_ERROR' );
+    });
 
     // publish info about our instance going live
     this.logger.log_msg( 'rss_fetch up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
@@ -153,17 +188,29 @@ export class RSSFetch {
     }, 60000 );
 
     // subscribe to receive RSS feed links to be parsed
-    this.mq_consumer.consume( env.FEED_FETCH_CHANNEL_NAME, self.parse_feed_url.bind( this ) );
+    this.mq_consumer.consume( env.FEED_FETCH_CHANNEL_NAME, self.enqueue_feed_parsing.bind( this ) );
+
+    // retry unfetched/unparsed RSS feeds if the app previously crashed
+    this.key_store_pub.smembers( this.key_value_queue_backup_set_name ).then( ( jobs ) => {
+      if ( jobs.length ) {
+        console.log( this.logger.format('resuming ' + jobs.length + ' redis-saved jobs from the previous queue') );
+      }
+
+      for ( let job of jobs ) {
+        const job_data = JSON.parse( job );
+        this.enqueue_feed_parsing( { topic: env.FEED_FETCH_CHANNEL_NAME, message: job_data.message, trace_id: job_data.trace_id } );
+      }
+    });
   }
 
   /**
-   * Receives RSS feed messages from MQ and starts parsing RSS feeds from them.
+   * Enqueues a message from MQ to starts parsing it whenever its time in the job queue comes.
    *
    * @param { Object } data This is the processed data received from Kafka consumer.
    *                        Object structure: topic, message, trace_id
    * @private
    */
-  private async parse_feed_url( { topic, message, trace_id } ): Promise<any> {
+  private async enqueue_feed_parsing( { topic, message, trace_id } ): Promise<void> {
     let
       mq_message_data = message,
       mq_key_data: string = trace_id,
@@ -175,74 +222,95 @@ export class RSSFetch {
       // invalid message from the control center
       await this.logger.log_msg( 'Error parsing control center RSS feed data:  ' + JSON.stringify( mq_message_data ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR );
     } else {
-      // get data for this RSS feed URL
-      try {
-        const url_status_span_name: string = 'rss_fetch_url_status_plus_data';
+      // save this job in case we need to retry the queue later
+      await this.key_store_pub.sadd( this.key_value_queue_backup_set_name, JSON.stringify( { message: message, trace_id: trace_id } ) );
 
-        await analysis_telemetry.add_span( url_status_span_name, { 'feed_url' : mq_message_data.url } );
-        let feed_data: { status: number, data: string, feed_url: string }|null = await this.get_url_status_with_data( mq_message_data.url, analysis_telemetry.get_telemetry_carrier() );
-        analysis_telemetry.close_active_span( url_status_span_name );
+      //console.log( 'adding to queue: ' + mq_message_data.url );
 
-        // if our feed URL changed in the process, change it here as well,
-        // so we'll fire up a correct message for other services to pull links from it
-        if ( feed_data.feed_url != mq_message_data.url ) {
-          mq_message_data.url = feed_data.feed_url;
+      this.queue.push( { name: mq_message_data.link }, async () => {
+        this.parse_feed_url( mq_message_data, analysis_telemetry, mq_key_data );
+      });
+    }
+  }
+
+  /**
+   * Receives RSS feed messages from MQ and starts parsing RSS feeds from them.
+   *
+   * @param { any }       mq_message_data    The original message as received from MQ and parsed into an object.
+   * @param { Telemetry } analysis_telemetry Telemetry object to use for tracing purposes.
+   * @param { string }    trace_id           Trace ID for the Telemetry request chain.
+   * @private
+   */
+  private async parse_feed_url( mq_message_data: any, analysis_telemetry: Telemetry, trace_id: string ): Promise<void> {
+    const telemetry_name: string = 'rss_fetch';
+
+    // get data for this RSS feed URL
+    try {
+      const url_status_span_name: string = 'rss_fetch_url_status_plus_data';
+
+      await analysis_telemetry.add_span( url_status_span_name, { 'feed_url' : mq_message_data.url } );
+      let feed_data: { status: number, data: string, feed_url: string }|null = await this.get_url_status_with_data( mq_message_data.url, analysis_telemetry.get_telemetry_carrier() );
+      analysis_telemetry.close_active_span( url_status_span_name );
+
+      // if our feed URL changed in the process, change it here as well,
+      // so we'll fire up a correct message for other services to pull links from it
+      if ( feed_data.feed_url != mq_message_data.url ) {
+        mq_message_data.url = feed_data.feed_url;
+      }
+
+      if ( feed_data !== null && feed_data.data != '' ) {
+        // check that this is not a JSON feed
+        let json = null;
+
+        try {
+          json = JSON.parse( feed_data.data );
+        } catch ( err ) {
+          // obviously not JSON, so leave json set to null and continue
         }
 
-        if ( feed_data !== null && feed_data.data != '' ) {
-          // check that this is not a JSON feed
-          let json = null;
-
+        if ( json === null ) {
+          // this is an XML feed
           try {
-            json = JSON.parse( feed_data.data );
-          } catch ( err ) {
-            // obviously not JSON, so leave json set to null and continue
+            const process_xml_feed_span_name: string = 'rss_fetch_process_xml_feed';
+            await analysis_telemetry.add_span( process_xml_feed_span_name, { 'feed_url' : mq_message_data.url } );
+            await this.xml_parser.process_xml_feed( feed_data.data, mq_message_data.url, trace_id );
+            analysis_telemetry.close_active_span( process_xml_feed_span_name );
+          } catch( err ) {
+            // something's gone wrong with XML parsing, log error
+            await this.logger.log_msg( `invalid XML feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
+            await analysis_telemetry.add_span( telemetry_name, {}, `invalid XML feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
+            analysis_telemetry.close_active_span( telemetry_name );
           }
-
-          if ( json === null ) {
-            // this is an XML feed
+        } else {
+          // this is a JSON feed
+          if ( json !== false ) {
             try {
-              const process_xml_feed_span_name: string = 'rss_fetch_process_xml_feed';
-              await analysis_telemetry.add_span( process_xml_feed_span_name, { 'feed_url' : mq_message_data.url } );
-              await this.xml_parser.process_xml_feed( feed_data.data, mq_message_data.url, mq_key_data );
-              analysis_telemetry.close_active_span( process_xml_feed_span_name );
+              const process_json_feed_span_name: string = 'rss_fetch_process_json_feed';
+              await analysis_telemetry.add_span( process_json_feed_span_name, { 'feed_url' : mq_message_data.url } );
+              await this.json_parser.process_json_feed( json, mq_message_data.url, trace_id );
+              analysis_telemetry.close_active_span( process_json_feed_span_name );
             } catch( err ) {
-              // something's gone wrong with XML parsing, log error
-              await this.logger.log_msg( `invalid XML feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
-              await analysis_telemetry.add_span( telemetry_name, {}, `invalid XML feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
+              // something's gone wrong with JSON parsing, log error
+              await this.logger.log_msg( `invalid JSON feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
+              await analysis_telemetry.add_span( telemetry_name, {}, `invalid JSON feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
               analysis_telemetry.close_active_span( telemetry_name );
             }
           } else {
-            // this is a JSON feed
-            if ( json !== false ) {
-              try {
-                const process_json_feed_span_name: string = 'rss_fetch_process_json_feed';
-                await analysis_telemetry.add_span( process_json_feed_span_name, { 'feed_url' : mq_message_data.url } );
-                await this.json_parser.process_json_feed( json, mq_message_data.url, mq_key_data );
-                analysis_telemetry.close_active_span( process_json_feed_span_name );
-              } catch( err ) {
-                // something's gone wrong with JSON parsing, log error
-                await this.logger.log_msg( `invalid JSON feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
-                await analysis_telemetry.add_span( telemetry_name, {}, `invalid JSON feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
-                analysis_telemetry.close_active_span( telemetry_name );
-              }
-            } else {
-              // invalid JSON feed data, log error
-              await this.logger.log_msg( `invalid (unparsable) JSON feed ( ${mq_message_data.url} ) detected, body was: ${feed_data.data}`, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
-              await analysis_telemetry.add_span( telemetry_name, {}, `invalid (unparsable) JSON feed ( ${mq_message_data.url} ) detected, body was: ${feed_data.data}`, 1 );
-              analysis_telemetry.close_active_span( telemetry_name );
-            }
+            // invalid JSON feed data, log error
+            await this.logger.log_msg( `invalid (unparsable) JSON feed ( ${mq_message_data.url} ) detected, body was: ${feed_data.data}`, 'ERR_RSS_FETCH_INVALID_JSON_FEED', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
+            await analysis_telemetry.add_span( telemetry_name, {}, `invalid (unparsable) JSON feed ( ${mq_message_data.url} ) detected, body was: ${feed_data.data}`, 1 );
+            analysis_telemetry.close_active_span( telemetry_name );
           }
         }
-      } catch ( err ) {
-        await this.logger.log_msg( 'Error processing ' + mq_message_data.url + ' with error: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
-        await analysis_telemetry.add_span( telemetry_name, {}, 'Error processing ' + mq_message_data.url + ' with error: ' + JSON.stringify( err ), 1 );
-        analysis_telemetry.close_active_span( telemetry_name );
       }
-
-      // publish to key store that we're done with tracing
-      this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: mq_key_data } ) );
+    } catch ( err ) {
+      await this.logger.log_msg( 'Error processing ' + mq_message_data.url + ' with error: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
+      await analysis_telemetry.add_span( telemetry_name, {}, 'Error processing ' + mq_message_data.url + ' with error: ' + JSON.stringify( err ), 1 );
+      analysis_telemetry.close_active_span( telemetry_name );
     }
+
+    // publish to key store that we're done with tracing
+    this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
   }
 
   /**
