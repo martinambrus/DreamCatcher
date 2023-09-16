@@ -92,7 +92,6 @@ USER haproxy
 
 # https://github.com/docker-library/haproxy/issues/200
 WORKDIR /var/lib/haproxy
-RUN chmod 777 /usr/local/bin/docker-entrypoint.sh
 
 #CMD ["haproxy", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
 CMD ["/bin/sh", "-c", "echo $POSTGRESQL_USERNAME > /tmp/haproxy_user && echo $POSTGRESQL_PASSWORD > /tmp/haproxy_pw && haproxy -f /usr/local/etc/haproxy/haproxy.cfg"]
