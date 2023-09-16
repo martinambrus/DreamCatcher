@@ -325,10 +325,14 @@ services:
       - cluster.name=${ES_CLUSTER_NAME}
       - discovery.seed_hosts=es02,es03
       - cluster.initial_master_nodes=es01,es02,es03
-      - bootstrap.memory_lock=true
+#      - bootstrap.memory_lock=true
       - cluster.routing.allocation.disk.threshold_enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     mem_limit: ${ES_MEM_LIMIT}
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
   es02:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     env_file:
@@ -344,10 +348,14 @@ services:
       - cluster.name=${ES_CLUSTER_NAME}
       - discovery.seed_hosts=es01,es03
       - cluster.initial_master_nodes=es01,es02,es03
-      - bootstrap.memory_lock=true
+#      - bootstrap.memory_lock=true
       - cluster.routing.allocation.disk.threshold_enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     mem_limit: ${ES_MEM_LIMIT}
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
   es03:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     env_file:
@@ -367,6 +375,10 @@ services:
       - cluster.routing.allocation.disk.threshold_enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     mem_limit: ${ES_MEM_LIMIT}
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
   trace_logger:
     image: "jaegertracing/all-in-one"
     env_file:
