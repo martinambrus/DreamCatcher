@@ -10,8 +10,8 @@
 - `sudo apt-get update && sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y`
 - `git clone https://github.com/martinambrus/dreamcatcher.git && cd dreamcatcher`
 - `mv .env.dev.example .env`
-- `mkdir -m 777 -p infrastructure/datadir/kafka_dev_data && mkdir -m 777 -p infrastructure/datadir/pgdata_dev && mkdir -m 777 -p infrastructure/datadir/kafka_0_data && mkdir -m 777 -p infrastructure/datadir/kafka_1_data && mkdir -m 777 -p infrastructure/datadir/kafka_2_data`
-- `sudo chown -R 1001:1001 infrastructure/datadir/kafka_dev_data && sudo chown -R 1001:1001 infrastructure/datadir/pgdata_dev`
+- `mkdir -m 777 -p infrastructure/datadir/kafka_dev_data && mkdir -m 777 -p infrastructure/datadir/pgdata_dev && mkdir -m 777 -p infrastructure/datadir/kafka_0_data && mkdir -m 777 -p infrastructure/datadir/kafka_1_data && mkdir -m 777 -p infrastructure/datadir/kafka_2_data && sudo chown -R 1001:1001 infrastructure/datadir/pgdata_0 && sudo chown -R 1001:1001 infrastructure/datadir/pgdata_1 && sudo chown -R 1001:1001 infrastructure/datadir/pgdata_2`
+- `sudo chown -R 1001:1001 infrastructure/datadir/kafka_dev_data && sudo chown -R 1001:1001 infrastructure/datadir/pgdata_dev && sudo chown -R 1001:1001 infrastructure/datadir/kafka_0_data && sudo chown -R 1001:1001 infrastructure/datadir/kafka_1_data && sudo chown -R 1001:1001 infrastructure/datadir/kafka_2_data`
 - `sudo chmod +x *.sh && sudo ./start_docker-dev.sh`
 
 If you're on Windows under WSL and trying to run the Elastic Search cluster, you'll need to execute the following in your PowerShell or Elastic won't be able to start: `wsl -d docker-desktop sysctl -w vm.max_map_count=262144`
