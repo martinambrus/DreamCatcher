@@ -31,7 +31,7 @@ services:
       context: workers/rss_links_fetch
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - .env.prod
     networks:
       - internal
     hostname: rss_links_fetch_01
@@ -43,7 +43,7 @@ services:
       context: workers/rss_links_fetch
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - .env.prod
     networks:
       - internal
     hostname: rss_links_fetch_02
