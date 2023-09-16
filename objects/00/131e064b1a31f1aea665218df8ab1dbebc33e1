@@ -1,0 +1,16 @@
+[map "60c71ba2-93d1-378b-a4e7-afe2ba5ee82e"]
+	object = 83415bf0551c151ae356c2e32e6d20b04942c6ee
+	path = control_center/app/MQx
+	type = expand module
+[map "d8b5920c-16b8-3e0d-a695-d70c6e996c0a"]
+	object = 83415bf0551c151ae356c2e32e6d20b04942c6ee
+	path = workers/analysis/app/MQx
+	type = expand module
+[map "bb60111a-3e54-3297-8ede-159dbcdd8690"]
+	object = 83415bf0551c151ae356c2e32e6d20b04942c6ee
+	path = workers/err_log_writer/app/MQx
+	type = expand module
+[map "73cfb17e-528c-304b-ac67-0c2b2d2912c8"]
+	object = 83415bf0551c151ae356c2e32e6d20b04942c6ee
+	path = workers/link_fix_detector/app/MQx
+	type = expand module

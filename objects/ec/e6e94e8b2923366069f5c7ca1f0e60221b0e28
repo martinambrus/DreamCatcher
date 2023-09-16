@@ -1,0 +1,19 @@
+[map "17c3e53f-1842-3c43-9658-b7441091493c"]
+	object = bfdeabbcac64c832724fdece0c69f2722f86433a
+	type = include + expand tree
+[map "d5280b01-0f48-3a05-81d3-6a0611e48a9b"]
+	object = 2a40131de02d87349f9a89ecea6dace2f4b2e527
+	path = workers/err_log_writer/app/Databasex
+	type = expand module
+[map "6972f443-cadc-34ed-8ae8-a80a23a369c6"]
+	object = 2a40131de02d87349f9a89ecea6dace2f4b2e527
+	path = control_center/app/Databasex
+	type = expand module
+[map "5a357967-3952-3705-a0f6-895402298e10"]
+	object = 2a40131de02d87349f9a89ecea6dace2f4b2e527
+	path = workers/link_fix_detector/app/Databasex
+	type = expand module
+[map "158719fc-73c2-33cc-abe4-07afba6d29df"]
+	object = 2a40131de02d87349f9a89ecea6dace2f4b2e527
+	path = workers/analysis/app/Databasex
+	type = expand module

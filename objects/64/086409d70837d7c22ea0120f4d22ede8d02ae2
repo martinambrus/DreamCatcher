@@ -1,0 +1,97 @@
+[module "30ea8b1e-541e-34c9-8367-c0fff29897fb"]
+	conflict = request-pull
+	path = workers/link_writer/app/Utilsx
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/691692647
+[module "83677508-6b91-3b72-b797-7916d3a1705c"]
+	conflict = request-pull
+	path = workers/rss_fetch/app/Utilsx
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/691692647
+[module "693d2f28-e4ae-328f-96b6-33326e020b98"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/Databasex
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "84414f32-5e3f-32fb-9dda-31e1c8a303ef"]
+	conflict = request-pull
+	path = workers/rss_links_fetch/app/Utilsx
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/691692647
+[module "889365ce-a298-33d0-a2f4-a2d30d045b84"]
+	conflict = request-pull
+	path = control_center/app/Databasex
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "97111500-3512-3f89-8990-3d5d867acf01"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/Databasex
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "71052852-e041-3aae-b404-043175576bb2"]
+	conflict = request-pull
+	path = workers/analysis/app/Databasex
+	pull = merge rebase
+	pull = squash once
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/687097431
+[module "f4689fc5-87fd-37fb-bdee-f3f2d224c92a"]
+	conflict = request-pull
+	path = control_center/app/MQx
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "b50ad95a-ccf0-39f5-ac9b-f6e016814854"]
+	conflict = request-pull
+	path = workers/analysis/app/MQx
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "f46fa631-f022-398b-bbed-61eee61a9f32"]
+	conflict = request-pull
+	path = workers/err_log_writer/app/MQx
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[module "0a7fb279-2959-3368-b28b-f82fabea1699"]
+	conflict = request-pull
+	path = workers/link_fix_detector/app/MQx
+	pull = merge rebase
+	pull = squash never
+	ref = if refs/heads/main sync refs/heads/main
+	url = agnostic://gh/685489380
+[map "64f4adf0-1b7f-34ce-9d2b-fdd572c5e953"]
+	object = d59a50488376bc17aa4304ca0b00be740591734a
+	path = control_center/app/MQx
+	stage = sync
+	type = extract module
+[map "76bde327-32c5-3dbe-bbe5-946d83950190"]
+	object = d59a50488376bc17aa4304ca0b00be740591734a
+	path = workers/analysis/app/MQx
+	stage = sync
+	type = extract module
+[map "b370a3c0-81e2-349c-9f8d-d2851c425994"]
+	object = d59a50488376bc17aa4304ca0b00be740591734a
+	path = workers/err_log_writer/app/MQx
+	stage = sync
+	type = extract module
+[map "78024d8b-09d0-3682-b8a7-a3003ab0854d"]
+	object = d59a50488376bc17aa4304ca0b00be740591734a
+	path = workers/link_fix_detector/app/MQx
+	stage = sync
+	type = extract module

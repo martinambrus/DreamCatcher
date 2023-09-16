@@ -4,3 +4,19 @@
 [map "b2db49a3-f4c9-3e93-9cc5-4049fadf8873"]
 	object = 89fcadd77bf77b3f12e57f90f0a14f81b03d3c68
 	type = extract tree + exclude
+[map "c3dcf4eb-c941-3e82-98a3-062d7944a363"]
+	object = 2ba75cd3f872b27e83b117e951c7ff87fc57e2cc
+	path = control_center/app/MQx
+	type = expand module
+[map "79e880ae-0b24-3934-8956-4a26a7bb5d63"]
+	object = 2ba75cd3f872b27e83b117e951c7ff87fc57e2cc
+	path = workers/analysis/app/MQx
+	type = expand module
+[map "cdb1df07-da53-3c96-a179-1caac074e209"]
+	object = 2ba75cd3f872b27e83b117e951c7ff87fc57e2cc
+	path = workers/err_log_writer/app/MQx
+	type = expand module
+[map "033c84a5-ffd5-3a8a-a77c-514dfd5f3184"]
+	object = 2ba75cd3f872b27e83b117e951c7ff87fc57e2cc
+	path = workers/link_fix_detector/app/MQx
+	type = expand module
