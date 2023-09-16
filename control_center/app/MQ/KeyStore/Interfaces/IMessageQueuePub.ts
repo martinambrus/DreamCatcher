@@ -25,11 +25,11 @@ export interface IMessageQueuePub {
   /**
    * Sets whether this publisher should be in batch mode or not.
    *
-   * @param { boolean } in_batch_mode If true, the publisher will be set to batch mode.
+   * @param { boolean } to_batch_mode If true, the publisher will be set to batch mode.
    *                                  If false, the publisher will exit the batch (if it was in one)
    *                                  and will immediately send out all queued messages.
    */
-  set_batch_mode( in_batch_mode: boolean ): void;
+  set_batch_mode( to_batch_mode: boolean ): void;
 
   /**
    * Returns the maximum number of items to be sent at once in a single batch.
