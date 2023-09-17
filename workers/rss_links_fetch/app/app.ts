@@ -50,6 +50,7 @@ const SERVICE_ID: string = 'rss_links_fetch';
 
   // MQ producer
   const mq_producer: IMessageQueuePub = new MessageQueuePub( connection, logger );
+  //mq_producer.set_batch_max_items( ( env.RSS_MAX_FETCH_LINKS_IN_PARALLEL ? parseInt( env.RSS_MAX_FETCH_LINKS_IN_PARALLEL ) : 25 ) );
   logger.set_mq_broker( mq_producer );
 
   // MQ consumer

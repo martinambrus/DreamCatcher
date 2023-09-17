@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import Parser from "rss-parser";
 import { Utils } from './Utils/Utils.js';
+import { env } from 'node:process';
 
 export class XML_Parser {
 
@@ -137,6 +138,14 @@ export class XML_Parser {
       for ( let link_data of items_to_sort ) {
         await Utils.publish_new_link_data( link_data, kafka_key );
       }
+
+      // inform the Analysis service that we've just parsed a feed, so it can update the analytics
+      Utils.mq_producer.send( env.RSS_ANALYTICS_CHANNEL_NAME, {
+        feed_url: feed_url
+      }, kafka_key, feed_url );
+
+      // because we're sending in batches, let's send what's left of this feed's links
+      Utils.mq_producer.drain_batch();
     } catch ( err ) {
       // invalid XML feed data
       throw 'invalid XML feed data, error returned: ' + JSON.stringify( err );

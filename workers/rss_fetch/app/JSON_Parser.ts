@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { Utils } from './Utils/Utils.js';
+import { env } from 'node:process';
 
 export class JSON_Parser {
 
@@ -102,6 +103,14 @@ export class JSON_Parser {
         // no await - we're not checking whether this link was successfully added
         Utils.publish_new_link_data( link_data, kafka_key );
       }
+
+      // inform the Analysis service that we've just parsed a feed, so it can update the analytics
+      Utils.mq_producer.send( env.RSS_ANALYTICS_CHANNEL_NAME, {
+        feed_url: feed_url
+      }, kafka_key, feed_url );
+
+      // because we're sending in batches, let's send what's left of this feed's links
+      Utils.mq_producer.drain_batch();
     } else {
       // invalid JSON feed data
       throw 'JSON feed missing items section';

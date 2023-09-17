@@ -289,6 +289,9 @@ export class ControlCenter {
           await this.mq_producer.send( env.FEED_FETCH_CHANNEL_NAME, { url: record.url }, JSON.stringify( trace_id ), record.url );
           lifecycle_telemetry.close_active_span( pub_feed_span_name );
         }
+
+        // because we're sending in batches, let's send what's left of this DB fetch of RSS feed links
+        this.mq_producer.drain_batch();
       } catch ( err ) {
         let exit_code: number = parseInt( await this.key_store_pub.get( 'ERR_CONTROL_CENTER_DB_ERROR' ) );
         await this.logger.log_msg( 'Exception while trying to retrieve rss feeds to fetch\n' + JSON.stringify( err ), exit_code );

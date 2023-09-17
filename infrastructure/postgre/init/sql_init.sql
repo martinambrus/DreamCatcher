@@ -100,7 +100,7 @@ BEGIN
         -- continue with the rest of data
         feed_data.subsequent_stable_fetch_intervals := feed_data.subsequent_stable_fetch_intervals + 1;
         feed_data.total_fetches := feed_data.total_fetches + 1;
-        feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 );
+        feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
         feed_data.last_non_empty_fetch := unix_timestamp;
 
         -- if this feed was dormant for a long time, let's reset its timers, so we can re-train
@@ -117,7 +117,7 @@ BEGIN
             first_stamp_difference := FLOOR( ( ( feed_data.next_fetch_ts - first_item_ts ) / 60 ) / 5 );
             IF first_stamp_difference >= 1 AND ( feed_data.fetch_interval_minutes - ( first_stamp_difference * 5 ) ) > 0 THEN
                 feed_data.fetch_interval_minutes := feed_data.fetch_interval_minutes - ( first_stamp_difference * 5 );
-                feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 );
+                feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
             END IF;
         END IF;
     ELSE
@@ -127,7 +127,7 @@ BEGIN
             -- as these could potentially be daily feeds (such as local auctions or a trading RSS channel)
             -- which lay dormant during the night
             -- ... for this reason, we won't increment total fetches, neither empty fetches here
-            feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 );
+            feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
         ELSIF feed_data.subsequent_stable_fetch_intervals > 10 AND ( ( feed_data.empty_fetches / feed_data.total_fetches ) * 100 ) < 24 THEN
             -- don't modify the fetch interval if this feed was known to work
             -- for some time, as this could be a temporary flaw in their systems
@@ -136,7 +136,7 @@ BEGIN
             -- ... we can still increase this interval if empty fetches ratio is too high (let's start with higher than 24%)
             feed_data.total_fetches := feed_data.total_fetches + 1;
             feed_data.empty_fetches := feed_data.empty_fetches + 1;
-            feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 );
+            feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
         ELSE
             -- this feed doesn't have a stable fetch interval yet - update timings
             -- but don't go above 10 days in the interval
@@ -151,12 +151,12 @@ BEGIN
                     OR feed_data.fetch_interval_minutes < 60 -- or if none exist but the interval is not yet at 1 hour
                 THEN
                     feed_data.fetch_interval_minutes := feed_data.fetch_interval_minutes + 5;
-                    feed_data.next_fetch_ts := unix_timestamp + ( ( feed_data.fetch_interval_minutes + 5 ) * 60 );
+                    feed_data.next_fetch_ts := unix_timestamp + ( ( feed_data.fetch_interval_minutes + 5 ) * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
                 ELSE
-                    feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 );
+                    feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
                 END IF;
             ELSE
-                feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 );
+                feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
             END IF;
 
             feed_data.total_fetches := feed_data.total_fetches + 1;
@@ -194,9 +194,9 @@ BEGIN
     -- don't go above 10 days with fetch interval
     IF ( feed_data.fetch_interval_minutes + 5 ) < (60 * 24 * 10) THEN
         feed_data.fetch_interval_minutes := feed_data.fetch_interval_minutes + 5;
-        feed_data.next_fetch_ts := unix_timestamp + ( ( feed_data.fetch_interval_minutes + 5 ) * 60 );
+        feed_data.next_fetch_ts := unix_timestamp + ( ( feed_data.fetch_interval_minutes + 5 ) * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
     ELSE
-        feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 );
+        feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
     END IF;
 
     -- update fetch data
@@ -225,6 +225,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- update fetch intervals only after a successful RSS feed fetch
+-- used in Analysis service to only update fetch times while still waiting for link processing data outcome
+CREATE OR REPLACE FUNCTION update_feed_fetch_times( feed_url TEXT ) RETURNS bool AS $$
+DECLARE
+    feed_data feeds%rowtype;
+    unix_timestamp INTEGER := ROUND( EXTRACT( epoch FROM now() ) );
+BEGIN
+    SELECT * FROM feeds INTO feed_data WHERE url = feed_url;
+
+    -- update fetch data
+    feed_data.last_fetch_ts := unix_timestamp;
+    feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
+    feed_data.total_fetches := feed_data.total_fetches + 1;
+
+    -- save new values
+    UPDATE feeds SET
+        last_fetch_ts = feed_data.last_fetch_ts,
+        total_fetches = feed_data.total_fetches,
+        next_fetch_ts = feed_data.next_fetch_ts
+    WHERE url = feed_url;
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
 
 
 -- updates feeds with 10+ subsequent failures where last fetch was more than 2 days ago

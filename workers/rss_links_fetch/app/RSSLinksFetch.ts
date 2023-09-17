@@ -191,6 +191,8 @@ export class RSSLinksFetch {
     this.mq_consumer.consume( env.SAVED_LINKS_CHANNEL_NAME, self.enqueue_link_html_getting.bind( this ) );
 
     // start a retry queue timed task
+    // TODO: ... also drain the MQ Producer every 60 seconds, since we may have links data in a half-empty batch
+    //     that are just waiting to be sent out and processed
     setInterval( async () => {
       for ( let item in self.retries ) {
         if ( self.retries[ item ].retries < self.max_retries ) {
@@ -200,6 +202,9 @@ export class RSSLinksFetch {
           delete self.retries[ item ];
         }
       }
+
+      // TODO: send any waiting non-full batches with links to be processed
+      //self.mq_producer.drain_batch();
     }, 60000 );
 
     // retry failed DB saves if the app previously crashed

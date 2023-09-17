@@ -48,6 +48,7 @@ const SERVICE_ID: string = 'control_center';
 
   // MQ producer
   const mq_producer: IMessageQueuePub = new MessageQueuePub( connection, logger );
+  mq_producer.set_batch_max_items( ( env.RSS_MAX_FETCH_FEEDS_IN_PARALLEL ? parseInt( env.RSS_MAX_FETCH_FEEDS_IN_PARALLEL ) : 25 ) );
   logger.set_mq_broker( mq_producer );
 
   // create the ControlCenter class instance and run program

@@ -171,6 +171,8 @@ export class LinkWriter {
     this.mq_consumer.consume( this.links_channel_name, self.parse_link.bind( this ) );
 
     // keep checking for timed out telemetries and close them when they do time out
+    // ... also drain the MQ Producer every 63 seconds, since we may have links in a half-empty batch
+    //     that are just waiting to be sent out and processed
     setInterval( function(): void {
       let
         new_active_telemetries: { [k: string] : Telemetry } = {},
@@ -187,6 +189,9 @@ export class LinkWriter {
         self.telemetry_cache = new_active_telemetries;
       }
     }, 63000); // check every minute (actually 63 seconds because the telemetry timeout is set to 300s exactly)
+
+    // send any waiting non-full batches with links to be processed
+    self.mq_producer.drain_batch();
   }
 
   /**
@@ -256,7 +261,7 @@ export class LinkWriter {
             clearTimeout( this.feed_last_link_timeout_id[ message.feed_url ] );
           }
 
-          // create a new function to execute in 20 seconds for the DB stats update
+          // create a new function to execute in 10 seconds for the DB stats update
           // ... we do this independently on whether we were able to insert link data into DB
           //     or not, since we need to update fetch intervals even if we don't insert a single link
           //     and in such case, statistical info will remain unchanged
@@ -272,7 +277,10 @@ export class LinkWriter {
                   'links_count':   this.feed_messages_inserted_counter[ message.feed_url ],
                   'first_item_ts': this.feed_first_batch_item_ts[ message.feed_url ],
                 }
-              }, trace_id );
+              }, trace_id, message.feed_url );
+
+              // drain logs channel right away, since we need this data for Analysis service
+              this.mq_producer.drain_batch();
 
               link_telemetry.close_active_span( link_mq_pub_span_name );
 
