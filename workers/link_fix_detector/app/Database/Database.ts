@@ -69,6 +69,15 @@ export class Database implements IDatabase {
   }
 
   /**
+   * Updates fetch time when all links from a successful RSS fetch were sent out.
+   *
+   * @param { string } feed_url URL for the feed to update statistical data for.
+   */
+  public async inc_fetch_times_with_ok_status( feed_url: string ): Promise<void> {
+    await this.client.$queryRaw`SELECT update_feed_fetch_times( ${feed_url} )`;
+  }
+
+  /**
    * Updates feed statistics and fetch times
    * upon successfully finished RSS fetch.
    *
