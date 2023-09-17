@@ -82,6 +82,13 @@ export interface IDatabase {
   inc_fetch_times_only( feed_url: string, err_msg: string ): Promise<void>;
 
   /**
+   * Updates fetch time when all links from a successful RSS fetch were sent out.
+   *
+   * @param { string } feed_url URL for the feed to update statistical data for.
+   */
+  inc_fetch_times_with_ok_status( feed_url: string ): Promise<void>;
+
+  /**
    * Logs error received from the message queue and reported
    * by one of the other services into database.
    *
