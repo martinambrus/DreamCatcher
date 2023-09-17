@@ -126,23 +126,23 @@ export class MessageQueueSub implements IMessageQueueSub {
    * Consumes messages from the given topic and passes them
    * to the callback function provided.
    *
-   * @param { string|Array<string> } topic    The topic(s) from which we want to be receiving messages with this class instance.
+   * @param { string|Array<string> } topics   The topic(s) from which we want to be receiving messages with this class instance.
    * @param { Function }             callback The callback function to call when a new message arrives.
    *
    * @return Promise<void>
    * @public
    */
-  public async consume( topic: string|Array<string>, callback: Function ): Promise<void> {
+  public async consume( topics: string|Array<string>, callback: Function ): Promise<void> {
     if ( this.ready ) {
       if ( this.running ) {
         throw 'This consumer is already processing messages via a previously passed method. Please create a new consumer with its unique ID to subscribe with a new method or create a single method that would handle subscription to multiple topics.';
       } else {
-        if ( !( topic instanceof Array ) ) {
-          topic = [ topic ];
+        if ( !( topics instanceof Array ) ) {
+          topics = [ topics ];
         }
 
         let topics_new: Array<string> = [];
-        for ( let topic_name in topic ) {
+        for ( let topic_name in topics ) {
           if ( this.created_topics.indexOf( topic_name ) == -1 ) {
             topics_new.push( topic_name );
             this.created_topics.push( topic_name );
@@ -162,8 +162,8 @@ export class MessageQueueSub implements IMessageQueueSub {
           });
         }
 
-        await this.consumer.subscribe( { topics: topic } );
-        this.logger.format( 'subscribed to the following topic: ' + topic );
+        await this.consumer.subscribe( { topics: topics } );
+        console.log( this.logger.format( 'subscribed to the following topics: ' + topics ) );
       }
 
       try {
@@ -179,15 +179,15 @@ export class MessageQueueSub implements IMessageQueueSub {
             } else {
               console.log( this.logger.format('Exception while trying to decode log data: ' + original_msg ) );
             }
-        }});
+          }});
         this.running = true;
-        this.logger.format( 'now consuming messages from topic ' + topic );
+        console.log( this.logger.format( 'now consuming messages from topics ' + topics ) );
       } catch ( err ) {
         // no await - we're returning boolean that's manually set below
         this.logger.log_msg( 'Error setting consumer callback: ' + JSON.stringify( err ), 'ERR_RSS_FETCH_PROCESSING' );
       }
     } else {
-      this.retry_queue.push( { topic: topic, callback: callback } );
+      this.retry_queue.push( { topic: topics, callback: callback } );
     }
   }
 
