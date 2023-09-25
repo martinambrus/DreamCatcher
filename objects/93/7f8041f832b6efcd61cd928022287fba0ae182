@@ -1,16 +1,16 @@
-[map "92b44605-c56e-307d-a7bb-0ff877d21656"]
-	object = f9eb4a72d5d76b62d6b5a5a0427c577dac8bddb3
+[map "dd4e42c6-fdd6-360b-8223-5a4c6134c3a4"]
+	object = 653d60f666dce8e481e1ab2a42ab639428c5644d
 	path = control_center/app/MQ
 	type = expand module
-[map "bafbcbe4-9784-37db-8e1a-5f9266538a76"]
-	object = f9eb4a72d5d76b62d6b5a5a0427c577dac8bddb3
+[map "bf89cae1-d2bb-3e52-931d-0a23db69988c"]
+	object = 653d60f666dce8e481e1ab2a42ab639428c5644d
 	path = workers/analysis/app/MQ
 	type = expand module
-[map "f1f37d23-8f44-3524-8e68-76126c2c5e62"]
-	object = f9eb4a72d5d76b62d6b5a5a0427c577dac8bddb3
+[map "5ff6ec8f-0fea-3d63-96da-2c3561165a85"]
+	object = 653d60f666dce8e481e1ab2a42ab639428c5644d
 	path = workers/err_log_writer/app/MQ
 	type = expand module
-[map "67464cf8-a7a8-3a1f-a563-f144242e7e0f"]
-	object = f9eb4a72d5d76b62d6b5a5a0427c577dac8bddb3
+[map "e2e9d628-d2d7-3aa9-89e8-35cfd1ebbafe"]
+	object = 653d60f666dce8e481e1ab2a42ab639428c5644d
 	path = workers/link_fix_detector/app/MQ
 	type = expand module
