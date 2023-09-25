@@ -191,7 +191,7 @@ export class RSSLinksFetch {
     this.mq_consumer.consume( env.SAVED_LINKS_CHANNEL_NAME, self.enqueue_link_html_getting.bind( this ) );
 
     // start a retry queue timed task
-    // TODO: ... also drain the MQ Producer every 60 seconds, since we may have links data in a half-empty batch
+    // ... also drain the MQ Producer every 60 seconds, since we may have links data in a half-empty batch
     //     that are just waiting to be sent out and processed
     setInterval( async () => {
       for ( let item in self.retries ) {
@@ -203,8 +203,8 @@ export class RSSLinksFetch {
         }
       }
 
-      // TODO: send any waiting non-full batches with links to be processed
-      //self.mq_producer.drain_batch();
+      // send any waiting non-full batches with links to be processed
+      Utils.mq_producer.drain_batch();
     }, 60000 );
 
     // retry failed DB saves if the app previously crashed
@@ -332,6 +332,9 @@ export class RSSLinksFetch {
       await analysis_telemetry.add_span( telemetry_name, {}, 'Error processing link data for ' + mq_message_data.link + ' with error: ' + JSON.stringify( err ), parseInt( await this.key_store_pub.get( 'ERR_RSS_LINK_FETCH_PROCESSING' ) ) );
       analysis_telemetry.close_active_span( telemetry_name );
     }
+
+    // remove this job from the backup queue
+    this.key_store_pub.sdelete( this.key_value_queue_backup_set_name, JSON.stringify( { message: mq_message_data, trace_id: trace_id } ) );
 
     // publish to key store that we're done with tracing
     await this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );

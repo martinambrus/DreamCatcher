@@ -256,6 +256,7 @@ export class ControlCenter {
    */
   private async fetch_feeds(): Promise<void> {
     if ( this.active ) {
+    //if ( 1 ) {
       // first, update all feeds with 10+ subsequent failures
       // where last fetch was more than 2 days ago
       await this.dbconn.update_old_failed_feeds();

@@ -134,6 +134,11 @@ export class Logger implements ILogger {
 
       // no await - we're not returning anything here
       this.mq_broker.send( this.logs_channel_name, log_msg, msg_key );
+
+      // send errors immediately, other messages should be sent out in batches
+      if ( severity == LOG_SEVERITIES.LOG_SEVERITY_ERROR ) {
+        this.mq_broker.drain_batch();
+      }
     }
   }
 

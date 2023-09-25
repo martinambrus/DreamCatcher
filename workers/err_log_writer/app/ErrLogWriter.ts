@@ -110,6 +110,7 @@ export class ErrLogWriter {
 
     // publish info about our instance going live
     this.logger.log_msg( 'err_log_writer up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+    this.mq_producer.drain_batch();
 
     let self = this;
 

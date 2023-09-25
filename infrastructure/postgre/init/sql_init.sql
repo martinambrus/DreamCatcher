@@ -225,32 +225,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- update fetch intervals only after a successful RSS feed fetch
--- used in Analysis service to only update fetch times while still waiting for link processing data outcome
-CREATE OR REPLACE FUNCTION update_feed_fetch_times( feed_url TEXT ) RETURNS bool AS $$
-DECLARE
-    feed_data feeds%rowtype;
-    unix_timestamp INTEGER := ROUND( EXTRACT( epoch FROM now() ) );
-BEGIN
-    SELECT * FROM feeds INTO feed_data WHERE url = feed_url;
-
-    -- update fetch data
-    feed_data.last_fetch_ts := unix_timestamp;
-    feed_data.next_fetch_ts := unix_timestamp + ( feed_data.fetch_interval_minutes * 60 ) - 2; -- minus 2 here because we'd miss the next fetch otherwise (CRON times is on directly 60s loop)
-    feed_data.total_fetches := feed_data.total_fetches + 1;
-
-    -- save new values
-    UPDATE feeds SET
-        last_fetch_ts = feed_data.last_fetch_ts,
-        total_fetches = feed_data.total_fetches,
-        next_fetch_ts = feed_data.next_fetch_ts
-    WHERE url = feed_url;
-
-    RETURN TRUE;
-END;
-$$ LANGUAGE plpgsql;
-
-
 -- updates feeds with 10+ subsequent failures where last fetch was more than 2 days ago
 CREATE OR REPLACE FUNCTION update_old_failed_feeds() RETURNS bool AS $$
 DECLARE

@@ -104,11 +104,6 @@ export class JSON_Parser {
         Utils.publish_new_link_data( link_data, kafka_key );
       }
 
-      // inform the Analysis service that we've just parsed a feed, so it can update the analytics
-      Utils.mq_producer.send( env.RSS_ANALYTICS_CHANNEL_NAME, {
-        feed_url: feed_url
-      }, kafka_key, feed_url );
-
       // because we're sending in batches, let's send what's left of this feed's links
       Utils.mq_producer.drain_batch();
     } else {

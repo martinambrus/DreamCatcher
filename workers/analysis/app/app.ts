@@ -49,7 +49,9 @@ const SERVICE_ID: string = 'analysis';
   });
 
   // MQ producer - only for logging purposes in this app
-  logger.set_mq_broker( new MessageQueuePub( connection, logger ) );
+  const mq_producer = new MessageQueuePub( connection, logger );
+  mq_producer.set_batch_mode( false );
+  logger.set_mq_broker( mq_producer );
 
   // MQ consumer - new links data
   const mq_consumer: IMessageQueueSub = new MessageQueueSub( SERVICE_ID, connection, logger );

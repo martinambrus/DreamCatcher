@@ -178,6 +178,7 @@ export class RSSFetch {
 
     // publish info about our instance going live
     this.logger.log_msg( 'rss_fetch up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+    this.mq_producer.drain_batch();
 
     let self = this;
 
@@ -185,6 +186,10 @@ export class RSSFetch {
     // ... this is here in case Redis goes down, so we can show that we are alive again
     setInterval( (): void => {
       self.key_store_pub.set( self.service_name + '_active', 1 );
+
+      // also empty the feeds queue, since if we don't have 25 feeds to parse at once,
+      // we'd be stuck in the queue until 25 feeds would build up
+      this.mq_producer.drain_batch();
     }, 60000 );
 
     // subscribe to receive RSS feed links to be parsed
@@ -215,8 +220,7 @@ export class RSSFetch {
       mq_message_data = message,
       mq_key_data: string = trace_id,
       trace_carrier: Object = JSON.parse( mq_key_data ),
-      analysis_telemetry: Telemetry = await new Telemetry( this.service_name, this.version, mq_message_data.url ).start( trace_carrier ),
-      telemetry_name: string = 'rss_fetch';
+      analysis_telemetry: Telemetry = await new Telemetry( this.service_name, this.version, mq_message_data.url ).start( trace_carrier );
 
     if ( !mq_message_data.url ) {
       // invalid message from the control center
@@ -228,7 +232,7 @@ export class RSSFetch {
       //console.log( 'adding to queue: ' + mq_message_data.url );
 
       this.queue.push( { name: mq_message_data.link }, async () => {
-        this.parse_feed_url( mq_message_data, analysis_telemetry, mq_key_data );
+        await this.parse_feed_url( mq_message_data, analysis_telemetry, mq_key_data );
       });
     }
   }
@@ -275,11 +279,13 @@ export class RSSFetch {
             await analysis_telemetry.add_span( process_xml_feed_span_name, { 'feed_url' : mq_message_data.url } );
             await this.xml_parser.process_xml_feed( feed_data.data, mq_message_data.url, trace_id );
             analysis_telemetry.close_active_span( process_xml_feed_span_name );
+            //console.log( 'sending valid log - ' + mq_message_data.url );
           } catch( err ) {
             // something's gone wrong with XML parsing, log error
             await this.logger.log_msg( `invalid XML feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 'ERR_RSS_FETCH_PROCESSING', LOG_SEVERITIES.LOG_SEVERITY_ERROR, { feed_url: mq_message_data.url } );
             await analysis_telemetry.add_span( telemetry_name, {}, `invalid XML feed data for ${mq_message_data.url}, error was: ` + JSON.stringify( err ) + '\nfeed data: ' + feed_data.data, 1 );
             analysis_telemetry.close_active_span( telemetry_name );
+            //console.log( 'sending invalid log - ' + mq_message_data.url );
           }
         } else {
           // this is a JSON feed
@@ -308,6 +314,9 @@ export class RSSFetch {
       await analysis_telemetry.add_span( telemetry_name, {}, 'Error processing ' + mq_message_data.url + ' with error: ' + JSON.stringify( err ), 1 );
       analysis_telemetry.close_active_span( telemetry_name );
     }
+
+    // remove this job from the backup queue
+    this.key_store_pub.sdelete( this.key_value_queue_backup_set_name, JSON.stringify( { message: mq_message_data, trace_id: trace_id } ) );
 
     // publish to key store that we're done with tracing
     this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );

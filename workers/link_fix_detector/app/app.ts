@@ -45,6 +45,7 @@ const SERVICE_ID: string = 'link_fix_detector';
 
   // MQ producer
   const mq_producer: IMessageQueuePub = new MessageQueuePub( connection, logger );
+  mq_producer.set_batch_mode( false );
   logger.set_mq_broker( mq_producer );
 
   // MQ consumer
