@@ -1,19 +1,19 @@
 [map "fa8db08c-377b-3389-a8de-5158028ffa9e"]
 	object = c7f7f0ae5cfd4a6f4ee6a494e249aa7521e0c1cd
 	type = include + expand tree
-[map "6d4d114c-d8e4-3e87-b78e-ec7e657ba078"]
-	object = 4f5d2f13af615d20de324514c79ccb7101ab56f1
+[map "9fb4614b-22e1-3655-a9f6-7b160f2ac5d1"]
+	object = 345af6e5a223534c4a582756f4e807aabfe4bc5a
 	path = workers/link_fix_detector/app/Database
 	type = expand module
-[map "49dee295-44ae-3d49-9a71-dcf7bde0d6f8"]
-	object = 4f5d2f13af615d20de324514c79ccb7101ab56f1
+[map "0016cff1-460b-3421-b6ad-cb2a42a81d13"]
+	object = 345af6e5a223534c4a582756f4e807aabfe4bc5a
 	path = workers/analysis/app/Database
 	type = expand module
-[map "977e3903-523e-31cd-8085-ab05d4acc3e6"]
-	object = 4f5d2f13af615d20de324514c79ccb7101ab56f1
+[map "8a32ae54-8cbd-373c-a778-f526f4473582"]
+	object = 345af6e5a223534c4a582756f4e807aabfe4bc5a
 	path = workers/err_log_writer/app/Database
 	type = expand module
-[map "51e8113c-1c58-39df-8fa9-827b08c22cea"]
-	object = 4f5d2f13af615d20de324514c79ccb7101ab56f1
+[map "44a90115-bb66-3efc-9c37-1ff80ac84538"]
+	object = 345af6e5a223534c4a582756f4e807aabfe4bc5a
 	path = control_center/app/Database
 	type = expand module
