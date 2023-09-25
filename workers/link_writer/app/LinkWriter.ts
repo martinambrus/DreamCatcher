@@ -6,6 +6,7 @@ import { IMessageQueuePub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueuePu
 import { IMessageQueueSub } from './Utils/MQ/KeyStore/Interfaces/IMessageQueueSub.js';
 import { IDatabase } from './Utils/Database/Interfaces/IDatabase.js';
 import { Utils } from './Utils/Utils.js';
+import { queue } from 'async';
 
 export class LinkWriter {
 
@@ -122,6 +123,23 @@ export class LinkWriter {
   private readonly telemetry_inactive_timeout_seconds: number = 300;
 
   /**
+   * Queue object from the async library.
+   * Used for parallel job processing.
+   *
+   * @private
+   * @type { queue }
+   */
+  private readonly queue: queue;
+
+  /**
+   * Name of a set that holds backup of queued feed links to save,
+   * so we can retry then in case of an app crash.
+   * @private
+   * @type { string }
+   */
+  private key_value_queue_backup_set_name: string;
+
+  /**
    * Stores references to key store, PGSQL and Logger classes
    * that were created outside of this main class.
    *
@@ -155,9 +173,23 @@ export class LinkWriter {
     // strings
     this.service_id = service_id;
     this.links_channel_name = env.NEW_LINKS_CHANNEL_NAME;
+    this.key_value_queue_backup_set_name = ( env.RSS_LINKS_SAVE_QUEUE_SET_NAME ? env.RSS_LINKS_SAVE_QUEUE_SET_NAME : 'rss_links_save_queue_backup' );
+
+    // prefix redis queue backup set name with current app's hostname, which is unique
+    this.key_value_queue_backup_set_name = ( env.HOSTNAME ? 'link_writer_' + env.HOSTNAME : 'link_writer_undefined_host' ) + this.key_value_queue_backup_set_name;
+
+    // create a new async queue to parse feeds in parallel
+    this.queue = new queue( ( task, callback ) => {
+      callback();
+    }, ( env.RSS_MAX_LINKS_SAVE_IN_PARALLEL ? env.RSS_MAX_LINKS_SAVE_IN_PARALLEL : 100 ) );
+
+    this.queue.error( ( err, task ) => {
+      this.logger.log_msg( 'Error while trying to run task ' + task + ': ' + JSON.stringify( err ), 'ERR_RSS_LINK_SAVE_TASK_ERROR' );
+    });
 
     // publish info about our instance going live
     this.logger.log_msg( 'link_writer up and running', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+    this.mq_producer.drain_batch();
 
     let self = this;
 
@@ -165,10 +197,14 @@ export class LinkWriter {
     // ... this is here in case Redis goes down, so we can show that we are alive again
     setInterval( (): void => {
       self.key_store_pub.set( self.service_id + '_active', 1 );
+
+      // also empty the links queue, since if we don't have 100 links to save at once,
+      // we'd be stuck in the queue until 100 links would build up
+      self.mq_producer.drain_batch();
     }, 60000 );
 
     // subscribe to RSS new links channel, so we can write their data out to the database
-    this.mq_consumer.consume( this.links_channel_name, self.parse_link.bind( this ) );
+    this.mq_consumer.consume( this.links_channel_name, self.enqueue_link_saving.bind( this ) );
 
     // keep checking for timed out telemetries and close them when they do time out
     // ... also drain the MQ Producer every 63 seconds, since we may have links in a half-empty batch
@@ -190,8 +226,37 @@ export class LinkWriter {
       }
     }, 63000); // check every minute (actually 63 seconds because the telemetry timeout is set to 300s exactly)
 
-    // send any waiting non-full batches with links to be processed
-    self.mq_producer.drain_batch();
+    // retry unfetched/unparsed RSS feeds if the app previously crashed
+    this.key_store_pub.smembers( this.key_value_queue_backup_set_name ).then( ( jobs ) => {
+      if ( jobs.length ) {
+        console.log( this.logger.format('resuming ' + jobs.length + ' redis-saved jobs from the previous queue') );
+      }
+
+      for ( let job of jobs ) {
+        const job_data = JSON.parse( job );
+        this.parse_link( { topic: self.links_channel_name, message: job_data.message, trace_id: job_data.trace_id } );
+      }
+    });
+  }
+
+  /**
+   * Enqueues a message from MQ to start saving it whenever its time in the job queue comes.
+   *
+   * @param { Object } data This is the processed data received from Kafka consumer.
+   *                        Object structure: topic, message, trace_id
+   * @private
+   */
+  private async enqueue_link_saving( { topic, message, trace_id } ): Promise<void> {
+    if ( message.service != this.service_id ) {
+      // save this job in case we need to retry the queue later
+      await this.key_store_pub.sadd( this.key_value_queue_backup_set_name, JSON.stringify( { message: message, trace_id: trace_id } ) );
+
+      //console.log( 'adding to queue: ' + mq_message_data.url );
+
+      this.queue.push( { name: message.link }, async () => {
+        await this.parse_link( { topic: topic, message: message, trace_id: trace_id } );
+      });
+    }
   }
 
   /**
@@ -210,91 +275,91 @@ export class LinkWriter {
       link_mq_pub_span_name: string = 'link_mq_pub',
       error_log_span_name: string = 'error_log';
 
-    // check that the service publishing this message is not in fact a Link Writer
-    if ( message.service != this.service_id ) {
-      // cache this Telemetry class if not cached already
-      this.telemetry_cache[ trace_id ] = ( this.telemetry_cache[ trace_id ] ?? link_telemetry );
-      await link_telemetry.add_span( link_check_span_name, { 'link' : message.link } );
+    // cache this Telemetry class if not cached already
+    this.telemetry_cache[ trace_id ] = ( this.telemetry_cache[ trace_id ] ?? link_telemetry );
+    await link_telemetry.add_span( link_check_span_name, { 'link' : message.link } );
 
-      // see if we have cached feed ID for this URL
-      Utils.checkAndCacheFeedURL( message.feed_url ).then( async ( result: boolean ) => {
-        link_telemetry.close_active_span( link_check_span_name );
+    // see if we have cached feed ID for this URL
+    Utils.checkAndCacheFeedURL( message.feed_url ).then( async ( result: boolean ) => {
+      link_telemetry.close_active_span( link_check_span_name );
 
-        if ( result ) {
-          await link_telemetry.add_span( link_db_write_span_name, { 'link' : message.link } );
+      if ( result ) {
+        await link_telemetry.add_span( link_db_write_span_name, { 'link' : message.link } );
 
-          // try inserting the link into the DB
-          try {
-            let inserted_link_id = await this.dbconn.insert_link( Utils.feed_url_to_id[ message.feed_url ], message.title, message.summary, message.link, message.img, message.published );
-            if ( inserted_link_id ) {
-              // check and store first item's timestamp for this batch and this feed
-              if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
-                this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
-              }
+        // try inserting the link into the DB
+        try {
+          let inserted_link_id = await this.dbconn.insert_link( Utils.feed_url_to_id[ message.feed_url ], message.title, message.summary, message.link, message.img, message.published );
+          if ( inserted_link_id ) {
+            // check and store first item's timestamp for this batch and this feed
+            if ( !this.feed_first_batch_item_ts[ message.feed_url ] || message.date < this.feed_first_batch_item_ts[ message.feed_url ] ) {
+              this.feed_first_batch_item_ts[ message.feed_url ] = message.date;
+            }
 
-              // increment count of the messages inserted for this feed in this batch
-              if ( !this.feed_messages_inserted_counter[ message.feed_url ] ) {
-                this.feed_messages_inserted_counter[ message.feed_url ] = 1;
-              } else {
-                this.feed_messages_inserted_counter[ message.feed_url ]++;
-              }
-
-              this.mq_producer.send( env.SAVED_LINKS_CHANNEL_NAME, message, trace_id, message.link );
-
-              // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
-              //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+            // increment count of the messages inserted for this feed in this batch
+            if ( !this.feed_messages_inserted_counter[ message.feed_url ] ) {
+              this.feed_messages_inserted_counter[ message.feed_url ] = 1;
             } else {
-              // since this is a valid duplicate link, update data
-              // to be sent to fetch interval updating service
-              this.update_internals_when_link_fails_to_insert( message );
-            }
-          } catch ( err ) {
-            this.logger.log_msg( 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 'ERR_LINK_WRITER_DB_WRITE_ERROR' );
-            await link_telemetry.add_span( error_log_span_name, { 'link_url' : message.link }, 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), parseInt( await this.key_store_pub.get( 'ERR_LINK_WRITER_DB_WRITE_ERROR' ) ) );
-            link_telemetry.close_active_span( error_log_span_name );
-          }
-
-          link_telemetry.close_active_span( link_db_write_span_name );
-
-          // cancel old timeout for this feed, if present
-          if ( this.feed_last_link_timeout_id[ message.feed_url ] ) {
-            clearTimeout( this.feed_last_link_timeout_id[ message.feed_url ] );
-          }
-
-          // create a new function to execute in 10 seconds for the DB stats update
-          // ... we do this independently on whether we were able to insert link data into DB
-          //     or not, since we need to update fetch intervals even if we don't insert a single link
-          //     and in such case, statistical info will remain unchanged
-          this.feed_last_link_timeout_id[ message.feed_url ] = setTimeout( async () => {
-            if ( this.feed_messages_inserted_counter[ message.feed_url ] != 'undefined' ) {
-              await link_telemetry.add_span( link_mq_pub_span_name );
-
-              await this.mq_producer.send( env.LOGS_CHANNEL_NAME, {
-                'service':    this.service_id,
-                'severity':   LOG_SEVERITIES.LOG_SEVERITY_NOTICE,
-                'extra_data': {
-                  'feed_url':      message.feed_url,
-                  'links_count':   this.feed_messages_inserted_counter[ message.feed_url ],
-                  'first_item_ts': this.feed_first_batch_item_ts[ message.feed_url ],
-                }
-              }, trace_id, message.feed_url );
-
-              // drain logs channel right away, since we need this data for Analysis service
-              this.mq_producer.drain_batch();
-
-              link_telemetry.close_active_span( link_mq_pub_span_name );
-
-              // publish to key store that we're done with tracing
-              this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_id, trace_id: trace_id } ) );
+              this.feed_messages_inserted_counter[ message.feed_url ]++;
             }
 
-            delete this.feed_messages_inserted_counter[ message.feed_url ];
-            delete this.feed_first_batch_item_ts[ message.feed_url ];
-            this.feed_last_link_timeout_id[ message.feed_url ] = 0;
-          }, 20000 );
+            this.mq_producer.send( env.SAVED_LINKS_CHANNEL_NAME, message, trace_id, message.link );
+
+            // no await here, as we don't really need to wait or care too much for this log message - it's mostly a debug msg
+            //this.logger.log_msg( 'Successfully inserted into db: ' + message.link + '\n', 0, LOG_SEVERITIES.LOG_SEVERITY_LOG );
+          } else {
+            // since this is a valid duplicate link, update data
+            // to be sent to fetch interval updating service
+            this.update_internals_when_link_fails_to_insert( message );
+          }
+        } catch ( err ) {
+          this.logger.log_msg( 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), 'ERR_LINK_WRITER_DB_WRITE_ERROR' );
+          await link_telemetry.add_span( error_log_span_name, { 'link_url' : message.link }, 'DB error while trying to insert new link data:\n' + JSON.stringify( err ) + '\ndata: ' + JSON.stringify( message ), parseInt( await this.key_store_pub.get( 'ERR_LINK_WRITER_DB_WRITE_ERROR' ) ) );
+          link_telemetry.close_active_span( error_log_span_name );
         }
-      });
-    }
+
+        link_telemetry.close_active_span( link_db_write_span_name );
+
+        // cancel old timeout for this feed, if present
+        if ( this.feed_last_link_timeout_id[ message.feed_url ] ) {
+          clearTimeout( this.feed_last_link_timeout_id[ message.feed_url ] );
+        }
+
+        // create a new function to execute in 10 seconds for the DB stats update
+        // ... we do this independently on whether we were able to insert link data into DB
+        //     or not, since we need to update fetch intervals even if we don't insert a single link
+        //     and in such case, statistical info will remain unchanged
+        this.feed_last_link_timeout_id[ message.feed_url ] = setTimeout( async () => {
+          if ( this.feed_messages_inserted_counter[ message.feed_url ] != 'undefined' ) {
+            await link_telemetry.add_span( link_mq_pub_span_name );
+
+            await this.mq_producer.send( env.LOGS_CHANNEL_NAME, {
+              'service':    this.service_id,
+              'severity':   LOG_SEVERITIES.LOG_SEVERITY_NOTICE,
+              'extra_data': {
+                'feed_url':      message.feed_url,
+                'links_count':   this.feed_messages_inserted_counter[ message.feed_url ],
+                'first_item_ts': this.feed_first_batch_item_ts[ message.feed_url ],
+              }
+            }, trace_id, message.feed_url );
+
+            // drain logs channel right away, since we need this data for Analysis service
+            this.mq_producer.drain_batch();
+
+            link_telemetry.close_active_span( link_mq_pub_span_name );
+
+            // publish to key store that we're done with tracing
+            this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_id, trace_id: trace_id } ) );
+          }
+
+          delete this.feed_messages_inserted_counter[ message.feed_url ];
+          delete this.feed_first_batch_item_ts[ message.feed_url ];
+          this.feed_last_link_timeout_id[ message.feed_url ] = 0;
+        }, 20000 );
+      }
+
+      // remove this job from the backup queue
+      this.key_store_pub.sdelete( this.key_value_queue_backup_set_name, JSON.stringify( { message: message, trace_id: trace_id } ) );
+    });
   }
 
   /**
