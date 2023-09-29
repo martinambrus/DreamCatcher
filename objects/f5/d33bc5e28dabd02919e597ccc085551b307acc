@@ -1,0 +1,16 @@
+[map "f61f3ff1-33eb-3c61-aa47-09866b9d873e"]
+	object = 5836f50c4b1b12a41b8274734c00ea14ce4e3edb
+	path = workers/link_fix_detector/app/MQ
+	type = expand module
+[map "fcc11eb6-519b-3a4e-a967-32db75abab0e"]
+	object = 5836f50c4b1b12a41b8274734c00ea14ce4e3edb
+	path = control_center/app/MQ
+	type = expand module
+[map "8b3c6aca-82b2-39d4-8acd-0eac6e852d15"]
+	object = 5836f50c4b1b12a41b8274734c00ea14ce4e3edb
+	path = workers/analysis/app/MQ
+	type = expand module
+[map "8b7658b4-1078-349e-b29c-7a3853a0bc8c"]
+	object = 5836f50c4b1b12a41b8274734c00ea14ce4e3edb
+	path = workers/err_log_writer/app/MQ
+	type = expand module
