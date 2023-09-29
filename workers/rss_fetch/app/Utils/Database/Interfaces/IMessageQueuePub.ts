@@ -50,5 +50,5 @@ export interface IMessageQueuePub {
    * @param { string } topic An optional topic for which to send all messages for.
    *                         All messages will be sent if this parameter is empty or missing.
    */
-  drain_batch( topic?: string ): void;
+  drain_batch( topic?: string ): Promise<void>;
 }
