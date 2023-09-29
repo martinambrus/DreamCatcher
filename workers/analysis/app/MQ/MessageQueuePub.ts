@@ -91,7 +91,7 @@ export class MessageQueuePub implements IMessageQueuePub {
 
     // create a Kafka producer
     this.producer = this.client.producer({
-      //idempotent: true,
+      idempotent: true,
     });
 
     // connect to the producer
@@ -162,7 +162,7 @@ export class MessageQueuePub implements IMessageQueuePub {
                     messages: this.batch_mode_queue[ topic ][ messages_index ],
                   }
                 ],
-                //                acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
+                acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
                 compression: CompressionTypes.GZIP,
               });
 
@@ -189,7 +189,7 @@ export class MessageQueuePub implements IMessageQueuePub {
           await this.producer.send({
             topic: topic,
             messages: [{ key: trace_id, value: JSON.stringify( message ) }],
-            //            acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
+            acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
             compression: CompressionTypes.GZIP,
           });
         }
@@ -265,7 +265,7 @@ export class MessageQueuePub implements IMessageQueuePub {
                 messages: this.batch_mode_queue[ batch_topic ][ messages_index ],
               }
             ],
-            //            acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
+            acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
             compression: CompressionTypes.GZIP,
           });
 
