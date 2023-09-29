@@ -148,10 +148,9 @@ export class MessageQueuePub implements IMessageQueuePub {
             this.batch_mode_queue[ topic ] = [];
           }
 
-          let
-            reindex: boolean = false,
-            was_added: boolean = false;
+          let reindex: boolean = false;
 
+          // send out messages for topic queues that are now full
           for ( let messages_index in this.batch_mode_queue[ topic ] ) {
             if ( this.batch_mode_queue[ topic ][ messages_index ].length >= this.batch_max_items ) {
               // max batch items in this queue sub-array reached,
@@ -171,12 +170,6 @@ export class MessageQueuePub implements IMessageQueuePub {
 
               // reindex the array for this topic at the end, since we now have an empty set in it
               reindex = true;
-            } else {
-              // add this message into the messages array for this topic in the queue,
-              // since there's still space
-              this.batch_mode_queue[ topic ][ messages_index ].push( { key: trace_id, value: JSON.stringify( message ) } );
-              was_added = true;
-              break;
             }
           }
 
@@ -184,18 +177,13 @@ export class MessageQueuePub implements IMessageQueuePub {
             this.batch_mode_queue[ topic ] = this.batch_mode_queue[ topic ].filter(Boolean);
           }
 
-          // check if we've added this item and if not, add it here
-          // ... not adding an item can happen if we have only 1 sub-array,
-          //     so the foreach loop above will only go through that
-          //     and we wouldn't have any place for the new item to be added to yet
-          if ( !was_added ) {
-            if ( !this.batch_mode_queue[ topic ].length ) {
-              this.batch_mode_queue[ topic ].push( [] );
-            }
-
-            // now add this item into the last (probably the only) array available
-            this.batch_mode_queue[ topic ][ this.batch_mode_queue[ topic ].length - 1 ].push( { key: trace_id, value: JSON.stringify( message ) } );
+          // make sure the topic's queue has at least a single array
+          if ( !this.batch_mode_queue[ topic ].length ) {
+            this.batch_mode_queue[ topic ].push( [] );
           }
+
+          // now add this item into the last array available
+          this.batch_mode_queue[ topic ][ this.batch_mode_queue[ topic ].length - 1 ].push( { key: trace_id, value: JSON.stringify( message ) } );
         } else {
           // not in batch mode - send message immediately
           await this.producer.send({
@@ -266,11 +254,11 @@ export class MessageQueuePub implements IMessageQueuePub {
    * @param { string } topic An optional topic for which to send all messages for.
    *                         All messages will be sent if this parameter is empty or missing.
    */
-  public drain_batch( topic?: string ): void {
+  public async drain_batch( topic?: string ): Promise<void> {
     for ( let batch_topic in this.batch_mode_queue ) {
       if (  !topic || typeof( topic ) == 'undefined' || batch_topic == topic ) {
         for ( let messages_index in this.batch_mode_queue[ batch_topic ] ) {
-          this.producer.sendBatch({
+          await this.producer.sendBatch({
             topicMessages: [
               {
                 topic: batch_topic,
@@ -279,13 +267,13 @@ export class MessageQueuePub implements IMessageQueuePub {
             ],
             //            acks: -1, // must be -1 because producer is set as idempotent, i.e. each message is written exactly once
             compression: CompressionTypes.GZIP,
-          }).then( () => {
-            // remove this index from the batch
-            delete this.batch_mode_queue[ batch_topic ][ messages_index ];
-
-            // reindex the array
-            this.batch_mode_queue[ batch_topic ] = this.batch_mode_queue[ batch_topic ].filter(Boolean);
           });
+
+          // remove this index from the batch
+          delete this.batch_mode_queue[ batch_topic ][ messages_index ];
+
+          // reindex the array
+          this.batch_mode_queue[ batch_topic ] = this.batch_mode_queue[ batch_topic ].filter(Boolean);
         }
       }
     }
