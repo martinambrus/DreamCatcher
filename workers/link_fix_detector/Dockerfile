@@ -1,5 +1,7 @@
 FROM node:20-alpine
 
+RUN apk add --update --no-cache openssl
+
 WORKDIR /usr/src/link_fix_detector
 
 COPY --from=npm_cache /usr/npm_cache/node_modules ./node_modules
