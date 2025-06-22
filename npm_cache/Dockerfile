@@ -1,4 +1,4 @@
-FROM node:20-alpine as npm_cache
+FROM node:20-alpine AS npm_cache
 
 WORKDIR /usr/npm_cache
 

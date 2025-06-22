@@ -1,4 +1,4 @@
-FROM redis:7.0-alpine as base
+FROM redis:7.0-alpine AS base
 
 # copy initial cofiguration set with error codes
 COPY startup /usr/src/redis_startup
