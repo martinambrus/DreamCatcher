@@ -7,6 +7,6 @@ WORKDIR /usr/src/redis_startup
 CMD [ "/bin/sh", "redis_start.sh" ]
 
 # REPLICATION SLAVE
-FROM base as slave
+FROM base AS slave
 
 CMD [ "/bin/sh", "redis_start_slave.sh" ]
