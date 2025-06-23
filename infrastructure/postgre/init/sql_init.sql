@@ -294,10 +294,6 @@ CREATE TABLE links (
                                  -- rather than one huge for all links of all feeds
 
 CREATE INDEX feed_link ON links ( feed_id ASC, link ASC );
--- make sure that the same link for a single feed
--- cannot be stored multiple times even when concurrent
--- insertions happen at the same time
-CREATE UNIQUE INDEX feed_link_unique ON links( feed_id, link );
 CREATE INDEX feed_processed ON links (feed_id ASC, is_processed ASC );
 CREATE INDEX processed_fetched ON links (is_processed DESC, date_fetched DESC );
 
