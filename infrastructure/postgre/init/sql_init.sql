@@ -315,7 +315,6 @@ BEGIN
         -- insert the link, avoiding duplicates thanks to the unique index
         INSERT INTO links( feed_id, title, description, link, img, date_posted )
         VALUES ( id_feed, title_text, description_text, link_url, img_url, date_posted_ts )
-        ON CONFLICT (feed_id, link) DO NOTHING
         RETURNING id INTO inserted_link_id;
     END IF;
 
