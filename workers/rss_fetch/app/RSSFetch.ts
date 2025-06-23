@@ -247,6 +247,17 @@ export class RSSFetch {
    */
   private async parse_feed_url( mq_message_data: any, analysis_telemetry: Telemetry, trace_id: string ): Promise<void> {
     const telemetry_name: string = 'rss_fetch';
+    const lock_key: string = 'rss_fetch_lock:' + mq_message_data.url;
+    // try to acquire a distributed lock with a 10 minute TTL so a
+    // crashed worker won't block the feed indefinitely
+    const lock_acquired = await ( this.key_store_pub.get_connection() as any ).set( lock_key, '1', 'NX', 'EX', 600 );
+
+    if ( lock_acquired !== 'OK' ) {
+      // another worker is already fetching this feed, skip processing
+      this.key_store_pub.sdelete( this.key_value_queue_backup_set_name, JSON.stringify( { message: mq_message_data, trace_id: trace_id } ) );
+      this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
+      return;
+    }
 
     // get data for this RSS feed URL
     try {
@@ -320,6 +331,9 @@ export class RSSFetch {
 
     // publish to key store that we're done with tracing
     this.key_store_pub.publish( env.TELEMETRY_CHANNEL_NAME, JSON.stringify( { service: this.service_name, trace_id: trace_id } ) );
+
+    // release the distributed lock
+    this.key_store_pub.delete( lock_key );
   }
 
   /**
