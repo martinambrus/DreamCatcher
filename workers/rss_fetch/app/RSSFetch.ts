@@ -248,9 +248,9 @@ export class RSSFetch {
   private async parse_feed_url( mq_message_data: any, analysis_telemetry: Telemetry, trace_id: string ): Promise<void> {
     const telemetry_name: string = 'rss_fetch';
     const lock_key: string = 'rss_fetch_lock:' + mq_message_data.url;
-    // try to acquire a distributed lock with a 10 minute TTL so a
+    // try to acquire a distributed lock with a 4 minute 50 seconds TTL so a
     // crashed worker won't block the feed indefinitely
-    const lock_acquired = await ( this.key_store_pub.get_connection() as any ).set( lock_key, '1', 'NX', 'EX', 600 );
+    const lock_acquired = await ( this.key_store_pub.get_connection() as any ).set( lock_key, '1', 'NX', 'EX', 250 );
 
     if ( lock_acquired !== 'OK' ) {
       // another worker is already fetching this feed, skip processing
