@@ -21,12 +21,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: martinambrus/dreamcatcher_utils
-          path: /tmp/dreamcatcher_utils
+          path: dreamcatcher_utils
 
       - name: Sync Utils directories
         run: |
           set -euo pipefail
-          SRC=/tmp/dreamcatcher_utils
+          SRC=dreamcatcher_utils
           mapfile -t TARGETS < <(find workers -type d -path "*/app/Utils")
           if [ ${#TARGETS[@]} -eq 0 ]; then
             echo "No Utils directories found."
