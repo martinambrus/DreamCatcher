@@ -1,4 +1,4 @@
-This is a helper repository for the [DreamCatcher](https://github.com/martinambrus/DreamCatcher/) project.
+This is dreamcatcher-db - a helper repository for the [DreamCatcher](https://github.com/martinambrus/DreamCatcher/) project.
 On its own, it provides functionality for the PostgreSQL relational database used in this project.
 However, this repository does not contain any code that you can run. You can only build upon the foundation of it.
 
