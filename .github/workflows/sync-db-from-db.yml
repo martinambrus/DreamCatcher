@@ -1,0 +1,63 @@
+name: Sync Database from dreamcatcher-db
+
+on:
+  repository_dispatch:
+    types: [sync-db-from-db]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DreamCatcher
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout dreamcatcher-db
+        uses: actions/checkout@v4
+        with:
+          repository: martinambrus/dreamcatcher-db
+          path: dreamcatcher-db
+
+      - name: Sync Database directories (non-Utils)
+        run: |
+          set -euo pipefail
+          SRC=dreamcatcher-db
+          TARGETS=(
+            "control_center/app/Database"
+            "workers/analysis/app/Database"
+            "workers/err_log_writer/app/Database"
+            "workers/link_fix_detector/app/Database"
+          )
+          for dir in "${TARGETS[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "Syncing $dir"
+              rsync -a --delete \
+                --exclude '.idea' \
+                --exclude '.git' \
+                --exclude '.github' \
+                "$SRC/" "$dir/"
+            else
+              echo "Skipping missing $dir"
+            fi
+          done
+
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            control_center/app/Database \
+            workers/analysis/app/Database \
+            workers/err_log_writer/app/Database \
+            workers/link_fix_detector/app/Database
+          git commit -m "Sync Database from dreamcatcher-db"
+          git push
