@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-RUN apk add --update --no-cache openssl
+RUN apk add --update --no-cache openssl net-tools
 
 WORKDIR /usr/src/err_log_writer
 

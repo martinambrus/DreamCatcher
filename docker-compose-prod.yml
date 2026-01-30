@@ -61,6 +61,19 @@ services:
     depends_on:
       - npm_cache
     restart: unless-stopped
+
+  rag_chunker:
+    build:
+      context: workers/rag_chunker
+      dockerfile: Dockerfile
+    env_file:
+      - .env.prod
+    networks:
+      - internal
+    depends_on:
+      - npm_cache
+      - pg-0
+    restart: unless-stopped
   link_writer:
     build:
       context: workers/link_writer
@@ -379,26 +392,26 @@ services:
 #      memlock:
 #        soft: -1
 #        hard: -1
-  trace_logger:
-    image: "jaegertracing/all-in-one"
-    env_file:
-      - .env.prod
-    networks:
-      - internal
-    ports:
-      - 16686:16686
-      - 14268:14268
-      #- 9411:9411
-      - 5778:5778
-      - 5775:5775/udp
-      - 6831:6831/udp
-      - 6832:6832/udp
-    environment:
-      SPAN_STORAGE_TYPE: elasticsearch
-      COLLECTOR_OTLP_ENABLED: true
-      ES_SERVER_URLS: http://es01:${ES_PORT},http://es02:${ES_PORT2},http://es03:${ES_PORT3}
-      #REPORTER_GRPC_HOST_PORT: trace_logger:14250
-    restart: unless-stopped
+  # trace_logger:
+  #   image: "jaegertracing/all-in-one"
+  #   env_file:
+  #     - .env.prod
+  #   networks:
+  #     - internal
+  #   ports:
+  #     - 16686:16686
+  #     - 14268:14268
+  #     #- 9411:9411
+  #     - 5778:5778
+  #     - 5775:5775/udp
+  #     - 6831:6831/udp
+  #     - 6832:6832/udp
+  #   environment:
+  #     SPAN_STORAGE_TYPE: elasticsearch
+  #     COLLECTOR_OTLP_ENABLED: true
+  #     ES_SERVER_URLS: http://es01:${ES_PORT},http://es02:${ES_PORT2},http://es03:${ES_PORT3}
+  #     #REPORTER_GRPC_HOST_PORT: trace_logger:14250
+  #   restart: unless-stopped
 #  jaeger_collector:
 #    #image: "jaegertracing/all-in-one"
 #    image: "jaegertracing/jaeger-collector:1.48"
@@ -443,6 +456,37 @@ services:
 #      - 16686:16686
 #      - 16687:16687
 #    restart: unless-stopped
+  netdata:
+    image: netdata/netdata:stable
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:19999:19999
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/datadir/netdata:/var/lib/netdata
+      - ./infrastructure/datadir/netdata-cache:/var/cache/netdata
+
+  ollama:
+    image: ollama/ollama:latest
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:11434:11434
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/datadir/ollama:/root/.ollama
+
+  dreamcatcher_ui:
+    build:
+      context: ui
+      dockerfile: Dockerfile
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:8082:80
+    restart: unless-stopped
+
   kafka_ui:
     image: "provectuslabs/kafka-ui:latest"
     networks:

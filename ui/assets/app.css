@@ -1,0 +1,26 @@
+:root {
+  --ion-background-color: #f7f7f9;
+}
+
+.left-menu {
+  --side-width: 300px;
+}
+
+.feed_actions_grid ion-icon {
+  padding: 6px 0;
+}
+
+.articles_list ion-item {
+  --background: #fff;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.article_item h2 {
+  font-weight: 600;
+}
+
+#multiselect_actions {
+  border-top: 1px solid #e5e5e5;
+}

@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "outDir": ".",
+    "allowJs": true,
+    "target": "es2020",
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext"
+  },
+  "include": ["*.ts"],
+  "exclude": ["*.js", "*.json"]
+}

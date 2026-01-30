@@ -61,7 +61,7 @@ export class ControlCenter {
    * @private
    * @type { Array<string> }
    */
-  private readonly all_services_list: Array<string> = [ 'analysis', 'err_log_writer', 'link_fix_detector', 'link_writer', 'rss_fetch', 'rss_links_fetch' ];
+  private readonly all_services_list: Array<string> = [ 'analysis', 'err_log_writer', 'link_fix_detector', 'link_writer', 'rss_fetch', 'rss_links_fetch', 'rag_chunker' ];
 
   /**
    * List of all known tail-end services that work with telemetry,

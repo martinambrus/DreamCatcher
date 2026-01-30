@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html mode="md">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DreamCatcher UI (Skeleton)</title>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@ionic/core@latest/dist/ionic/ionic.esm.js"></script>
+  <script nomodule src="https://cdn.jsdelivr.net/npm/@ionic/core@latest/dist/ionic/ionic.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ionic/core@latest/css/ionic.bundle.css" />
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+<ion-app>
+  <ion-split-pane content-id="main">
+
+    <!-- Left menu (Feeds + filters) -->
+    <ion-menu side="start" content-id="main" class="left-menu" id="main_menu">
+      <ion-header>
+        <ion-toolbar translucent>
+          <ion-title>
+            <div class="ion-float-left">Menu</div>
+            <ion-icon id="menu_hide" size="large" name="caret-back-circle-outline" class="ion-float-right ion-hide-lg-down"></ion-icon>
+            <ion-icon id="menu_hide_mobile" size="large" name="close-sharp" class="ion-float-right ion-hide-lg-up"></ion-icon>
+          </ion-title>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content>
+        <ion-list class="root_menu">
+          <ion-item button class="ion-no-padding main_item feeds_main_item">
+            <ion-icon name="newspaper-outline" class="ion-float-left"></ion-icon>
+            <ion-label>Feeds</ion-label>
+            <ion-icon name="chevron-down-outline" slot="end"></ion-icon>
+          </ion-item>
+
+          <ion-grid class="ion-no-padding feed_actions_grid">
+            <ion-row class="ion-text-center">
+              <ion-col class="ion-no-padding">
+                <ion-tab-button>
+                  <ion-icon name="add-circle-outline" color="success" size="small"></ion-icon>
+                </ion-tab-button>
+              </ion-col>
+              <ion-col class="ion-no-padding">
+                <ion-tab-button>
+                  <ion-icon name="remove-circle-outline" color="danger" size="small"></ion-icon>
+                </ion-tab-button>
+              </ion-col>
+              <ion-col class="ion-no-padding">
+                <ion-tab-button>
+                  <ion-icon name="sync-outline" color="primary" size="small"></ion-icon>
+                </ion-tab-button>
+              </ion-col>
+              <ion-col class="ion-no-padding">
+                <ion-tab-button>
+                  <ion-icon name="image-outline" color="success" size="small"></ion-icon>
+                </ion-tab-button>
+              </ion-col>
+              <ion-col class="ion-no-padding">
+                <ion-tab-button>
+                  <ion-icon name="swap-vertical-outline" color="dark" size="small"></ion-icon>
+                </ion-tab-button>
+              </ion-col>
+            </ion-row>
+          </ion-grid>
+
+          <div class="submenu feeds">
+            <ion-list>
+              <ion-item button class="ion-no-border all_feeds_item active" lines="none">
+                <ion-label>
+                  <h3>
+                    <ion-icon name="pulse-outline" color="dark" class="ion-float-left menu_all_feeds"></ion-icon>
+                    <span>Everything</span>
+                  </h3>
+                </ion-label>
+                <ion-badge slot="end" color="none" class="links_counter">
+                  <ion-badge color="light">42</ion-badge>
+                </ion-badge>
+              </ion-item>
+
+              <ion-item button class="ion-no-border bookmarks_item" lines="none">
+                <ion-label>
+                  <h3>
+                    <ion-icon name="star" color="warning" class="ion-float-left menu_bookmarks"></ion-icon>
+                    <span>Bookmarks</span>
+                  </h3>
+                </ion-label>
+                <ion-badge slot="end" color="none" class="links_counter">
+                  <ion-badge color="light">7</ion-badge>
+                </ion-badge>
+              </ion-item>
+
+              <ion-item class="ion-no-border main_item divider" lines="none"></ion-item>
+            </ion-list>
+          </div>
+
+          <ion-item class="ion-no-padding">
+            <ion-icon name="book-outline" class="ion-float-left right0px"></ion-icon>
+            <ion-select value="unread" interface="alert" cancel-text="Cancel" ok-text="Confirm">
+              <ion-select-option value="unread">Show unread</ion-select-option>
+              <ion-select-option value="untrained">Show untrained</ion-select-option>
+              <ion-select-option value="trained_pos">Show trained positively</ion-select-option>
+              <ion-select-option value="all">Show all</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item class="ion-no-padding">
+            <ion-icon name="stats-chart" class="ion-float-left right0px"></ion-icon>
+            <ion-select value="date" interface="alert" cancel-text="Cancel" ok-text="Confirm">
+              <ion-select-option value="score">Sort by Score</ion-select-option>
+              <ion-select-option value="date">Sort by Date</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item class="ion-no-padding">
+            <ion-icon name="documents-outline" class="ion-float-left right0px"></ion-icon>
+            <ion-select value="15" interface="alert" cancel-text="Cancel" ok-text="Confirm">
+              <ion-select-option value="5">5 Articles</ion-select-option>
+              <ion-select-option value="10">10 Articles</ion-select-option>
+              <ion-select-option value="15">15 Articles</ion-select-option>
+              <ion-select-option value="25">25 Articles</ion-select-option>
+              <ion-select-option value="50">50 Articles</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item class="ion-no-padding">
+            <ion-icon name="color-wand-outline" class="ion-float-left right0px"></ion-icon>
+            <ion-range min="1" max="5" step="1" snaps="true" value="2">
+              <ion-icon size="small" slot="start" name="close-sharp" color="primary"></ion-icon>
+              <ion-icon size="small" slot="end" name="checkmark-sharp" color="primary"></ion-icon>
+            </ion-range>
+          </ion-item>
+
+          <ion-item class="ion-no-padding">
+            <ion-icon name="language-outline" class="ion-float-left"></ion-icon>
+            <ion-label>Change Language</ion-label>
+          </ion-item>
+
+          <ion-item class="ion-no-padding">
+            <ion-icon name="exit-outline" class="ion-float-left"></ion-icon>
+            <ion-label>Log Out</ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </ion-menu>
+
+    <!-- Main panel (articles) -->
+    <div class="ion-page" id="main">
+      <ion-header>
+        <ion-toolbar>
+          <ion-buttons slot="start">
+            <ion-menu-button></ion-menu-button>
+          </ion-buttons>
+          <ion-title>
+            <ion-label class="ion-float-left" id="active_feed_title_header">
+              <span class="ion-float-left"><span class="feed_title_and_count">OpenAI News (28)</span></span>
+            </ion-label>
+            <ion-badge color="light" class="ion-float-left left10px" id="labels-select-badge">
+              <ion-select value="" interface="alert" cancel-text="Cancel" ok-text="Confirm" multiple="true" placeholder="Labels">
+                <ion-select-option value="tech">Tech</ion-select-option>
+                <ion-select-option value="ai">AI</ion-select-option>
+                <ion-select-option value="research">Research</ion-select-option>
+              </ion-select>
+            </ion-badge>
+            <ion-checkbox class="ion-float-right" id="select_all"></ion-checkbox>
+            <ion-icon name="information-circle-outline" class="ion-float-right main_help_icon right5px"></ion-icon>
+          </ion-title>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-footer>
+        <ion-grid id="multiselect_actions" class="ion-no-padding">
+          <ion-row class="ion-text-center">
+            <ion-col class="ion-no-padding">
+              <ion-tab-button>
+                <ion-icon name="checkmark-sharp" color="success"></ion-icon>
+                <ion-label color="success">Like</ion-label>
+              </ion-tab-button>
+            </ion-col>
+            <ion-col class="ion-no-padding">
+              <ion-tab-button>
+                <ion-icon name="close-sharp" color="danger"></ion-icon>
+                <ion-label color="danger">Dislike</ion-label>
+              </ion-tab-button>
+            </ion-col>
+            <ion-col class="ion-no-padding">
+              <ion-tab-button>
+                <ion-icon name="remove-circle-outline" color="primary"></ion-icon>
+                <ion-label color="primary">Mark as Read</ion-label>
+              </ion-tab-button>
+            </ion-col>
+            <ion-col class="ion-no-padding">
+              <ion-tab-button>
+                <ion-icon name="bar-chart-sharp" color="primary"></ion-icon>
+                <ion-label color="primary">Train Selected</ion-label>
+              </ion-tab-button>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ion-footer>
+
+      <ion-content class="ion-padding">
+        <ion-list class="articles_list">
+          <ion-item class="article_item">
+            <ion-label>
+              <h2>OpenAI releases new safety insights</h2>
+              <p>Short description of the article goes here. This is placeholder text.</p>
+              <ion-note>openai.com · Today</ion-note>
+            </ion-label>
+            <ion-badge color="success" slot="end">8.7</ion-badge>
+          </ion-item>
+
+          <ion-item class="article_item">
+            <ion-label>
+              <h2>New model improvements announced</h2>
+              <p>Short description of the article goes here. This is placeholder text.</p>
+              <ion-note>openai.com · Yesterday</ion-note>
+            </ion-label>
+            <ion-badge color="warning" slot="end">6.2</ion-badge>
+          </ion-item>
+
+          <ion-item class="article_item">
+            <ion-label>
+              <h2>Research update: alignment techniques</h2>
+              <p>Short description of the article goes here. This is placeholder text.</p>
+              <ion-note>openai.com · Jan 28</ion-note>
+            </ion-label>
+            <ion-badge color="medium" slot="end">5.1</ion-badge>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </div>
+  </ion-split-pane>
+</ion-app>
+</body>
+</html>
