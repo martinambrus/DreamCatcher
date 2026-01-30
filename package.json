@@ -20,7 +20,7 @@
     "jquery": "^3.7.1",
     "jsdom": "^25.0.1",
     "kafkajs": "^2.2.4",
-    "luxon": "^3.3.0",
+    "luxon": "^3.4.4",
     "node-fetch": "^3.3.2",
     "prisma": "^6.1.0",
     "rss-parser": "github:martinambrus/rss-parser",
