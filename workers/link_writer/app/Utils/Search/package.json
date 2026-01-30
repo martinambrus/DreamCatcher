@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@prisma/client": "^5.2.0"
+  },
+  "type": "module"
+}

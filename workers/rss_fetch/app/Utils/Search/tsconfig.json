@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "outDir": ".",
+    "allowJs": true,
+    "target": "es2017",
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext"
+  },
+  "include": ["*.ts", "Interfaces/*.ts"],
+  "exclude": ["*.js", "*.json"]
+}

@@ -1,9 +1,13 @@
 {
   "dependencies": {
+    "@prisma/client": "^5.2.0",
     "@types/node": "^20.6.0",
     "@types/sanitize-html": "^2.9.0",
     "html-entities": "^2.4.0",
     "sanitize-html": "^2.11.0"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "prisma": "^5.2.0"
+  }
 }
