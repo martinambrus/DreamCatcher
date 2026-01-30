@@ -1,0 +1,53 @@
+name: Sync dreamcatcher_utils
+
+on:
+  repository_dispatch:
+    types: [sync-utils]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DreamCatcher
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout dreamcatcher_utils
+        uses: actions/checkout@v4
+        with:
+          repository: martinambrus/dreamcatcher_utils
+          path: /tmp/dreamcatcher_utils
+
+      - name: Sync Utils directories
+        run: |
+          set -euo pipefail
+          SRC=/tmp/dreamcatcher_utils
+          mapfile -t TARGETS < <(find workers -type d -path "*/app/Utils")
+          if [ ${#TARGETS[@]} -eq 0 ]; then
+            echo "No Utils directories found."
+            exit 0
+          fi
+          for dir in "${TARGETS[@]}"; do
+            echo "Syncing $dir"
+            rsync -a --delete \
+              --exclude '.idea' \
+              --exclude '.git' \
+              "$SRC/" "$dir/"
+          done
+
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add workers/*/app/Utils
+          git commit -m "Sync dreamcatcher_utils"
+          git push
