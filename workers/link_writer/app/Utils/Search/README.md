@@ -20,3 +20,5 @@ const search = new RagSearch({
 
 const results = await search.search('openai');
 ```
+
+> Note: If no embedder is provided, the search will fall back to sparse (tsvector) only.
