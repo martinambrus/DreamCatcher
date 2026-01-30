@@ -16,7 +16,7 @@
     "detect-file-encoding-and-language": "^2.4.0",
     "franc-min": "^6.2.0",
     "html-entities": "^2.6.0",
-    "ioredis": "^5.3.2",
+    "ioredis": "^5.4.1",
     "jquery": "^3.7.1",
     "jsdom": "^25.0.1",
     "kafkajs": "^2.2.4",
