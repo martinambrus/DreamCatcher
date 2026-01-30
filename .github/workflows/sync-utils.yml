@@ -37,6 +37,7 @@ jobs:
             rsync -a --delete \
               --exclude '.idea' \
               --exclude '.git' \
+              --exclude '.github' \
               "$SRC/" "$dir/"
           done
 
