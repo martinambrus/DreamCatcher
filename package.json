@@ -24,7 +24,7 @@
     "node-fetch": "^3.3.2",
     "prisma": "^7.3.0",
     "rss-parser": "github:martinambrus/rss-parser",
-    "sanitize-html": "^2.11.0",
+    "sanitize-html": "^2.17.0",
     "tree-sitter": "^0.21.1",
     "tree-sitter-html": "^0.20.4",
     "typescript": "^5.9.3"
