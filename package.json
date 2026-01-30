@@ -9,7 +9,7 @@
     "@opentelemetry/semantic-conventions": "^1.39.0",
     "@prisma/client": "^7.3.0",
     "@types/node": "^20.11.30",
-    "@types/node-fetch": "^2.6.4",
+    "@types/node-fetch": "^2.6.13",
     "@types/sanitize-html": "^2.9.0",
     "async": "^3.2.6",
     "cacheable-lookup": "^7.0.0",
