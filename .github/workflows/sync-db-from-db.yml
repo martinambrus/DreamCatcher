@@ -60,4 +60,5 @@ jobs:
             workers/err_log_writer/app/Database \
             workers/link_fix_detector/app/Database
           git commit -m "Sync Database from dreamcatcher-db"
+          git pull --rebase
           git push
